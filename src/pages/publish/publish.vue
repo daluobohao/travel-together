@@ -190,7 +190,7 @@ export default {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: calc(24rpx + env(safe-area-inset-top)) 32rpx 24rpx;
+    padding: calc(24rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 24rpx;
     background: #ffffff;
     border-bottom: 1rpx solid #eef2f7;
   }

@@ -119,8 +119,8 @@ export default {
     position: sticky;
     top: 0;
     z-index: 10;
-    height: calc(96rpx + env(safe-area-inset-top));
-    padding: env(safe-area-inset-top) 24rpx 0;
+    height: calc(96rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top));
+    padding: calc(var(--status-bar-height, 0px) + env(safe-area-inset-top)) 24rpx 0;
     background: #ffffff;
     border-bottom: 1rpx solid #e5e7eb;
     display: flex;

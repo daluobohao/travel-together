@@ -203,7 +203,7 @@ export default {
 
   &__hero {
     background: linear-gradient(180deg, #eef2ff 0%, #f3f4f6 100%);
-    padding: calc(40rpx + env(safe-area-inset-top)) 32rpx 32rpx;
+    padding: calc(40rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 32rpx;
   }
 
   &__user {

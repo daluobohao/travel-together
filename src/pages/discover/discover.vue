@@ -134,7 +134,7 @@ export default {
   background: #f3f4f6;
 
   &__header {
-    padding: calc(40rpx + env(safe-area-inset-top)) 32rpx 24rpx;
+    padding: calc(40rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 24rpx;
     background: #ffffff;
     display: flex;
     flex-direction: column;
