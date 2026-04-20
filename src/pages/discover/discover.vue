@@ -86,6 +86,13 @@ export default {
         boardgame: { emoji: '🎲', bg: '#fce7f3' },
         exhibit: { emoji: '🎨', bg: '#fee2e2' },
         night_run: { emoji: '🌙', bg: '#ede9fe' },
+        movie: { emoji: '🎬', bg: '#e0e7ff' },
+        badminton: { emoji: '🏸', bg: '#ccfbf1' },
+        food: { emoji: '🍜', bg: '#ffedd5' },
+        photography: { emoji: '📷', bg: '#e2e8f0' },
+        mountaineering: { emoji: '🧗', bg: '#dcfce7' },
+        cycling: { emoji: '🚴', bg: '#e0f2fe' },
+        camping: { emoji: '⛺️', bg: '#fef9c3' },
       }
       this.categories = (categoryData?.categories || []).map((c) => ({
         key: c.categoryId,

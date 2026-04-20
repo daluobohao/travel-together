@@ -471,6 +471,13 @@ const categoryColorMap = {
   boardgame: { color: '#f59e0b', bg: '#fffbeb', label: '桌游' },
   exhibit: { color: '#ef4444', bg: '#fef2f2', label: '展览' },
   night_run: { color: '#ef4444', bg: '#fef2f2', label: '夜跑' },
+  movie: { color: '#6366f1', bg: '#eef2ff', label: '电影' },
+  badminton: { color: '#0ea5a4', bg: '#ccfbf1', label: '羽毛球' },
+  food: { color: '#f97316', bg: '#ffedd5', label: '美食' },
+  photography: { color: '#4f46e5', bg: '#e0e7ff', label: '摄影' },
+  mountaineering: { color: '#16a34a', bg: '#dcfce7', label: '登山' },
+  cycling: { color: '#0284c7', bg: '#e0f2fe', label: '骑行' },
+  camping: { color: '#a16207', bg: '#fef9c3', label: '露营' },
 }
 
 function fmtTime(startAt) {

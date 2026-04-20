@@ -19,30 +19,30 @@
         />
       </view>
 
-      <view class="field">
+      <view class="field field--category">
         <text class="field__label">活动分类 <text class="field__req">*</text></text>
-        <view class="field__chips">
-          <view
-            v-for="c in categories"
-            :key="c"
-            class="field__chip"
-            :class="{ 'field__chip--active': form.category === c }"
-            @click="form.category = c"
-          >
-            <text>{{ c }}</text>
+        <picker mode="selector" :range="categories" :value="categoryIndex" @change="onCategoryChange">
+          <view class="field__select field__select--category">
+            <wm-icon name="hash" :size="32" color="#94a3b8" />
+            <text :class="['field__select-text', { 'field__placeholder': !form.category }]">
+              {{ form.category || '请选择活动分类' }}
+            </text>
+            <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
           </view>
-        </view>
+        </picker>
       </view>
 
       <view class="field">
         <text class="field__label">开始时间 <text class="field__req">*</text></text>
-        <view class="field__select">
-          <wm-icon name="calendar" :size="32" color="#94a3b8" />
-          <text :class="['field__select-text', { 'field__placeholder': !form.startTime }]">
-            {{ form.startTime || '选择日期和时间' }}
-          </text>
-          <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
-        </view>
+        <picker mode="date" :value="form.startTime" @change="onStartDateChange">
+          <view class="field__select">
+            <wm-icon name="calendar" :size="32" color="#94a3b8" />
+            <text :class="['field__select-text', { 'field__placeholder': !form.startTime }]">
+              {{ form.startTime || '选择日期' }}
+            </text>
+            <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
+          </view>
+        </picker>
       </view>
 
       <view class="field">
@@ -119,15 +119,32 @@ import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import { createActivity, getActivityCategories } from '@/api'
 
+const FALLBACK_CATEGORIES = [
+  { categoryId: 'hiking', name: '徒步' },
+  { categoryId: 'mountaineering', name: '登山' },
+  { categoryId: 'cycling', name: '骑行' },
+  { categoryId: 'camping', name: '露营' },
+  { categoryId: 'coffee', name: '咖啡' },
+  { categoryId: 'citywalk', name: 'Citywalk' },
+  { categoryId: 'boardgame', name: '桌游' },
+  { categoryId: 'movie', name: '电影' },
+]
+
 export default {
   components: { WmIcon, WmTabBar },
   data() {
+    const initialCategories = FALLBACK_CATEGORIES.map((x) => x.name)
+    const initialCategoryMap = FALLBACK_CATEGORIES.reduce((acc, item) => {
+      acc[item.name] = item.categoryId
+      return acc
+    }, {})
     return {
-      categories: [],
-      categoryMap: {},
+      categories: initialCategories,
+      categoryMap: initialCategoryMap,
+      categoryIndex: 0,
       form: {
         title: '',
-        category: '',
+        category: initialCategories[0] || '',
         startTime: '',
         location: '',
         capacity: '',
@@ -141,26 +158,49 @@ export default {
   },
   methods: {
     async loadCategories() {
-      const data = await getActivityCategories()
-      const list = data?.categories || []
+      let list = []
+      try {
+        const data = await getActivityCategories()
+        list = data?.categories || []
+      } catch (e) {
+        list = []
+      }
+      if (!list.length) list = FALLBACK_CATEGORIES
       this.categories = list.map((x) => x.name)
       this.categoryMap = list.reduce((acc, item) => {
         acc[item.name] = item.categoryId
         return acc
       }, {})
+      if (!this.form.category && this.categories.length) {
+        this.form.category = this.categories[0]
+        this.categoryIndex = 0
+      } else {
+        const idx = this.categories.findIndex((name) => name === this.form.category)
+        this.categoryIndex = idx >= 0 ? idx : 0
+      }
     },
     onCancel() {
       uni.reLaunch({ url: '/pages/home/home' })
     },
+    onStartDateChange(e) {
+      this.form.startTime = e?.detail?.value || ''
+    },
+    onCategoryChange(e) {
+      const idx = Number(e?.detail?.value)
+      if (Number.isNaN(idx) || idx < 0) return
+      this.categoryIndex = idx
+      this.form.category = this.categories[idx] || ''
+    },
     async onPublish() {
       if (!this.form.title.trim()) return uni.showToast({ title: '请填写活动标题', icon: 'none' })
       if (!this.form.category) return uni.showToast({ title: '请选择活动分类', icon: 'none' })
+      if (!this.form.startTime) return uni.showToast({ title: '请选择开始时间', icon: 'none' })
       if (!this.form.location.trim()) return uni.showToast({ title: '请填写活动地点', icon: 'none' })
       await createActivity({
         title: this.form.title.trim(),
         description: (this.form.description || '').trim() || '暂无说明',
         categoryId: this.categoryMap[this.form.category] || 'coffee',
-        startAt: new Date().toISOString(),
+        startAt: new Date(`${this.form.startTime}T00:00:00`).toISOString(),
         cityCode: '110000',
         locationName: this.form.location.trim(),
         lat: 39.9,
@@ -265,6 +305,10 @@ export default {
   gap: 16rpx;
   box-shadow: 0 2rpx 10rpx rgba(15, 23, 42, 0.03);
 
+  &--category {
+    padding-right: 28px;
+  }
+
   &__label {
     font-size: 26rpx;
     color: #475569;
@@ -311,6 +355,10 @@ export default {
     flex: 1;
     font-size: 28rpx;
     color: #0f172a;
+  }
+
+  &__select--category .field__select-text {
+    margin-right: 24px;
   }
 
   &__inline-input {

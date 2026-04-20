@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://8.217.79.34:8001/api/v1/wm'
+export const API_BASE_URL = 'https://wang-hao-hao.cn/api/v1/wm'
 export const MOCK_SWITCH_KEY = 'wm_use_mock'
 export const ACCESS_TOKEN_KEY = 'wm_access_token'
 

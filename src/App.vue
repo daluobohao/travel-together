@@ -3,7 +3,7 @@ import { setMockEnabled } from '@/api'
 
 export default {
   onLaunch() {
-    setMockEnabled(true)
+    setMockEnabled(false)
     console.log('WanderMeet App Launch')
   },
   onShow() {},

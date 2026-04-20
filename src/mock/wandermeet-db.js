@@ -21,6 +21,13 @@ export const wmDB = {
     { categoryId: 'boardgame', name: '桌游', icon: null },
     { categoryId: 'exhibit', name: '展览', icon: null },
     { categoryId: 'night_run', name: '夜跑', icon: null },
+    { categoryId: 'movie', name: '电影', icon: null },
+    { categoryId: 'badminton', name: '羽毛球', icon: null },
+    { categoryId: 'food', name: '美食', icon: null },
+    { categoryId: 'photography', name: '摄影', icon: null },
+    { categoryId: 'mountaineering', name: '登山', icon: null },
+    { categoryId: 'cycling', name: '骑行', icon: null },
+    { categoryId: 'camping', name: '露营', icon: null },
   ],
   activities: [
     {
