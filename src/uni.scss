@@ -1,0 +1,64 @@
+/**
+ * 旅聚 WanderMeet 设计 Token
+ * Primary: #6366F1 · Radius: 12px · Spacing base: 4px · Font base: 16px
+ */
+
+/* 品牌色 */
+$wm-primary: #6366f1;
+$wm-primary-soft: #eef2ff;
+$wm-primary-deep: #4f46e5;
+$wm-success: #10b981;
+$wm-warning: #f59e0b;
+$wm-danger: #ef4444;
+
+/* 文本 */
+$wm-text-1: #0f172a; // 主要
+$wm-text-2: #475569; // 次要
+$wm-text-3: #94a3b8; // 辅助
+$wm-text-inv: #ffffff;
+
+/* 背景 */
+$wm-bg: #f3f4f6;
+$wm-surface: #ffffff;
+$wm-surface-soft: #f8fafc;
+$wm-divider: #e5e7eb;
+$wm-border: #e2e8f0;
+
+/* 圆角 */
+$wm-radius-sm: 8rpx;
+$wm-radius-md: 16rpx;
+$wm-radius-lg: 24rpx; // 12px * 2
+$wm-radius-xl: 32rpx;
+$wm-radius-pill: 999rpx;
+
+/* 间距 (4px base) */
+$wm-space-1: 8rpx;
+$wm-space-2: 16rpx;
+$wm-space-3: 24rpx;
+$wm-space-4: 32rpx;
+$wm-space-5: 40rpx;
+$wm-space-6: 48rpx;
+
+/* 字号 */
+$wm-fs-xs: 20rpx;
+$wm-fs-sm: 24rpx;
+$wm-fs-md: 28rpx;
+$wm-fs-lg: 32rpx;
+$wm-fs-xl: 36rpx;
+$wm-fs-2xl: 44rpx;
+
+/* 阴影 */
+$wm-shadow-sm: 0 2rpx 8rpx rgba(15, 23, 42, 0.04);
+$wm-shadow-md: 0 8rpx 24rpx rgba(15, 23, 42, 0.06);
+$wm-shadow-lg: 0 12rpx 40rpx rgba(99, 102, 241, 0.24);
+
+/* 兼容 uni 默认变量 */
+$uni-color-primary: $wm-primary;
+$uni-color-success: $wm-success;
+$uni-color-warning: $wm-warning;
+$uni-color-error: $wm-danger;
+$uni-text-color: $wm-text-1;
+$uni-text-color-grey: $wm-text-3;
+$uni-bg-color: $wm-surface;
+$uni-bg-color-grey: $wm-bg;
+$uni-border-color: $wm-border;

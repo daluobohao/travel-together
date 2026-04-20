@@ -1,0 +1,289 @@
+<template>
+  <view class="page discover">
+    <!-- Header -->
+    <view class="discover__header">
+      <text class="discover__title">发现</text>
+      <text class="discover__subtitle">找到你感兴趣的活动</text>
+    </view>
+
+    <!-- Categories -->
+    <view class="section">
+      <text class="section__title">活动分类</text>
+      <view class="categories">
+        <view v-for="c in categories" :key="c.key" class="category-card" @click="onCategory(c)">
+          <view class="category-card__icon" :style="{ background: c.bg }">
+            <text class="category-card__emoji">{{ c.emoji }}</text>
+          </view>
+          <text class="category-card__label">{{ c.label }}</text>
+          <text class="category-card__count">{{ c.count }} 场活动</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Featured activities -->
+    <view class="section">
+      <view class="section__head">
+        <text class="section__title">精选活动</text>
+        <text class="section__more" @click="onViewAll">查看全部</text>
+      </view>
+      <view class="featured">
+        <view
+          v-for="f in featured"
+          :key="f.id"
+          class="featured-card"
+          :style="{ background: f.gradient }"
+          @click="onFeatured(f)"
+        >
+          <view class="featured-card__inner">
+            <view class="featured-card__tag">
+              <text>{{ f.tag }}</text>
+            </view>
+            <text class="featured-card__title">{{ f.title }}</text>
+            <view class="featured-card__meta">
+              <text>{{ f.date }}</text>
+              <text class="featured-card__dot">·</text>
+              <text>{{ f.enrolled }}人已报名</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <wm-tab-bar active="discover" />
+  </view>
+</template>
+
+<script>
+import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
+import { getActivities, getActivityCategories, mapActivityCard } from '@/api'
+
+export default {
+  components: { WmTabBar },
+  data() {
+    return {
+      categories: [],
+      featured: [],
+    }
+  },
+  onShow() {
+    this.loadData()
+  },
+  methods: {
+    async loadData() {
+      const [categoryData, activityData] = await Promise.all([
+        getActivityCategories(),
+        getActivities({ cityCode: '110000', page: 1, pageSize: 50 }),
+      ])
+      const allCards = (activityData?.list || []).map(mapActivityCard)
+      const countMap = allCards.reduce((acc, item) => {
+        acc[item.categoryId] = (acc[item.categoryId] || 0) + 1
+        return acc
+      }, {})
+      const iconMap = {
+        coffee: { emoji: '☕️', bg: '#fef3c7' },
+        citywalk: { emoji: '🧭', bg: '#e0e7ff' },
+        hiking: { emoji: '🏔', bg: '#d1fae5' },
+        boardgame: { emoji: '🎲', bg: '#fce7f3' },
+        exhibit: { emoji: '🎨', bg: '#fee2e2' },
+        night_run: { emoji: '🌙', bg: '#ede9fe' },
+      }
+      this.categories = (categoryData?.categories || []).map((c) => ({
+        key: c.categoryId,
+        label: c.name,
+        count: countMap[c.categoryId] || 0,
+        ...(iconMap[c.categoryId] || { emoji: '✨', bg: '#e2e8f0' }),
+      }))
+
+      const gradients = [
+        'linear-gradient(135deg, #34d399 0%, #059669 100%)',
+        'linear-gradient(135deg, #a78bfa 0%, #ec4899 100%)',
+        'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)',
+      ]
+      this.featured = allCards.slice(0, 3).map((a, idx) => ({
+        id: idx + 1,
+        activityId: Number(a.activityId),
+        tag: a.category,
+        title: a.title,
+        date: a.time,
+        enrolled: a.joined,
+        gradient: gradients[idx % gradients.length],
+      }))
+    },
+    onCategory(c) {
+      uni.navigateTo({
+        url: `/pages/category-list/category-list?key=${c.key}&label=${encodeURIComponent(c.label)}`,
+      })
+    },
+    onFeatured(f) {
+      uni.navigateTo({
+        url: `/pages/activity-detail/activity-detail?id=${f.activityId || f.id}`,
+      })
+    },
+    onViewAll() {
+      uni.navigateTo({
+        url: '/pages/activity-list/activity-list',
+      })
+    },
+  },
+}
+</script>
+
+<style lang="scss" scoped>
+.discover {
+  min-height: 100vh;
+  background: #f3f4f6;
+
+  &__header {
+    padding: calc(40rpx + env(safe-area-inset-top)) 32rpx 24rpx;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 10rpx;
+  }
+
+  &__title {
+    font-size: 52rpx;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.1;
+  }
+
+  &__subtitle {
+    font-size: 24rpx;
+    color: #94a3b8;
+  }
+}
+
+.section {
+  padding: 32rpx 32rpx 0;
+
+  &__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  &__title {
+    display: block;
+    font-size: 32rpx;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 24rpx;
+  }
+
+  &__more {
+    font-size: 24rpx;
+    color: #6366f1;
+    font-weight: 500;
+  }
+}
+
+.categories {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20rpx;
+}
+
+.category-card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 28rpx 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+  transition: transform 0.15s;
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  &__icon {
+    width: 88rpx;
+    height: 88rpx;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 -4rpx 8rpx rgba(0, 0, 0, 0.04);
+  }
+
+  &__emoji {
+    font-size: 44rpx;
+    line-height: 1;
+  }
+
+  &__label {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: #0f172a;
+    margin-top: 4rpx;
+  }
+
+  &__count {
+    font-size: 20rpx;
+    color: #94a3b8;
+  }
+}
+
+.featured {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  padding-bottom: 32rpx;
+}
+
+.featured-card {
+  border-radius: 28rpx;
+  overflow: hidden;
+  box-shadow: 0 12rpx 32rpx rgba(15, 23, 42, 0.12);
+  min-height: 240rpx;
+  display: flex;
+  align-items: flex-end;
+  transition: transform 0.15s;
+
+  &:active {
+    transform: scale(0.985);
+  }
+
+  &__inner {
+    padding: 32rpx 32rpx 32rpx;
+    width: 100%;
+    background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.18) 100%);
+    color: #ffffff;
+  }
+
+  &__tag {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.24);
+    border: 1rpx solid rgba(255, 255, 255, 0.4);
+    color: #ffffff;
+    font-size: 20rpx;
+    padding: 4rpx 16rpx;
+    border-radius: 999rpx;
+    margin-bottom: 12rpx;
+  }
+
+  &__title {
+    display: block;
+    font-size: 40rpx;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.2;
+  }
+
+  &__meta {
+    margin-top: 12rpx;
+    display: flex;
+    gap: 8rpx;
+    font-size: 22rpx;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  &__dot {
+    opacity: 0.6;
+  }
+}
+</style>

@@ -1,0 +1,115 @@
+{
+	"pages": [
+		{
+			"path": "pages/home/home",
+			"style": {
+				"navigationBarTitleText": "旅聚",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/activity-detail/activity-detail",
+			"style": {
+				"navigationBarTitleText": "活动详情",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/category-list/category-list",
+			"style": {
+				"navigationBarTitleText": "分类活动",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/activity-list/activity-list",
+			"style": {
+				"navigationBarTitleText": "全部活动",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/chat-detail/chat-detail",
+			"style": {
+				"navigationBarTitleText": "对话详情",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/hosted-activity-list/hosted-activity-list",
+			"style": {
+				"navigationBarTitleText": "发起活动列表",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/review-list/review-list",
+			"style": {
+				"navigationBarTitleText": "好评列表",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/my-activity-list/my-activity-list",
+			"style": {
+				"navigationBarTitleText": "我的活动列表",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/history-activity-list/history-activity-list",
+			"style": {
+				"navigationBarTitleText": "历史活动列表",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/community-rules/community-rules",
+			"style": {
+				"navigationBarTitleText": "社区规范说明",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/profile-edit/profile-edit",
+			"style": {
+				"navigationBarTitleText": "编辑个人信息",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/discover/discover",
+			"style": {
+				"navigationBarTitleText": "发现",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/publish/publish",
+			"style": {
+				"navigationBarTitleText": "发布活动",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/messages/messages",
+			"style": {
+				"navigationBarTitleText": "消息",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/profile/profile",
+			"style": {
+				"navigationBarTitleText": "我的",
+				"navigationStyle": "custom"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "旅聚",
+		"navigationBarBackgroundColor": "#FFFFFF",
+		"backgroundColor": "#F3F4F6"
+	}
+}
