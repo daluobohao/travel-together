@@ -513,19 +513,13 @@ export function mapActivityCard(card) {
 }
 
 export const getCommunityRules = () =>
-  wmRequest({
-    method: 'GET',
-    path: '/meta/community-rules',
-    needAuth: false,
-    mockHandler: () =>
-      ok([
-        { title: '信息真实', desc: '发布活动时请确保时间、地点、人数与费用信息真实准确。' },
-        { title: '友善沟通', desc: '群聊与线下交流中请保持礼貌，禁止骚扰与人身攻击。' },
-        { title: '安全优先', desc: '组织者需优先考虑活动安全，参与者量力而行。' },
-        { title: '拒绝商业骚扰', desc: '未经允许不得在活动中广告营销、拉群引流。' },
-        { title: '尊重隐私', desc: '未经同意，不得公开他人联系方式、照片或聊天记录。' },
-      ]),
-  })
+  Promise.resolve([
+    { title: '信息真实', desc: '发布活动时请确保时间、地点、人数与费用信息真实准确。' },
+    { title: '友善沟通', desc: '群聊与线下交流中请保持礼貌，禁止骚扰与人身攻击。' },
+    { title: '安全优先', desc: '组织者需优先考虑活动安全，参与者量力而行。' },
+    { title: '拒绝商业骚扰', desc: '未经允许不得在活动中广告营销、拉群引流。' },
+    { title: '尊重隐私', desc: '未经同意，不得公开他人联系方式、照片或聊天记录。' },
+  ])
 
 export const getReviewList = (query = {}) =>
   wmRequest({
