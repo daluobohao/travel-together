@@ -19,12 +19,15 @@
 
     <!-- Group chats -->
     <view v-if="activeTab === 'group'" class="messages__list">
+      <view v-if="!groupChats.length" class="messages__empty">
+        <text>还没有活动群聊，报名一个活动就能进群</text>
+      </view>
       <view
         v-for="chat in groupChats"
         :key="chat.id"
         class="chat"
         hover-class="chat--hover"
-        @click="onOpenChat(chat)"
+        @click="onOpenGroup(chat)"
       >
         <view class="chat__avatar" :style="{ background: chat.color }">
           <wm-icon name="message" :size="40" color="#ffffff" />
@@ -48,7 +51,21 @@
 
     <!-- System -->
     <view v-if="activeTab === 'system'" class="messages__list">
-      <view v-for="item in systemNotifs" :key="item.id" class="system">
+      <view v-if="!systemNotifs.length" class="messages__empty">
+        <text>暂无系统通知</text>
+      </view>
+      <view v-if="hasUnreadNotif" class="messages__actions">
+        <view class="messages__read-all" @click="onReadAll">
+          <text>全部标记已读</text>
+        </view>
+      </view>
+      <view
+        v-for="item in systemNotifs"
+        :key="item.id"
+        class="system"
+        :class="{ 'system--unread': !item.read }"
+        @click="onReadNotif(item)"
+      >
         <view class="system__icon" :style="{ background: item.bg, color: item.color }">
           <wm-icon :name="item.icon" :size="36" :color="item.color" />
         </view>
@@ -59,14 +76,26 @@
           </view>
           <text class="system__desc">{{ item.desc }}</text>
         </view>
+        <view v-if="!item.read" class="system__dot" />
       </view>
     </view>
 
     <!-- Bottom: always show system section in group tab as preview -->
     <view v-if="activeTab === 'group'" class="messages__section">
-      <text class="messages__section-title">系统通知</text>
+      <view class="messages__section-head">
+        <text class="messages__section-title">系统通知</text>
+        <text v-if="systemNotifs.length" class="messages__section-more" @click="activeTab = 'system'">
+          查看全部
+        </text>
+      </view>
       <view class="messages__list messages__list--tight">
-        <view v-for="item in systemNotifs" :key="item.id" class="system system--compact">
+        <view
+          v-for="item in systemNotifs.slice(0, 3)"
+          :key="item.id"
+          class="system system--compact"
+          :class="{ 'system--unread': !item.read }"
+          @click="onReadNotif(item)"
+        >
           <view class="system__icon" :style="{ background: item.bg, color: item.color }">
             <wm-icon :name="item.icon" :size="32" :color="item.color" />
           </view>
@@ -77,6 +106,7 @@
             </view>
             <text class="system__desc">{{ item.desc }}</text>
           </view>
+          <view v-if="!item.read" class="system__dot" />
         </view>
       </view>
     </view>
@@ -88,7 +118,45 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
-import { getConversationList, getNotifications } from '@/api'
+import {
+  getConversationList,
+  getNotifications,
+  readAllNotifications,
+  readNotification,
+} from '@/api'
+
+function relativeTime(iso) {
+  if (!iso) return ''
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return ''
+  const diff = Date.now() - t
+  if (diff < 60 * 1000) return '刚刚'
+  if (diff < 3600 * 1000) return `${Math.floor(diff / 60000)}分钟前`
+  if (diff < 24 * 3600 * 1000) return `${Math.floor(diff / 3600000)}小时前`
+  return `${Math.floor(diff / (24 * 3600 * 1000))}天前`
+}
+
+const NOTIF_ICON_MAP = {
+  enrollment_ok: { icon: 'check', bg: '#ecfdf5', color: '#10b981' },
+  activity_full: { icon: 'users', bg: '#fff7ed', color: '#f97316' },
+  activity_changed: { icon: 'bell', bg: '#eef2ff', color: '#6366f1' },
+  activity_cancelled: { icon: 'bell', bg: '#fef2f2', color: '#ef4444' },
+  default: { icon: 'bell', bg: '#eef2ff', color: '#6366f1' },
+}
+
+function mapNotif(x) {
+  const style = NOTIF_ICON_MAP[x.type] || NOTIF_ICON_MAP.default
+  return {
+    id: x.notificationId,
+    icon: style.icon,
+    bg: style.bg,
+    color: style.color,
+    title: x.title,
+    desc: x.body,
+    time: relativeTime(x.createdAt) || '最近',
+    read: !!x.readAt,
+  }
+}
 
 export default {
   components: { WmIcon, WmTabBar },
@@ -103,27 +171,58 @@ export default {
       systemNotifs: [],
     }
   },
+  computed: {
+    hasUnreadNotif() {
+      return this.systemNotifs.some((x) => !x.read)
+    },
+  },
   onShow() {
     this.loadMessages()
   },
   methods: {
     async loadMessages() {
-      const [convData, notifData] = await Promise.all([getConversationList(), getNotifications({ page: 1, pageSize: 20 })])
-      this.groupChats = convData?.list || []
-      this.systemNotifs = (notifData?.list || []).map((x) => ({
-        id: x.notificationId,
-        icon: x.type === 'enrollment_ok' ? 'check' : 'bell',
-        bg: x.type === 'enrollment_ok' ? '#ecfdf5' : '#eef2ff',
-        color: x.type === 'enrollment_ok' ? '#10b981' : '#6366f1',
-        title: x.title,
-        desc: x.body,
-        time: '最近',
-      }))
+      try {
+        const [convData, notifData] = await Promise.all([
+          getConversationList(),
+          getNotifications({ page: 1, pageSize: 20 }),
+        ])
+        this.groupChats = convData?.list || []
+        this.systemNotifs = (notifData?.list || []).map(mapNotif)
+      } catch (e) {
+        this.groupChats = []
+        this.systemNotifs = []
+        uni.showToast({ title: e?.message || '消息加载失败', icon: 'none' })
+      }
     },
-    onOpenChat(chat) {
+    onOpenGroup(chat) {
       uni.navigateTo({
         url: `/pages/chat-detail/chat-detail?id=${chat.id}`,
       })
+    },
+    async onReadNotif(item) {
+      if (!item || item.read) return
+      item.read = true
+      try {
+        await readNotification(item.id)
+      } catch (e) {
+        item.read = false
+        uni.showToast({ title: e?.message || '标记已读失败', icon: 'none' })
+      }
+    },
+    async onReadAll() {
+      if (!this.hasUnreadNotif) return
+      const snapshot = this.systemNotifs.map((x) => x.read)
+      this.systemNotifs.forEach((x) => {
+        x.read = true
+      })
+      try {
+        await readAllNotifications()
+      } catch (e) {
+        this.systemNotifs.forEach((x, i) => {
+          x.read = snapshot[i]
+        })
+        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      }
     },
   },
 }
@@ -175,6 +274,41 @@ export default {
     color: #0f172a;
     margin-bottom: 4rpx;
   }
+
+  &__empty {
+    padding: 60rpx 32rpx;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 24rpx;
+  }
+
+  &__actions {
+    padding: 0 32rpx 8rpx;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  &__read-all {
+    padding: 8rpx 20rpx;
+    border-radius: 999rpx;
+    background: #eef2ff;
+    color: #6366f1;
+    font-size: 22rpx;
+    font-weight: 600;
+  }
+
+  &__section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4rpx;
+  }
+
+  &__section-more {
+    font-size: 22rpx;
+    color: #6366f1;
+    font-weight: 500;
+  }
 }
 
 .tab {
@@ -225,6 +359,13 @@ export default {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+
+    &--dm {
+      background: linear-gradient(135deg, #a78bfa, #6366f1);
+      color: #ffffff;
+      font-size: 32rpx;
+      font-weight: 700;
+    }
   }
 
   &__body {
@@ -292,6 +433,7 @@ export default {
 }
 
 .system {
+  position: relative;
   background: #ffffff;
   border-radius: 24rpx;
   padding: 24rpx;
@@ -302,6 +444,21 @@ export default {
 
   &--compact {
     padding: 20rpx;
+  }
+
+  &--unread {
+    background: #f5f3ff;
+    box-shadow: 0 2rpx 10rpx rgba(99, 102, 241, 0.08);
+  }
+
+  &__dot {
+    position: absolute;
+    top: 20rpx;
+    right: 20rpx;
+    width: 14rpx;
+    height: 14rpx;
+    border-radius: 50%;
+    background: #ef4444;
   }
 
   &__icon {

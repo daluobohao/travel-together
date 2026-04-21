@@ -23,8 +23,17 @@
           @click="openActivity(item)"
         >
           <view class="card__top">
-            <view class="tag" :style="{ color: item.tagColor, background: item.tagBg }">
-              <text>{{ item.category }}</text>
+            <view class="tag-row">
+              <view class="tag" :style="{ color: item.tagColor, background: item.tagBg }">
+                <text>{{ item.category }}</text>
+              </view>
+              <view
+                v-if="item.statusKey !== 'open'"
+                class="tag"
+                :style="{ background: item.statusBg, color: item.statusColor }"
+              >
+                <text>{{ item.statusLabel }}</text>
+              </view>
             </view>
             <wm-icon name="chevronRight" :size="30" color="#cbd5e1" />
           </view>
@@ -190,6 +199,13 @@ export default {
   border-radius: 10rpx;
   font-size: 20rpx;
   font-weight: 600;
+}
+
+.tag-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  flex-wrap: wrap;
 }
 
 .meta-row {

@@ -48,8 +48,20 @@ export async function wmRequest({
     header: headers,
   })
 
-  const [error, response] = res
+  let error = null
+  let response = null
+
+  if (Array.isArray(res)) {
+    ;[error, response] = res
+  } else {
+    response = res
+  }
+
   if (error) throw error
+  if (!response) throw new Error('请求失败：无响应数据')
+  if (typeof response.statusCode === 'number' && (response.statusCode < 200 || response.statusCode >= 300)) {
+    throw new Error(`请求失败：HTTP ${response.statusCode}`)
+  }
   return unwrap(response.data)
 }
 

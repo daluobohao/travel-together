@@ -145,7 +145,15 @@ export const getActivityDetail = (activityId, query = {}) =>
     method: 'GET',
     path: `/activities/${activityId}`,
     query,
-    mockHandler: () => ok(wmDB.activities.find((x) => x.activityId === String(activityId)) || null),
+    mockHandler: () => {
+      const row = wmDB.activities.find((x) => x.activityId === String(activityId)) || null
+      if (!row) return ok(null)
+      const organizerId = row.organizer?.userId
+      const organizerHostedCount = organizerId
+        ? wmDB.activities.filter((x) => x.organizer?.userId === organizerId).length
+        : 0
+      return ok({ ...row, organizerHostedCount })
+    },
   })
 
 // 12
@@ -210,20 +218,80 @@ export const cancelActivity = (activityId, payload) =>
     },
   })
 
+function pushGroupSystemMessage(activityId, text) {
+  const row = {
+    messageId: `msg_sys_${Date.now()}`,
+    activityId: String(activityId),
+    sender: { userId: 'system', nickname: '系统通知', avatarUrl: null },
+    msgType: 'text',
+    text,
+    imageUrl: null,
+    createdAt: new Date().toISOString(),
+  }
+  if (!wmDB.chats[String(activityId)]) wmDB.chats[String(activityId)] = []
+  wmDB.chats[String(activityId)].push(row)
+}
+
+function pushActivityFullNotification(activity) {
+  wmDB.notifications.unshift({
+    notificationId: `ntf_full_${Date.now()}`,
+    type: 'activity_full',
+    title: '活动已成行',
+    body: `你参与的「${activity.title}」已满员（${activity.enrolledCount}/${activity.maxMembers}），活动成行！`,
+    payload: { activityId: activity.activityId, enrolledCount: activity.enrolledCount, maxMembers: activity.maxMembers },
+    readAt: null,
+    createdAt: new Date().toISOString(),
+  })
+}
+
 // 15 / 16
 export const enrollActivity = (activityId) =>
   wmRequest({
     method: 'POST',
     path: `/activities/${activityId}/enrollments`,
     data: {},
-    mockHandler: () => ok({ enrollmentId: `enr_${Date.now()}`, status: 'joined' }),
+    mockHandler: () => {
+      const row = wmDB.activities.find((x) => x.activityId === String(activityId))
+      if (row) {
+        const current = Number(row.enrolledCount || 0)
+        const max = Number(row.maxMembers || 0)
+        if (current >= max) {
+          return { code: 4001, message: '活动已满员', data: null }
+        }
+        row.enrolledCount = current + 1
+        row.myEnrollment = { status: 'joined', enrolledAt: new Date().toISOString() }
+        if (row.enrolledCount >= max) {
+          // 满员后触发一次群系统消息 + 成行通知
+          if (!row.fullNotifiedAt) {
+            row.fullNotifiedAt = new Date().toISOString()
+            pushGroupSystemMessage(
+              row.activityId,
+              `活动人数已满（${row.enrolledCount}/${row.maxMembers}），本次活动成行，请留意集合时间与地点。`
+            )
+            pushActivityFullNotification(row)
+          }
+        }
+      }
+      return ok({ enrollmentId: `enr_${Date.now()}`, status: 'joined' })
+    },
   })
 
 export const cancelEnrollment = (activityId) =>
   wmRequest({
     method: 'DELETE',
     path: `/activities/${activityId}/enrollments/me`,
-    mockHandler: () => ok({ status: 'cancelled' }),
+    mockHandler: () => {
+      const row = wmDB.activities.find((x) => x.activityId === String(activityId))
+      if (row) {
+        row.enrolledCount = Math.max(0, Number(row.enrolledCount || 0) - 1)
+        row.myEnrollment = null
+        // 若有人取消导致不再满员，允许下次再次触发“成行通知”
+        if (Number(row.enrolledCount || 0) < Number(row.maxMembers || 0)) {
+          row.fullNotifiedAt = null
+        }
+      }
+      return ok({ status: 'cancelled' })
+    },
   })
 
 // 17
@@ -248,15 +316,26 @@ export const getActivityMembers = (activityId) =>
   })
 
 // 18 / 19
+// query: { limit?: number, since?: ISOString (增量拉取), cursor?: string }
 export const getActivityMessages = (activityId, query = {}) =>
   wmRequest({
     method: 'GET',
     path: `/activities/${activityId}/messages`,
     query,
     mockHandler: ({ query: q }) => {
-      const list = wmDB.chats[String(activityId)] || []
-      const limit = Math.min(50, Math.max(1, Number(q.limit) || 20))
-      return ok({ list: list.slice(-limit), nextCursor: list.length ? list[0].messageId : null })
+      let list = wmDB.chats[String(activityId)] || []
+      if (q.since) {
+        const sinceTs = new Date(q.since).getTime()
+        if (!Number.isNaN(sinceTs)) {
+          list = list.filter((m) => new Date(m.createdAt).getTime() > sinceTs)
+        }
+      }
+      const limit = Math.min(100, Math.max(1, Number(q.limit) || 50))
+      const sliced = list.slice(-limit)
+      return ok({
+        list: sliced,
+        nextCursor: sliced.length ? sliced[0].messageId : null,
+      })
     },
   })
 
@@ -493,11 +572,55 @@ function metersToKm(meters) {
   return `${(Number(meters) / 1000).toFixed(1)}km`
 }
 
+const STATUS_LABEL_MAP = {
+  pending_review: { key: 'pending', label: '审核中', color: '#0ea5e9', bg: '#e0f2fe' },
+  published: { key: 'open', label: '报名中', color: '#10b981', bg: '#ecfdf5' },
+  full: { key: 'full', label: '已满员', color: '#f97316', bg: '#ffedd5' },
+  ended: { key: 'ended', label: '已结束', color: '#64748b', bg: '#f1f5f9' },
+  cancelled: { key: 'cancelled', label: '已取消', color: '#ef4444', bg: '#fef2f2' },
+  rejected: { key: 'rejected', label: '未通过', color: '#ef4444', bg: '#fef2f2' },
+}
+
+export function computeActivityStatus(raw) {
+  const activityStatus = raw?.activityStatus || 'published'
+  const enrolled = Number(raw?.enrolledCount || 0)
+  const max = Number(raw?.maxMembers || 0)
+  const endAt = raw?.endAt ? new Date(raw.endAt).getTime() : 0
+  const now = Date.now()
+  // 仅在“后端明确 ended”或“提供了 endAt 且已过期”时判定结束，避免误伤未来活动
+  const timeEnded = endAt && now > endAt
+  let statusKey = activityStatus
+  if (activityStatus === 'cancelled' || activityStatus === 'rejected' || activityStatus === 'pending_review') {
+    statusKey = activityStatus
+  } else if (activityStatus === 'ended' || timeEnded) {
+    statusKey = 'ended'
+  } else if (max > 0 && enrolled >= max) {
+    statusKey = 'full'
+  } else {
+    statusKey = 'published'
+  }
+  const tag = STATUS_LABEL_MAP[statusKey] || STATUS_LABEL_MAP.published
+  const canJoin = statusKey === 'published'
+  return {
+    statusKey: tag.key,
+    statusLabel: tag.label,
+    statusColor: tag.color,
+    statusBg: tag.bg,
+    isFull: statusKey === 'full',
+    isEnded: statusKey === 'ended',
+    isCancelled: statusKey === 'cancelled',
+    canJoin,
+  }
+}
+
 export function mapActivityCard(card) {
   const tag = categoryColorMap[card.categoryId] || { color: '#64748b', bg: '#f1f5f9', label: card.categoryId }
+  const safeActivityId =
+    typeof card.activityId === 'undefined' || card.activityId === null ? '' : String(card.activityId)
+  const status = computeActivityStatus(card)
   return {
-    id: Number(card.activityId),
-    activityId: String(card.activityId),
+    id: safeActivityId,
+    activityId: safeActivityId,
     category: tag.label,
     tagColor: tag.color,
     tagBg: tag.bg,
@@ -505,10 +628,13 @@ export function mapActivityCard(card) {
     time: fmtTime(card.startAt),
     location: card.locationName,
     distance: metersToKm(card.distanceMeters),
-    joined: card.enrolledCount,
-    total: card.maxMembers,
+    joined: Number(card.enrolledCount || 0),
+    total: Number(card.maxMembers || 0),
     organizer: card.organizer?.nickname || '组织者',
+    organizerId: card.organizer?.userId || '',
     categoryId: card.categoryId,
+    enrollmentStatus: card.enrollmentStatus || card.myEnrollment?.status || null,
+    ...status,
   }
 }
 
@@ -529,24 +655,26 @@ export const getReviewList = (query = {}) =>
     mockHandler: ({ query: q }) => ok(paginate(wmDB.reviews, q.page, q.pageSize)),
   })
 
-export const getConversationList = () =>
+export const getConversationList = (query = {}) =>
   wmRequest({
     method: 'GET',
-    path: '/me/conversations',
-    mockHandler: () => {
-      const list = wmDB.activities.slice(0, 3).map((activity, idx) => {
-        const msgs = wmDB.chats[activity.activityId] || []
-        const last = msgs[msgs.length - 1]
-        return {
-          id: Number(activity.activityId),
-          name: activity.title,
-          sender: last?.sender?.nickname || activity.organizer.nickname,
-          preview: last?.text || '欢迎来到活动群',
-          time: idx === 0 ? '5分钟前' : idx === 1 ? '1小时前' : '3小时前',
-          unread: idx === 0 ? 2 : idx === 2 ? 1 : 0,
-          color: idx === 0 ? 'linear-gradient(135deg, #fbbf24, #f97316)' : idx === 1 ? 'linear-gradient(135deg, #60a5fa, #6366f1)' : 'linear-gradient(135deg, #f87171, #ec4899)',
-        }
-      })
-      return ok({ list })
-    },
+    path: '/notifications',
+    query: { page: query.page || 1, pageSize: query.pageSize || 20 },
+    mockHandler: ({ query: q }) => ok(paginate(wmDB.notifications, q.page, q.pageSize)),
+  }).then((data) => {
+    const colors = [
+      'linear-gradient(135deg, #fbbf24, #f97316)',
+      'linear-gradient(135deg, #60a5fa, #6366f1)',
+      'linear-gradient(135deg, #f87171, #ec4899)',
+    ]
+    const list = (data?.list || []).map((item, idx) => ({
+      id: String(item.notificationId || idx + 1),
+      name: item.title || '系统通知',
+      sender: '系统',
+      preview: item.body || '暂无消息',
+      time: '最近',
+      unread: item.readAt ? 0 : 1,
+      color: colors[idx % colors.length],
+    }))
+    return { list }
   })

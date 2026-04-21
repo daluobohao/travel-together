@@ -25,8 +25,7 @@
           :key="s.label"
           class="stat"
           :class="{
-            'stat--clickable':
-              s.label === '参加活动' || s.label === '发起活动' || s.label === '活动好评',
+            'stat--clickable': s.label === '参加活动' || s.label === '发起活动',
           }"
           @click="onStatClick(s)"
         >
@@ -87,7 +86,7 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
-import { getMe, getMyActivities, getReviewList, mapActivityCard } from '@/api'
+import { getMe, getMyActivities, mapActivityCard } from '@/api'
 
 export default {
   components: { WmIcon, WmTabBar },
@@ -100,7 +99,6 @@ export default {
       stats: [
         { value: 12, label: '参加活动' },
         { value: 5, label: '发起活动' },
-        { value: 8, label: '活动好评' },
       ],
       activities: [],
       menus: [
@@ -128,11 +126,6 @@ export default {
         })
         return
       }
-      if (stat.label === '活动好评') {
-        uni.navigateTo({
-          url: '/pages/review-list/review-list',
-        })
-      }
     },
     onMenu(m) {
       if (m.key === 'history') {
@@ -157,11 +150,10 @@ export default {
   },
   async onShow() {
     try {
-      const [me, joined, organized, reviews] = await Promise.all([
+      const [me, joined, organized] = await Promise.all([
         getMe(),
         getMyActivities({ role: 'joined', page: 1, pageSize: 20 }),
         getMyActivities({ role: 'organized', page: 1, pageSize: 20 }),
-        getReviewList({ page: 1, pageSize: 20 }),
       ])
       this.user = {
         ...this.user,
@@ -171,12 +163,11 @@ export default {
       this.stats = [
         { value: joined?.total || 0, label: '参加活动' },
         { value: organized?.total || 0, label: '发起活动' },
-        { value: reviews?.total || 0, label: '活动好评' },
       ]
       this.activities = (joined?.list || []).slice(0, 2).map((item) => {
         const card = mapActivityCard(item)
         return {
-          id: Number(card.activityId),
+          id: String(card.activityId || ''),
           title: card.title,
           time: card.time,
           joined: card.joined,

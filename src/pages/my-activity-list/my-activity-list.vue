@@ -58,7 +58,7 @@ export default {
       this.activities = (data?.list || []).map((item) => {
         const card = mapActivityCard(item)
         return {
-          id: Number(card.activityId),
+          id: String(card.activityId || ''),
           title: card.title,
           time: card.time,
           location: card.location,

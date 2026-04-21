@@ -52,6 +52,16 @@
       </view>
 
       <view class="panel">
+        <view class="panel__head">
+          <text class="section-title">活动状态</text>
+          <view class="status-tag" :style="{ background: activity.statusBg, color: activity.statusColor }">
+            <text>{{ activity.statusLabel }}</text>
+          </view>
+        </view>
+        <text class="desc">{{ statusHint }}</text>
+      </view>
+
+      <view class="panel">
         <text class="section-title">发起人</text>
         <view class="host">
           <view class="host__avatar"><text>{{ activity.organizer.slice(0, 1) }}</text></view>
@@ -64,8 +74,19 @@
     </view>
 
     <view class="detail__action" v-if="activity">
-      <view class="detail__action-btn" @click="joinActivity">
-        <text>立即报名</text>
+      <view
+        v-if="canEnterGroup"
+        class="detail__action-btn detail__action-btn--ghost"
+        @click="onEnterGroup"
+      >
+        <text>进入群聊</text>
+      </view>
+      <view
+        class="detail__action-btn"
+        :class="actionBtnClass"
+        @click="onPrimaryAction"
+      >
+        <text>{{ actionText }}</text>
       </view>
     </view>
   </view>
@@ -73,26 +94,67 @@
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
-import { getActivityDetail } from '@/api'
+import {
+  cancelEnrollment,
+  computeActivityStatus,
+  enrollActivity,
+  getActivityDetail,
+} from '@/api'
 
 export default {
   components: { WmIcon },
   data() {
     return {
       activity: null,
+      actionLoading: false,
     }
   },
+  computed: {
+    isJoined() {
+      return this.activity?.enrollmentStatus === 'joined'
+    },
+    canEnterGroup() {
+      if (!this.activity) return false
+      return this.isJoined && !this.activity.isCancelled
+    },
+    actionText() {
+      if (!this.activity) return ''
+      if (this.activity.isCancelled) return '活动已取消'
+      if (this.activity.isEnded) return '活动已结束'
+      if (this.isJoined) return '取消报名'
+      if (this.activity.isFull) return '已满员'
+      if (this.activity.statusKey === 'pending') return '审核中'
+      return '立即报名'
+    },
+    actionBtnClass() {
+      if (!this.activity) return ''
+      if (this.activity.isEnded || this.activity.isCancelled || this.activity.isFull || this.activity.statusKey === 'pending') {
+        return 'detail__action-btn--disabled'
+      }
+      if (this.isJoined) return 'detail__action-btn--cancel'
+      return ''
+    },
+    statusHint() {
+      if (!this.activity) return ''
+      if (this.activity.isCancelled) return '该活动已被取消，无法报名或进入群聊。'
+      if (this.activity.isEnded) return '活动已结束，欢迎关注下一场。'
+      if (this.activity.isFull) return '人数已满，报名通道暂时关闭。'
+      if (this.activity.statusKey === 'pending') return '活动正在审核中，通过后可开放报名。'
+      return `还剩 ${Math.max(0, Number(this.activity.total) - Number(this.activity.joined))} 个名额`
+    },
+  },
   onLoad(query) {
-    const id = Number(query.id || 1)
+    const id = query?.id ? String(query.id) : '1'
     this.loadActivity(id)
   },
   methods: {
     async loadActivity(id) {
       try {
-        const detail = await getActivityDetail(String(id))
+        const detail = await getActivityDetail(id)
         if (detail) {
+          const status = computeActivityStatus(detail)
           this.activity = {
-            id: Number(detail.activityId),
+            id: String(detail.activityId || ''),
             category: detail.categoryId,
             tagColor: '#6366f1',
             tagBg: '#eef2ff',
@@ -101,24 +163,86 @@ export default {
             time: detail.startAt,
             location: detail.locationName,
             distance: detail.distanceMeters ? `${(detail.distanceMeters / 1000).toFixed(1)}km` : '',
-            joined: detail.enrolledCount,
-            total: detail.maxMembers,
+            joined: Number(detail.enrolledCount || 0),
+            total: Number(detail.maxMembers || 0),
             organizer: detail.organizer?.nickname || '组织者',
-            hostedCount: 5,
+            organizerId: detail.organizer?.userId || '',
+            hostedCount: Number(detail.organizerHostedCount || 0),
             description: detail.description || '暂无说明',
+            enrollmentStatus: detail.myEnrollment?.status || null,
+            ...status,
           }
           return
         }
       } catch (e) {}
       this.activity = null
     },
+    refreshStatus() {
+      if (!this.activity) return
+      const status = computeActivityStatus({
+        activityStatus: this.activity.isCancelled
+          ? 'cancelled'
+          : this.activity.isEnded
+            ? 'ended'
+            : 'published',
+        enrolledCount: this.activity.joined,
+        maxMembers: this.activity.total,
+        startAt: this.activity.time,
+      })
+      Object.assign(this.activity, status)
+    },
     goBack() {
       uni.navigateBack({
         fail: () => uni.reLaunch({ url: '/pages/home/home' }),
       })
     },
-    joinActivity() {
-      uni.showToast({ title: '报名成功', icon: 'success' })
+    onPrimaryAction() {
+      if (!this.activity) return
+      if (
+        this.activity.isEnded ||
+        this.activity.isCancelled ||
+        this.activity.statusKey === 'pending'
+      ) {
+        uni.showToast({ title: this.actionText, icon: 'none' })
+        return
+      }
+      if (!this.isJoined && this.activity.isFull) {
+        uni.showToast({ title: '活动已满员', icon: 'none' })
+        return
+      }
+      this.toggleEnroll()
+    },
+    async toggleEnroll() {
+      if (!this.activity || this.actionLoading) return
+      this.actionLoading = true
+      const joined = this.isJoined
+      try {
+        if (joined) {
+          await cancelEnrollment(this.activity.id)
+          this.activity.enrollmentStatus = null
+          this.activity.joined = Math.max(0, Number(this.activity.joined || 0) - 1)
+          uni.showToast({ title: '已取消报名', icon: 'success' })
+        } else {
+          await enrollActivity(this.activity.id)
+          this.activity.enrollmentStatus = 'joined'
+          this.activity.joined = Math.min(
+            Number(this.activity.total || 0),
+            Number(this.activity.joined || 0) + 1
+          )
+          uni.showToast({ title: '报名成功', icon: 'success' })
+        }
+        this.refreshStatus()
+      } catch (e) {
+        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      } finally {
+        this.actionLoading = false
+      }
+    },
+    onEnterGroup() {
+      if (!this.canEnterGroup) return
+      uni.navigateTo({
+        url: `/pages/chat-detail/chat-detail?id=${this.activity.id}`,
+      })
     },
   },
 }
@@ -174,9 +298,12 @@ export default {
     padding: 16rpx 24rpx calc(24rpx + env(safe-area-inset-bottom));
     background: rgba(255, 255, 255, 0.95);
     border-top: 1rpx solid #e5e7eb;
+    display: flex;
+    gap: 16rpx;
   }
 
   &__action-btn {
+    flex: 1;
     height: 88rpx;
     border-radius: 18rpx;
     background: #6366f1;
@@ -186,6 +313,21 @@ export default {
     color: #ffffff;
     font-size: 30rpx;
     font-weight: 600;
+
+    &--cancel {
+      background: #f97316;
+    }
+
+    &--ghost {
+      background: #ffffff;
+      color: #6366f1;
+      border: 2rpx solid #c7d2fe;
+    }
+
+    &--disabled {
+      background: #e2e8f0;
+      color: #94a3b8;
+    }
   }
 }
 
@@ -274,10 +416,33 @@ export default {
   color: #475569;
 }
 
+.panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14rpx;
+
+  .section-title {
+    margin-bottom: 0;
+  }
+}
+
+.status-tag {
+  padding: 6rpx 18rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
 .host {
   display: flex;
   align-items: center;
   gap: 16rpx;
+
+  &__info {
+    flex: 1;
+    min-width: 0;
+  }
 
   &__avatar {
     width: 76rpx;

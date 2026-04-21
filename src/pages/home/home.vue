@@ -39,6 +39,13 @@
               <wm-icon name="check" :size="20" color="#10b981" />
               <text>已认证</text>
             </view>
+            <view
+              v-if="item.statusKey !== 'open'"
+              class="tag"
+              :style="{ background: item.statusBg, color: item.statusColor }"
+            >
+              <text>{{ item.statusLabel }}</text>
+            </view>
           </view>
           <wm-icon name="chevronRight" :size="32" color="#cbd5e1" />
         </view>
@@ -94,15 +101,20 @@ export default {
   },
   methods: {
     async loadActivities() {
-      const dateRange =
-        this.activeChip === 'today' ? 'today' : this.activeChip === 'tomorrow' ? 'tomorrow' : 'all'
-      const data = await getActivities({
-        cityCode: '110000',
-        dateRange,
-        page: 1,
-        pageSize: 20,
-      })
-      this.activities = (data?.list || []).map(mapActivityCard)
+      try {
+        const dateRange =
+          this.activeChip === 'today' ? 'today' : this.activeChip === 'tomorrow' ? 'tomorrow' : 'all'
+        const data = await getActivities({
+          cityCode: '110000',
+          dateRange,
+          page: 1,
+          pageSize: 20,
+        })
+        this.activities = (data?.list || []).map(mapActivityCard)
+      } catch (e) {
+        this.activities = []
+        uni.showToast({ title: e?.message || '活动加载失败', icon: 'none' })
+      }
     },
     onChipClick(key) {
       this.activeChip = key

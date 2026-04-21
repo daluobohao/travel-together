@@ -120,15 +120,14 @@ import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import { createActivity, getActivityCategories } from '@/api'
 
 const FALLBACK_CATEGORIES = [
-  { categoryId: 'hiking', name: '徒步' },
-  { categoryId: 'mountaineering', name: '登山' },
-  { categoryId: 'cycling', name: '骑行' },
-  { categoryId: 'camping', name: '露营' },
   { categoryId: 'coffee', name: '咖啡' },
   { categoryId: 'citywalk', name: 'Citywalk' },
+  { categoryId: 'hiking', name: '徒步' },
   { categoryId: 'boardgame', name: '桌游' },
-  { categoryId: 'movie', name: '电影' },
+  { categoryId: 'exhibit', name: '展览' },
+  { categoryId: 'night_run', name: '夜跑' },
 ]
+const ALLOWED_CATEGORY_IDS = FALLBACK_CATEGORIES.map((x) => x.categoryId)
 
 export default {
   components: { WmIcon, WmTabBar },
@@ -161,7 +160,7 @@ export default {
       let list = []
       try {
         const data = await getActivityCategories()
-        list = data?.categories || []
+        list = (data?.categories || []).filter((item) => ALLOWED_CATEGORY_IDS.includes(item.categoryId))
       } catch (e) {
         list = []
       }

@@ -70,51 +70,50 @@ export default {
   },
   methods: {
     async loadData() {
-      const [categoryData, activityData] = await Promise.all([
-        getActivityCategories(),
-        getActivities({ cityCode: '110000', page: 1, pageSize: 50 }),
-      ])
-      const allCards = (activityData?.list || []).map(mapActivityCard)
-      const countMap = allCards.reduce((acc, item) => {
-        acc[item.categoryId] = (acc[item.categoryId] || 0) + 1
-        return acc
-      }, {})
-      const iconMap = {
-        coffee: { emoji: '☕️', bg: '#fef3c7' },
-        citywalk: { emoji: '🧭', bg: '#e0e7ff' },
-        hiking: { emoji: '🏔', bg: '#d1fae5' },
-        boardgame: { emoji: '🎲', bg: '#fce7f3' },
-        exhibit: { emoji: '🎨', bg: '#fee2e2' },
-        night_run: { emoji: '🌙', bg: '#ede9fe' },
-        movie: { emoji: '🎬', bg: '#e0e7ff' },
-        badminton: { emoji: '🏸', bg: '#ccfbf1' },
-        food: { emoji: '🍜', bg: '#ffedd5' },
-        photography: { emoji: '📷', bg: '#e2e8f0' },
-        mountaineering: { emoji: '🧗', bg: '#dcfce7' },
-        cycling: { emoji: '🚴', bg: '#e0f2fe' },
-        camping: { emoji: '⛺️', bg: '#fef9c3' },
-      }
-      this.categories = (categoryData?.categories || []).map((c) => ({
-        key: c.categoryId,
-        label: c.name,
-        count: countMap[c.categoryId] || 0,
-        ...(iconMap[c.categoryId] || { emoji: '✨', bg: '#e2e8f0' }),
-      }))
+      try {
+        const [categoryData, activityData] = await Promise.all([
+          getActivityCategories(),
+          getActivities({ cityCode: '110000', page: 1, pageSize: 50 }),
+        ])
+        const allCards = (activityData?.list || []).map(mapActivityCard)
+        const countMap = allCards.reduce((acc, item) => {
+          acc[item.categoryId] = (acc[item.categoryId] || 0) + 1
+          return acc
+        }, {})
+        const iconMap = {
+          coffee: { emoji: '☕️', bg: '#fef3c7' },
+          citywalk: { emoji: '🧭', bg: '#e0e7ff' },
+          hiking: { emoji: '🏔', bg: '#d1fae5' },
+          boardgame: { emoji: '🎲', bg: '#fce7f3' },
+          exhibit: { emoji: '🎨', bg: '#fee2e2' },
+          night_run: { emoji: '🌙', bg: '#ede9fe' },
+        }
+        this.categories = (categoryData?.categories || []).map((c) => ({
+          key: c.categoryId,
+          label: c.name,
+          count: countMap[c.categoryId] || 0,
+          ...(iconMap[c.categoryId] || { emoji: '✨', bg: '#e2e8f0' }),
+        }))
 
-      const gradients = [
-        'linear-gradient(135deg, #34d399 0%, #059669 100%)',
-        'linear-gradient(135deg, #a78bfa 0%, #ec4899 100%)',
-        'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)',
-      ]
-      this.featured = allCards.slice(0, 3).map((a, idx) => ({
-        id: idx + 1,
-        activityId: Number(a.activityId),
-        tag: a.category,
-        title: a.title,
-        date: a.time,
-        enrolled: a.joined,
-        gradient: gradients[idx % gradients.length],
-      }))
+        const gradients = [
+          'linear-gradient(135deg, #34d399 0%, #059669 100%)',
+          'linear-gradient(135deg, #a78bfa 0%, #ec4899 100%)',
+          'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)',
+        ]
+        this.featured = allCards.slice(0, 3).map((a, idx) => ({
+          id: idx + 1,
+          activityId: String(a.activityId || ''),
+          tag: a.category,
+          title: a.title,
+          date: a.time,
+          enrolled: a.joined,
+          gradient: gradients[idx % gradients.length],
+        }))
+      } catch (e) {
+        this.categories = []
+        this.featured = []
+        uni.showToast({ title: e?.message || '发现页加载失败', icon: 'none' })
+      }
     },
     onCategory(c) {
       uni.navigateTo({

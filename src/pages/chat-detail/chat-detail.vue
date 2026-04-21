@@ -6,23 +6,30 @@
       </view>
       <view class="chat-detail__title-wrap">
         <text class="chat-detail__title">{{ chat.name }}</text>
-        <text class="chat-detail__sub">{{ chat.members }} 人在线</text>
+        <text class="chat-detail__sub">{{ chat.subtitle }}</text>
       </view>
       <view class="chat-detail__placeholder" />
     </view>
 
-    <scroll-view class="chat-detail__messages" scroll-y>
+    <scroll-view class="chat-detail__messages" scroll-y :scroll-top="scrollTop" :scroll-with-animation="true">
       <view class="chat-detail__messages-inner">
+        <view v-if="!messages.length" class="chat-detail__empty">
+          <text>欢迎来到活动群聊</text>
+        </view>
         <view
           v-for="msg in messages"
           :key="msg.id"
           class="msg"
           :class="msg.mine ? 'msg--mine' : 'msg--other'"
         >
-          <view class="msg__bubble">
+          <view class="msg__bubble" :class="{ 'msg__bubble--failed': msg.failed }">
             <text class="msg__sender" v-if="!msg.mine">{{ msg.sender }}</text>
             <text class="msg__text">{{ msg.text }}</text>
-            <text class="msg__time">{{ msg.time }}</text>
+            <view class="msg__meta">
+              <text v-if="msg.pending" class="msg__status">发送中…</text>
+              <text v-else-if="msg.failed" class="msg__status msg__status--failed">发送失败</text>
+              <text class="msg__time">{{ msg.time }}</text>
+            </view>
           </view>
         </view>
       </view>
@@ -34,6 +41,8 @@
         class="chat-detail__input"
         placeholder="输入消息..."
         placeholder-class="chat-detail__input-placeholder"
+        confirm-type="send"
+        @confirm="sendMessage"
       />
       <view class="chat-detail__send" @click="sendMessage">
         <text>发送</text>
@@ -44,49 +53,269 @@
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
-import { getActivityDetail, getActivityMessages, sendActivityMessage } from '@/api'
+import {
+  API_BASE_URL,
+  getAccessToken,
+  getActivityDetail,
+  getActivityMessages,
+  sendActivityMessage,
+} from '@/api'
+
+const POLL_INTERVAL_MS = 4000
+const DEFAULT_LIMIT = 50
+
+function formatTime(iso) {
+  try {
+    const d = iso ? new Date(iso) : new Date()
+    const h = String(d.getHours()).padStart(2, '0')
+    const m = String(d.getMinutes()).padStart(2, '0')
+    return `${h}:${m}`
+  } catch (e) {
+    return '刚刚'
+  }
+}
+
+function buildWsUrl(activityId) {
+  try {
+    const base = API_BASE_URL || ''
+    const wsBase = base.replace(/^http/i, 'ws')
+    return `${wsBase}/activities/${activityId}/ws`
+  } catch (e) {
+    return ''
+  }
+}
 
 export default {
   components: { WmIcon },
   data() {
     return {
-      chatId: 1,
-      chat: { name: '群聊', members: 0 },
+      chatId: '',
+      chat: { name: '聊天', subtitle: '' },
       messages: [],
+      messageIds: {}, // 去重用：{ [messageId]: true }
+      lastCreatedAt: '',
       draft: '',
+      scrollTop: 0,
+      pollingTimer: null,
+      pollingBusy: false,
+      pollingPaused: false,
+      socketTask: null,
+      useWebSocket: false, // 切到 true 时优先走 WS，失败自动退回轮询
     }
   },
   onLoad(query) {
-    this.chatId = Number(query.id || 1)
-    this.loadChat()
+    this.chatId = query?.id ? String(query.id) : '1'
+    this.bootstrapGroup()
+  },
+  onShow() {
+    this.pollingPaused = false
+    // 回到前台先拉一次
+    this.fetchIncremental().catch(() => {})
+  },
+  onHide() {
+    this.pollingPaused = true
+  },
+  onUnload() {
+    this.stopPolling()
+    this.closeSocket()
+  },
+  beforeDestroy() {
+    this.stopPolling()
+    this.closeSocket()
+  },
+  beforeUnmount() {
+    this.stopPolling()
+    this.closeSocket()
   },
   methods: {
-    async loadChat() {
-      const [detail, msgData] = await Promise.all([
-        getActivityDetail(String(this.chatId)),
-        getActivityMessages(String(this.chatId), { limit: 50 }),
-      ])
-      this.chat = {
-        name: detail?.title || '活动群聊',
-        members: detail?.maxMembers || 0,
+    async bootstrapGroup() {
+      await this.loadGroup()
+      if (this.useWebSocket) {
+        const ok = this.openSocket()
+        if (!ok) this.startPolling()
+      } else {
+        this.startPolling()
       }
-      this.messages = (msgData?.list || []).map((m) => ({
-        id: m.messageId,
-        sender: m.sender?.nickname || '用户',
-        text: m.text || '',
-        time: '刚刚',
-        mine: m.sender?.userId === 'me',
-      }))
+    },
+    async loadGroup() {
+      try {
+        const [detail, msgData] = await Promise.all([
+          getActivityDetail(this.chatId),
+          getActivityMessages(this.chatId, { limit: DEFAULT_LIMIT }),
+        ])
+        this.chat = {
+          name: detail?.title || '活动群聊',
+          subtitle: `${Number(detail?.enrolledCount || 0)}/${Number(detail?.maxMembers || 0)} 成员`,
+        }
+        const rawList = msgData?.list || []
+        this.messageIds = {}
+        this.messages = rawList.map((m) => this.normalizeMessage(m)).filter(Boolean)
+        this.updateLastCreatedAt(rawList)
+      } catch (e) {
+        uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+      } finally {
+        this.scrollToBottom()
+      }
+    },
+    normalizeMessage(raw) {
+      if (!raw) return null
+      const id = raw.messageId || `local_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+      if (this.messageIds[id]) return null
+      this.messageIds[id] = true
+      return {
+        id,
+        sender: raw.sender?.nickname || '用户',
+        text: raw.text || '',
+        time: formatTime(raw.createdAt),
+        mine: raw.sender?.userId === 'me',
+        createdAt: raw.createdAt,
+      }
+    },
+    updateLastCreatedAt(list) {
+      if (!Array.isArray(list) || !list.length) return
+      let latest = this.lastCreatedAt ? new Date(this.lastCreatedAt).getTime() : 0
+      list.forEach((m) => {
+        const t = new Date(m.createdAt).getTime()
+        if (!Number.isNaN(t) && t > latest) latest = t
+      })
+      if (latest) this.lastCreatedAt = new Date(latest).toISOString()
+    },
+    startPolling() {
+      this.stopPolling()
+      this.pollingTimer = setInterval(() => {
+        if (this.pollingPaused || this.pollingBusy) return
+        this.fetchIncremental().catch(() => {})
+      }, POLL_INTERVAL_MS)
+    },
+    stopPolling() {
+      if (this.pollingTimer) {
+        clearInterval(this.pollingTimer)
+        this.pollingTimer = null
+      }
+    },
+    async fetchIncremental() {
+      if (!this.chatId) return
+      this.pollingBusy = true
+      try {
+        const query = { limit: DEFAULT_LIMIT }
+        if (this.lastCreatedAt) query.since = this.lastCreatedAt
+        const msgData = await getActivityMessages(this.chatId, query)
+        const rawList = msgData?.list || []
+        if (!rawList.length) return
+        const incoming = rawList.map((m) => this.normalizeMessage(m)).filter(Boolean)
+        if (incoming.length) {
+          this.messages = [...this.messages, ...incoming]
+          this.updateLastCreatedAt(rawList)
+          this.scrollToBottom()
+        }
+      } catch (e) {
+        // 网络波动时静默失败，下个轮询周期重试
+      } finally {
+        this.pollingBusy = false
+      }
+    },
+    openSocket() {
+      // WebSocket 预留：后端若暴露 /activities/:id/ws 可直接启用
+      try {
+        const url = buildWsUrl(this.chatId)
+        if (!url || !url.startsWith('ws')) return false
+        const token = getAccessToken()
+        this.socketTask = uni.connectSocket({
+          url: `${url}${token ? `?token=${encodeURIComponent(token)}` : ''}`,
+          complete: () => {},
+        })
+        const task = this.socketTask
+        if (!task) return false
+        task.onOpen(() => {
+          // 可选：订阅消息
+        })
+        task.onMessage((res) => {
+          try {
+            const payload = typeof res?.data === 'string' ? JSON.parse(res.data) : res?.data
+            if (payload?.type === 'message' && payload.data) {
+              const norm = this.normalizeMessage(payload.data)
+              if (norm) {
+                this.messages.push(norm)
+                this.updateLastCreatedAt([payload.data])
+                this.scrollToBottom()
+              }
+            }
+          } catch (e) {
+            // ignore malformed payload
+          }
+        })
+        task.onError(() => {
+          this.closeSocket()
+          this.startPolling()
+        })
+        task.onClose(() => {
+          this.socketTask = null
+          if (!this.pollingTimer) this.startPolling()
+        })
+        return true
+      } catch (e) {
+        return false
+      }
+    },
+    closeSocket() {
+      if (this.socketTask) {
+        try {
+          this.socketTask.close && this.socketTask.close({})
+        } catch (e) {
+          // ignore
+        }
+        this.socketTask = null
+      }
+    },
+    scrollToBottom() {
+      this.$nextTick(() => {
+        this.scrollTop = 9999999 + Math.random()
+      })
     },
     goBack() {
-      uni.navigateBack()
+      uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/messages/messages' }) })
     },
     async sendMessage() {
       const text = (this.draft || '').trim()
       if (!text) return
-      await sendActivityMessage(String(this.chatId), { msgType: 'text', text })
-      this.messages.push({ id: Date.now(), sender: '你', text, time: '刚刚', mine: true })
+      // 群聊：走真实接口，乐观渲染
+      const tempId = `temp_${Date.now()}`
+      this.messages.push({
+        id: tempId,
+        sender: '你',
+        text,
+        time: formatTime(new Date().toISOString()),
+        mine: true,
+        pending: true,
+      })
+      this.messageIds[tempId] = true
       this.draft = ''
+      this.scrollToBottom()
+      try {
+        const row = await sendActivityMessage(this.chatId, { msgType: 'text', text })
+        const realId = row?.messageId
+        const idx = this.messages.findIndex((m) => m.id === tempId)
+        if (idx >= 0) {
+          if (realId && !this.messageIds[realId]) {
+            this.messageIds[realId] = true
+            this.messages.splice(idx, 1, {
+              id: realId,
+              sender: '你',
+              text,
+              time: formatTime(row?.createdAt),
+              mine: true,
+              createdAt: row?.createdAt,
+            })
+          } else {
+            this.messages[idx].pending = false
+          }
+        }
+        this.updateLastCreatedAt([{ createdAt: row?.createdAt }])
+      } catch (e) {
+        const idx = this.messages.findIndex((m) => m.id === tempId)
+        if (idx >= 0) this.messages.splice(idx, 1, { ...this.messages[idx], failed: true, pending: false })
+        uni.showToast({ title: e?.message || '发送失败', icon: 'none' })
+      }
     },
   },
 }
@@ -148,6 +377,13 @@ export default {
     width: 100%;
     max-width: 760rpx;
     margin: 0 auto;
+  }
+
+  &__empty {
+    padding: 60rpx 0;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 24rpx;
   }
 
   &__composer {
@@ -237,10 +473,29 @@ export default {
   }
 
   &__time {
-    display: block;
-    margin-top: 6rpx;
     font-size: 20rpx;
     color: #94a3b8;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8rpx;
+    margin-top: 6rpx;
+  }
+
+  &__status {
+    font-size: 20rpx;
+    color: #94a3b8;
+
+    &--failed {
+      color: #ef4444;
+    }
+  }
+
+  &__bubble--failed {
+    opacity: 0.75;
   }
 }
 </style>

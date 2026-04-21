@@ -58,7 +58,7 @@ export default {
         .map((x) => {
           const card = mapActivityCard(x)
           return {
-            id: Number(card.activityId),
+            id: String(card.activityId || ''),
             title: card.title,
             time: card.time,
             location: card.location,
