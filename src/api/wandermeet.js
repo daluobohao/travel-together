@@ -655,26 +655,66 @@ export const getReviewList = (query = {}) =>
     mockHandler: ({ query: q }) => ok(paginate(wmDB.reviews, q.page, q.pageSize)),
   })
 
-export const getConversationList = (query = {}) =>
+export const getMyChats = (query = {}) =>
   wmRequest({
     method: 'GET',
-    path: '/notifications',
+    path: '/me/chats',
     query: { page: query.page || 1, pageSize: query.pageSize || 20 },
-    mockHandler: ({ query: q }) => ok(paginate(wmDB.notifications, q.page, q.pageSize)),
-  }).then((data) => {
+    mockHandler: ({ query: q }) => {
+      const joined = wmDB.activities.filter((x) => x.myEnrollment && x.myEnrollment.status === 'joined')
+      const list = joined.map((activity) => {
+        const msgs = wmDB.chats[String(activity.activityId)] || []
+        const last = msgs[msgs.length - 1] || null
+        return {
+          activityId: String(activity.activityId),
+          title: activity.title,
+          activityStatus: activity.activityStatus || 'published',
+          memberCount: Number(activity.enrolledCount || 0),
+          lastMessage: last ? (last.msgType === 'image' ? '[图片]' : last.text || '') : null,
+          lastMessageAt: last ? last.createdAt : null,
+          unreadCount: 0,
+        }
+      })
+      list.sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime())
+      return ok(paginate(list, q.page, q.pageSize))
+    },
+  })
+
+export const markChatRead = (activityId) =>
+  wmRequest({
+    method: 'PATCH',
+    path: `/me/chats/${activityId}/read`,
+    mockHandler: () => ok({ updatedCount: 1 }),
+  })
+
+// Backward compatible alias for existing pages.
+export const getConversationList = (query = {}) =>
+  getMyChats(query).then((data) => {
     const colors = [
       'linear-gradient(135deg, #fbbf24, #f97316)',
       'linear-gradient(135deg, #60a5fa, #6366f1)',
       'linear-gradient(135deg, #f87171, #ec4899)',
     ]
     const list = (data?.list || []).map((item, idx) => ({
-      id: String(item.notificationId || idx + 1),
-      name: item.title || '系统通知',
-      sender: '系统',
-      preview: item.body || '暂无消息',
-      time: '最近',
-      unread: item.readAt ? 0 : 1,
+      id: String(item.activityId || idx + 1),
+      name: item.title || '活动群聊',
+      sender: '群消息',
+      preview: item.lastMessage || '暂无消息',
+      time: relativeTimeSafe(item.lastMessageAt),
+      unread: Number(item.unreadCount || 0),
       color: colors[idx % colors.length],
+      activityId: String(item.activityId || ''),
     }))
-    return { list }
+    return { ...data, list }
   })
+
+function relativeTimeSafe(iso) {
+  if (!iso) return '最近'
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return '最近'
+  const diff = Date.now() - t
+  if (diff < 60 * 1000) return '刚刚'
+  if (diff < 3600 * 1000) return `${Math.floor(diff / 60000)}分钟前`
+  if (diff < 24 * 3600 * 1000) return `${Math.floor(diff / 3600000)}小时前`
+  return `${Math.floor(diff / (24 * 3600 * 1000))}天前`
+}

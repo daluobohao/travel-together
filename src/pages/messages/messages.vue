@@ -120,6 +120,7 @@ import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import {
   getConversationList,
+  markChatRead,
   getNotifications,
   readAllNotifications,
   readNotification,
@@ -194,9 +195,19 @@ export default {
         uni.showToast({ title: e?.message || '消息加载失败', icon: 'none' })
       }
     },
-    onOpenGroup(chat) {
+    async onOpenGroup(chat) {
+      const activityId = chat.activityId || chat.id
+      if (activityId) {
+        try {
+          await markChatRead(activityId)
+          const target = this.groupChats.find((x) => (x.activityId || x.id) === activityId)
+          if (target) target.unread = 0
+        } catch (e) {
+          // Ignore read mark failure; do not block navigation.
+        }
+      }
       uni.navigateTo({
-        url: `/pages/chat-detail/chat-detail?id=${chat.id}`,
+        url: `/pages/chat-detail/chat-detail?id=${activityId || chat.id}`,
       })
     },
     async onReadNotif(item) {
