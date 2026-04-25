@@ -81,7 +81,9 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
-import { getActivities, mapActivityCard } from '@/api'
+import { getActivities, getNearbyActivities, mapActivityCard } from '@/api'
+
+const BEIJING_FALLBACK_LOCATION = { lat: 39.90923, lng: 116.397428 }
 
 export default {
   components: { WmIcon, WmTabBar },
@@ -94,14 +96,58 @@ export default {
         { key: 'nearby', label: '距离优先' },
       ],
       activities: [],
+      userLocation: null,
     }
   },
   onShow() {
     this.loadActivities()
   },
   methods: {
+    ensureCachedLocation() {
+      const fromStorage = uni.getStorageSync('HOME_USER_LOCATION')
+      if (fromStorage?.lat && fromStorage?.lng) {
+        this.userLocation = { lat: Number(fromStorage.lat), lng: Number(fromStorage.lng) }
+      }
+    },
+    getCurrentLocation() {
+      return new Promise((resolve, reject) => {
+        uni.getLocation({
+          type: 'wgs84',
+          success: (res) => {
+            resolve({
+              lat: Number(res.latitude),
+              lng: Number(res.longitude),
+            })
+          },
+          fail: reject,
+        })
+      })
+    },
     async loadActivities() {
       try {
+        if (this.activeChip === 'nearby') {
+          this.ensureCachedLocation()
+          if (!this.userLocation) {
+            try {
+              this.userLocation = await this.getCurrentLocation()
+              uni.setStorageSync('HOME_USER_LOCATION', this.userLocation)
+            } catch (e) {
+              this.userLocation = BEIJING_FALLBACK_LOCATION
+            }
+          }
+          const data = await getNearbyActivities({
+            lat: this.userLocation.lat,
+            lng: this.userLocation.lng,
+            radiusKm: 5,
+            cityCode: '110000',
+            dateRange: 'all',
+            sortBy: 'distance',
+            page: 1,
+            pageSize: 20,
+          })
+          this.activities = (data?.list || []).map(mapActivityCard)
+          return
+        }
         const dateRange =
           this.activeChip === 'today' ? 'today' : this.activeChip === 'tomorrow' ? 'tomorrow' : 'all'
         const data = await getActivities({

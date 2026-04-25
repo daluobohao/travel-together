@@ -78,6 +78,12 @@
 			}
 		},
 		{
+			"path": "pages/privacy-policy/privacy-policy",
+			"style": {
+				"navigationBarTitleText": "隐私政策"
+			}
+		},
+		{
 			"path": "pages/profile-edit/profile-edit",
 			"style": {
 				"navigationBarTitleText": "编辑个人信息",
@@ -96,6 +102,12 @@
 			"style": {
 				"navigationBarTitleText": "发布活动",
 				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/location-picker/location-picker",
+			"style": {
+				"navigationBarTitleText": "选择活动地点"
 			}
 		},
 		{

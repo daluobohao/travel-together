@@ -4,6 +4,28 @@ import { wmDB, toActivityCard } from '@/mock/wandermeet-db'
 
 const ok = (data) => ({ code: 0, message: 'ok', data })
 
+function toRad(n) {
+  return (Number(n) * Math.PI) / 180
+}
+
+function calcDistanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6378137
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return Math.round(R * c)
+}
+
+function normalizeDateRange(list, dateRange) {
+  if (dateRange === 'today') return list.filter((x) => x.activityId === '1' || x.activityId === '3')
+  if (dateRange === 'tomorrow') return list.filter((x) => x.activityId === '2')
+  if (dateRange === 'weekend') return list.filter((x) => x.activityId === '2')
+  return list
+}
+
 // 1
 export const sendSmsCode = (payload) =>
   wmRequest({
@@ -133,9 +155,48 @@ export const getActivities = (query = {}) =>
     mockHandler: ({ query: q }) => {
       let list = wmDB.activities.slice()
       if (q.categoryId) list = list.filter((x) => x.categoryId === q.categoryId)
-      if (q.dateRange === 'today') list = list.filter((x) => x.activityId === '1' || x.activityId === '3')
-      if (q.dateRange === 'tomorrow') list = list.filter((x) => x.activityId === '2')
+      list = normalizeDateRange(list, q.dateRange)
       return ok(paginate(list.map(toActivityCard), q.page, q.pageSize))
+    },
+  })
+
+export const getNearbyActivities = (query = {}) =>
+  wmRequest({
+    method: 'GET',
+    path: '/activities/nearby',
+    query,
+    mockHandler: ({ query: q }) => {
+      const userLat = Number(q.lat)
+      const userLng = Number(q.lng)
+      const radiusKm = [1, 3, 5, 10, 20].includes(Number(q.radiusKm)) ? Number(q.radiusKm) : 5
+      if (!Number.isFinite(userLat) || !Number.isFinite(userLng)) {
+        return { code: 400, message: 'lat/lng 必填', data: null }
+      }
+
+      let list = wmDB.activities.slice()
+      if (q.cityCode) list = list.filter((x) => String(x.cityCode || '') === String(q.cityCode))
+      if (q.categoryId) list = list.filter((x) => x.categoryId === q.categoryId)
+      list = normalizeDateRange(list, q.dateRange || 'all')
+
+      list = list
+        .map((row) => ({
+          ...row,
+          distanceMeters: calcDistanceMeters(userLat, userLng, Number(row.lat), Number(row.lng)),
+        }))
+        .filter((row) => Number(row.distanceMeters) <= radiusKm * 1000)
+
+      if ((q.sortBy || 'distance') === 'startAt') {
+        list = list.slice().sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
+      } else {
+        list = list.slice().sort((a, b) => Number(a.distanceMeters) - Number(b.distanceMeters))
+      }
+
+      const pageData = paginate(list.map(toActivityCard), q.page, q.pageSize)
+      return ok({
+        ...pageData,
+        searchCenter: { lat: userLat, lng: userLng },
+        radiusKm,
+      })
     },
   })
 
@@ -661,22 +722,40 @@ export const getMyChats = (query = {}) =>
     path: '/me/chats',
     query: { page: query.page || 1, pageSize: query.pageSize || 20 },
     mockHandler: ({ query: q }) => {
-      const joined = wmDB.activities.filter((x) => x.myEnrollment && x.myEnrollment.status === 'joined')
-      const list = joined.map((activity) => {
-        const msgs = wmDB.chats[String(activity.activityId)] || []
-        const last = msgs[msgs.length - 1] || null
-        return {
-          activityId: String(activity.activityId),
-          title: activity.title,
-          activityStatus: activity.activityStatus || 'published',
-          memberCount: Number(activity.enrolledCount || 0),
-          lastMessage: last ? (last.msgType === 'image' ? '[图片]' : last.text || '') : null,
-          lastMessageAt: last ? last.createdAt : null,
-          unreadCount: 0,
-        }
-      })
-      list.sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime())
-      return ok(paginate(list, q.page, q.pageSize))
+      const rows = wmDB.activities
+        .filter(
+          (x) =>
+            (x.myEnrollment && x.myEnrollment.status === 'joined') ||
+            x.organizer?.userId === wmDB.profile.userId
+        )
+        .map((activity) => {
+          const chatList = wmDB.chats[String(activity.activityId)] || []
+          const last = chatList.length ? chatList[chatList.length - 1] : null
+          const lastMessage =
+            last?.msgType === 'image' ? '[图片]' : last?.text || null
+          // Keep member count logic compatible:
+          const memberCount =
+            typeof activity.enrolledCount !== 'undefined'
+              ? Number(activity.enrolledCount)
+              : activity.organizer?.userId
+              ? 1
+              : 0
+          return {
+            activityId: String(activity.activityId),
+            title: activity.title,
+            activityStatus: activity.activityStatus || 'published',
+            memberCount,
+            lastMessage,
+            lastMessageAt: last?.createdAt || null,
+            unreadCount: 0,
+          }
+        })
+        .sort((a, b) => {
+          const ta = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0
+          const tb = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0
+          return tb - ta
+        })
+      return ok(paginate(rows, q.page, q.pageSize))
     },
   })
 
@@ -686,6 +765,9 @@ export const markChatRead = (activityId) =>
     path: `/me/chats/${activityId}/read`,
     mockHandler: () => ok({ updatedCount: 1 }),
   })
+
+// Alias for new naming used by messages page.
+export const markMyChatRead = (activityId) => markChatRead(activityId)
 
 // Backward compatible alias for existing pages.
 export const getConversationList = (query = {}) =>

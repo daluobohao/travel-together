@@ -12,7 +12,7 @@
           @click="activeTab = tab.key"
         >
           <text>{{ tab.label }}</text>
-          <view v-if="tab.badge" class="tab__dot" />
+          <view v-if="tab.key === 'group' ? hasUnreadGroup : tab.badge" class="tab__dot" />
         </view>
       </view>
     </view>
@@ -119,8 +119,8 @@
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import {
-  getConversationList,
-  markChatRead,
+  getMyChats,
+  markMyChatRead,
   getNotifications,
   readAllNotifications,
   readNotification,
@@ -159,6 +159,23 @@ function mapNotif(x) {
   }
 }
 
+function mapGroupChat(item, idx) {
+  const colors = [
+    'linear-gradient(135deg, #fbbf24, #f97316)',
+    'linear-gradient(135deg, #60a5fa, #6366f1)',
+    'linear-gradient(135deg, #f87171, #ec4899)',
+  ]
+  return {
+    id: String(item.activityId),
+    name: item.title || '活动群聊',
+    sender: item.memberCount ? `${item.memberCount}人` : '群聊',
+    preview: item.lastMessage || '暂无消息',
+    time: relativeTime(item.lastMessageAt) || '最近',
+    unread: Number(item.unreadCount || 0),
+    color: colors[idx % colors.length],
+  }
+}
+
 export default {
   components: { WmIcon, WmTabBar },
   data() {
@@ -173,6 +190,9 @@ export default {
     }
   },
   computed: {
+    hasUnreadGroup() {
+      return this.groupChats.some((x) => Number(x.unread || 0) > 0)
+    },
     hasUnreadNotif() {
       return this.systemNotifs.some((x) => !x.read)
     },
@@ -184,10 +204,10 @@ export default {
     async loadMessages() {
       try {
         const [convData, notifData] = await Promise.all([
-          getConversationList(),
+          getMyChats({ page: 1, pageSize: 20 }),
           getNotifications({ page: 1, pageSize: 20 }),
         ])
-        this.groupChats = convData?.list || []
+        this.groupChats = (convData?.list || []).map(mapGroupChat)
         this.systemNotifs = (notifData?.list || []).map(mapNotif)
       } catch (e) {
         this.groupChats = []
@@ -196,15 +216,16 @@ export default {
       }
     },
     async onOpenGroup(chat) {
-      const activityId = chat.activityId || chat.id
+      const activityId = chat?.id || chat?.activityId
       if (activityId) {
-        try {
-          await markChatRead(activityId)
-          const target = this.groupChats.find((x) => (x.activityId || x.id) === activityId)
-          if (target) target.unread = 0
-        } catch (e) {
-          // Ignore read mark failure; do not block navigation.
-        }
+      const prevUnread = Number(chat?.unread || 0)
+      if (chat) chat.unread = 0
+      try {
+        await markMyChatRead(activityId)
+      } catch (e) {
+        if (chat) chat.unread = prevUnread
+        uni.showToast({ title: e?.message || '标记已读失败', icon: 'none' })
+      }
       }
       uni.navigateTo({
         url: `/pages/chat-detail/chat-detail?id=${activityId || chat.id}`,
