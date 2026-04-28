@@ -58,6 +58,31 @@
       </view>
 
       <view class="field">
+        <text class="field__label">结束时间（可选）</text>
+        <view class="field__datetime">
+          <picker mode="date" :value="form.endDate" @change="onEndDateChange">
+            <view class="field__select field__datetime-item">
+              <wm-icon name="calendar" :size="32" color="#94a3b8" />
+              <text :class="['field__select-text', { 'field__placeholder': !form.endDate }]">
+                {{ form.endDate || '选择日期' }}
+              </text>
+              <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
+            </view>
+          </picker>
+          <picker mode="time" :value="form.endClock" @change="onEndTimeChange">
+            <view class="field__select field__datetime-item">
+              <wm-icon name="clock" :size="32" color="#94a3b8" />
+              <text :class="['field__select-text', { 'field__placeholder': !form.endClock }]">
+                {{ form.endClock || '选择时间' }}
+              </text>
+              <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
+            </view>
+          </picker>
+          <view v-if="form.endTime" class="field__datetime-summary">已选择：{{ form.endTime }}</view>
+        </view>
+      </view>
+
+      <view class="field">
         <text class="field__label">活动地点 <text class="field__req">*</text></text>
         <view class="field__select field__select--clickable" @click="openLocationPicker">
           <wm-icon name="mapPin" :size="32" color="#94a3b8" />
@@ -157,6 +182,9 @@ export default {
         startTime: '',
         startDate: '',
         startClock: '',
+        endTime: '',
+        endDate: '',
+        endClock: '',
         location: '',
         lat: null,
         lng: null,
@@ -215,6 +243,14 @@ export default {
       this.form.startClock = e?.detail?.value || ''
       this.mergeStartDateTime()
     },
+    onEndDateChange(e) {
+      this.form.endDate = e?.detail?.value || ''
+      this.mergeEndDateTime()
+    },
+    onEndTimeChange(e) {
+      this.form.endClock = e?.detail?.value || ''
+      this.mergeEndDateTime()
+    },
     mergeStartDateTime() {
       if (!this.form.startDate || !this.form.startClock) {
         this.form.startTime = ''
@@ -222,10 +258,23 @@ export default {
       }
       this.form.startTime = `${this.form.startDate} ${this.form.startClock}`
     },
-    buildStartAt() {
-      if (!this.form.startDate || !this.form.startClock) return ''
+    mergeEndDateTime() {
+      if (!this.form.endDate || !this.form.endClock) {
+        this.form.endTime = ''
+        return
+      }
+      this.form.endTime = `${this.form.endDate} ${this.form.endClock}`
+    },
+    buildDateTimeIso(date, clock) {
+      if (!date || !clock) return ''
       // 直接按用户选择的本地时分构造，避免 toISOString() 转 UTC 导致时分偏移
-      return `${this.form.startDate}T${this.form.startClock}:00+08:00`
+      return `${date}T${clock}:00+08:00`
+    },
+    buildStartAt() {
+      return this.buildDateTimeIso(this.form.startDate, this.form.startClock)
+    },
+    buildEndAt() {
+      return this.buildDateTimeIso(this.form.endDate, this.form.endClock) || null
     },
     onCategoryChange(e) {
       const idx = Number(e?.detail?.value)
@@ -238,11 +287,20 @@ export default {
       if (!this.form.category) return uni.showToast({ title: '请选择活动分类', icon: 'none' })
       if (!this.form.startTime) return uni.showToast({ title: '请选择开始时间', icon: 'none' })
       if (!this.form.location.trim()) return uni.showToast({ title: '请填写活动地点', icon: 'none' })
+      if ((this.form.endDate && !this.form.endClock) || (!this.form.endDate && this.form.endClock)) {
+        return uni.showToast({ title: '请完整选择结束时间', icon: 'none' })
+      }
+      const startAt = this.buildStartAt()
+      const endAt = this.buildEndAt()
+      if (endAt && new Date(endAt).getTime() <= new Date(startAt).getTime()) {
+        return uni.showToast({ title: '结束时间需晚于开始时间', icon: 'none' })
+      }
       await createActivity({
         title: this.form.title.trim(),
         description: (this.form.description || '').trim() || '暂无说明',
         categoryId: this.categoryMap[this.form.category] || 'coffee',
-        startAt: this.buildStartAt(),
+        startAt,
+        endAt,
         cityCode: '110000',
         locationName: this.form.location.trim(),
         lat: this.form.lat || 39.9,
