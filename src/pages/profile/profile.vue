@@ -86,7 +86,7 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
-import { getMe, getMyActivities, mapActivityCard } from '@/api'
+import { getMe, getMyActivities, getMyStats, mapActivityCard } from '@/api'
 
 export default {
   components: { WmIcon, WmTabBar },
@@ -157,10 +157,10 @@ export default {
   },
   async onShow() {
     try {
-      const [me, joined, organized] = await Promise.all([
+      const [me, stats, joined] = await Promise.all([
         getMe(),
-        getMyActivities({ role: 'joined', page: 1, pageSize: 20 }),
-        getMyActivities({ role: 'organized', page: 1, pageSize: 20 }),
+        getMyStats(),
+        getMyActivities({ role: 'joined', page: 1, pageSize: 2 }),
       ])
       this.user = {
         ...this.user,
@@ -168,8 +168,8 @@ export default {
         bio: me.bio || this.user.bio,
       }
       this.stats = [
-        { value: joined?.total || 0, label: '参加活动' },
-        { value: organized?.total || 0, label: '发起活动' },
+        { value: stats?.joinedCount ?? 0, label: '参加活动' },
+        { value: stats?.organizedCount ?? 0, label: '发起活动' },
       ]
       this.activities = (joined?.list || []).slice(0, 2).map((item) => {
         const card = mapActivityCard(item)

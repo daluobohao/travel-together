@@ -58,6 +58,7 @@ import {
   getAccessToken,
   getActivityDetail,
   getActivityMessages,
+  markMyChatRead,
   sendActivityMessage,
 } from '@/api'
 
@@ -151,6 +152,7 @@ export default {
         this.messageIds = {}
         this.messages = rawList.map((m) => this.normalizeMessage(m)).filter(Boolean)
         this.updateLastCreatedAt(rawList)
+        markMyChatRead(this.chatId).catch(() => {})
       } catch (e) {
         uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
       } finally {

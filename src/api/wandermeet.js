@@ -78,6 +78,18 @@ export const getMe = () =>
     mockHandler: () => ok(wmDB.profile),
   })
 
+export const getMyStats = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/me/stats',
+    mockHandler: () =>
+      ok({
+        joinedCount: wmDB.activities.filter((x) => x.myEnrollment).length,
+        organizedCount: wmDB.activities.filter((x) => x.organizer?.userId === wmDB.profile.userId)
+          .length,
+      }),
+  })
+
 // 5
 export const updateMe = (payload) =>
   wmRequest({

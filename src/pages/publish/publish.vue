@@ -295,21 +295,33 @@ export default {
       if (endAt && new Date(endAt).getTime() <= new Date(startAt).getTime()) {
         return uni.showToast({ title: '结束时间需晚于开始时间', icon: 'none' })
       }
-      await createActivity({
-        title: this.form.title.trim(),
-        description: (this.form.description || '').trim() || '暂无说明',
-        categoryId: this.categoryMap[this.form.category] || 'coffee',
-        startAt,
-        endAt,
-        cityCode: '110000',
-        locationName: this.form.location.trim(),
-        lat: this.form.lat || 39.9,
-        lng: this.form.lng || 116.4,
-        maxMembers: Number(this.form.capacity) || 8,
-        feeType: 'aa',
-        feeAmount: null,
-        rulesAccepted: { noHarassment: true, noPromotion: true, noInappropriate: true },
-      })
+      const TOLERANCE_MS = 5 * 60 * 1000
+      if (new Date(startAt).getTime() < Date.now() - TOLERANCE_MS) {
+        return uni.showToast({
+          title: '开始时间不能早于当前时间（可提前 5 分钟）',
+          icon: 'none',
+        })
+      }
+      try {
+        await createActivity({
+          title: this.form.title.trim(),
+          description: (this.form.description || '').trim() || '暂无说明',
+          categoryId: this.categoryMap[this.form.category] || 'coffee',
+          startAt,
+          endAt,
+          cityCode: '110000',
+          locationName: this.form.location.trim(),
+          lat: this.form.lat || 39.9,
+          lng: this.form.lng || 116.4,
+          maxMembers: Number(this.form.capacity) || 8,
+          feeType: 'aa',
+          feeAmount: null,
+          rulesAccepted: { noHarassment: true, noPromotion: true, noInappropriate: true },
+        })
+      } catch (e) {
+        uni.showToast({ title: e?.message || '发布失败', icon: 'none' })
+        return
+      }
       uni.showToast({ title: '发布成功！', icon: 'success' })
       setTimeout(() => uni.reLaunch({ url: '/pages/home/home' }), 800)
     },

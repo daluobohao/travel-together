@@ -39,6 +39,9 @@
               <wm-icon name="check" :size="20" color="#10b981" />
               <text>已认证</text>
             </view>
+            <view v-if="item.enrollmentStatus === 'joined'" class="tag tag--enrolled">
+              <text>已报名</text>
+            </view>
             <view
               v-if="item.statusKey !== 'open'"
               class="tag"
@@ -331,6 +334,11 @@ export default {
   &--verified {
     background: #ecfdf5;
     color: #059669;
+  }
+
+  &--enrolled {
+    background: #eef2ff;
+    color: #4f46e5;
   }
 }
 

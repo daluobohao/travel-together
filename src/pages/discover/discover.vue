@@ -6,6 +6,50 @@
       <text class="discover__subtitle">找到你感兴趣的活动</text>
     </view>
 
+    <!-- Nearby -->
+    <view class="section section--nearby">
+      <view class="section__head section__head--nearby">
+        <text class="section__title section__title--inline">附近活动</text>
+        <view class="radius-chips">
+          <view
+            v-for="r in radiusOptions"
+            :key="r"
+            class="radius-chip"
+            :class="{ 'radius-chip--active': r === nearbyRadiusKm }"
+            @click="onRadiusChange(r)"
+          >
+            <text>{{ r }}km</text>
+          </view>
+        </view>
+      </view>
+      <view v-if="nearbyLoading" class="nearby-loading">
+        <text>加载附近活动…</text>
+      </view>
+      <view v-else-if="!nearbyCards.length" class="nearby-empty">
+        <text>暂无附近活动，试试放大半径或晚点再来看看</text>
+      </view>
+      <view v-else class="nearby-list">
+        <view
+          v-for="item in nearbyCards"
+          :key="item.id"
+          class="nearby-card"
+          @click="onOpenNearby(item)"
+        >
+          <view class="nearby-card__main">
+            <view class="nearby-card__tags">
+              <view class="nearby-card__cat" :style="{ color: item.tagColor, background: item.tagBg }">
+                <text>{{ item.category }}</text>
+              </view>
+              <text v-if="item.distance" class="nearby-card__dist">{{ item.distance }}</text>
+            </view>
+            <text class="nearby-card__title">{{ item.title }}</text>
+            <text class="nearby-card__meta">{{ item.time }} · {{ item.location }}</text>
+          </view>
+          <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
+        </view>
+      </view>
+    </view>
+
     <!-- Categories -->
     <view class="section">
       <text class="section__title">活动分类</text>
@@ -54,27 +98,97 @@
 </template>
 
 <script>
+import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
-import { getActivities, getActivityCategories, mapActivityCard } from '@/api'
+import { getActivities, getActivityCategories, getNearbyActivities, mapActivityCard } from '@/api'
+
+const BEIJING_FALLBACK_LOCATION = { lat: 39.90923, lng: 116.397428 }
 
 export default {
-  components: { WmTabBar },
+  components: { WmIcon, WmTabBar },
   data() {
     return {
       categories: [],
       featured: [],
+      nearbyRadiusKm: 5,
+      radiusOptions: [3, 5, 10],
+      nearbyCards: [],
+      nearbyLoading: false,
+      userLocation: null,
     }
   },
   onShow() {
     this.loadData()
   },
   methods: {
+    ensureCachedLocation() {
+      const fromStorage = uni.getStorageSync('DISCOVER_USER_LOCATION')
+      if (fromStorage?.lat && fromStorage?.lng) {
+        this.userLocation = { lat: Number(fromStorage.lat), lng: Number(fromStorage.lng) }
+      }
+    },
+    async getCurrentLocation() {
+      return new Promise((resolve, reject) => {
+        uni.getLocation({
+          type: 'wgs84',
+          success: (res) => {
+            resolve({
+              lat: Number(res.latitude),
+              lng: Number(res.longitude),
+            })
+          },
+          fail: reject,
+        })
+      })
+    },
+    onRadiusChange(r) {
+      this.nearbyRadiusKm = r
+      this.loadNearby()
+    },
+    async loadNearby() {
+      this.nearbyLoading = true
+      try {
+        this.ensureCachedLocation()
+        if (!this.userLocation) {
+          try {
+            this.userLocation = await this.getCurrentLocation()
+            uni.setStorageSync('DISCOVER_USER_LOCATION', this.userLocation)
+          } catch (e) {
+            this.userLocation = BEIJING_FALLBACK_LOCATION
+          }
+        }
+        const data = await getNearbyActivities({
+          lat: this.userLocation.lat,
+          lng: this.userLocation.lng,
+          radiusKm: this.nearbyRadiusKm,
+          cityCode: '110000',
+          dateRange: 'all',
+          sortBy: 'distance',
+          page: 1,
+          pageSize: 20,
+        })
+        this.nearbyCards = (data?.list || []).map(mapActivityCard)
+      } catch (e) {
+        this.nearbyCards = []
+        uni.showToast({ title: e?.message || '附近活动加载失败', icon: 'none' })
+      } finally {
+        this.nearbyLoading = false
+      }
+    },
+    onOpenNearby(item) {
+      const id = item?.activityId || item?.id
+      if (!id) return
+      uni.navigateTo({
+        url: `/pages/activity-detail/activity-detail?id=${id}`,
+      })
+    },
     async loadData() {
       try {
         const [categoryData, activityData] = await Promise.all([
           getActivityCategories(),
           getActivities({ cityCode: '110000', page: 1, pageSize: 50 }),
         ])
+        this.loadNearby()
         const allCards = (activityData?.list || []).map(mapActivityCard)
         const countMap = allCards.reduce((acc, item) => {
           acc[item.categoryId] = (acc[item.categoryId] || 0) + 1
@@ -181,6 +295,115 @@ export default {
     font-size: 24rpx;
     color: #6366f1;
     font-weight: 500;
+  }
+
+  &--nearby {
+    padding-top: 24rpx;
+  }
+
+  &__head--nearby {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16rpx;
+    margin-bottom: 8rpx;
+  }
+
+  &__title--inline {
+    display: inline-block;
+    margin-bottom: 0;
+    flex-shrink: 0;
+  }
+}
+
+.radius-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-left: auto;
+}
+
+.radius-chip {
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  background: #f1f5f9;
+  font-size: 22rpx;
+  color: #64748b;
+  font-weight: 500;
+
+  &--active {
+    background: #6366f1;
+    color: #ffffff;
+  }
+}
+
+.nearby-loading,
+.nearby-empty {
+  padding: 28rpx 8rpx 8rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: #94a3b8;
+}
+
+.nearby-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  padding-bottom: 8rpx;
+}
+
+.nearby-card {
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 22rpx 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+
+  &__main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__tags {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12rpx;
+    margin-bottom: 10rpx;
+  }
+
+  &__cat {
+    display: inline-flex;
+    align-items: center;
+    height: 36rpx;
+    padding: 0 14rpx;
+    border-radius: 8rpx;
+    font-size: 20rpx;
+    font-weight: 600;
+  }
+
+  &__dist {
+    font-size: 22rpx;
+    color: #6366f1;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  &__title {
+    display: block;
+    font-size: 30rpx;
+    font-weight: 600;
+    color: #0f172a;
+    line-height: 1.35;
+  }
+
+  &__meta {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 22rpx;
+    color: #94a3b8;
   }
 }
 
