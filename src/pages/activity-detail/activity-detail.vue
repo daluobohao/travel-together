@@ -8,113 +8,118 @@
       <view class="detail__placeholder"></view>
     </view>
 
-    <!-- Loading state - Skeleton -->
-    <view v-if="loading" class="detail__content">
-      <view class="skeleton-hero"></view>
-      
-      <view class="panel">
-        <view class="skeleton-meta-item"></view>
-        <view class="skeleton-meta-item"></view>
-        <view class="skeleton-meta-item"></view>
-      </view>
-
-      <view class="panel">
-        <view class="skeleton-section-title"></view>
-        <view class="skeleton-desc">
-          <view class="skeleton-desc-line"></view>
-          <view class="skeleton-desc-line"></view>
-          <view class="skeleton-desc-line skeleton-desc-line--short"></view>
+    <!-- Content Area -->
+    <view class="detail__content">
+      <!-- Loading state - Skeleton -->
+      <view v-if="loading">
+        <view class="skeleton-hero"></view>
+        
+        <view class="panel">
+          <view class="skeleton-meta-item"></view>
+          <view class="skeleton-meta-item"></view>
+          <view class="skeleton-meta-item"></view>
         </view>
-      </view>
 
-      <view class="panel">
-        <view class="skeleton-panel-head">
+        <view class="panel">
           <view class="skeleton-section-title"></view>
-          <view class="skeleton-status-tag"></view>
+          <view class="skeleton-desc">
+            <view class="skeleton-desc-line"></view>
+            <view class="skeleton-desc-line"></view>
+            <view class="skeleton-desc-line skeleton-desc-line--short"></view>
+          </view>
         </view>
-        <view class="skeleton-desc">
-          <view class="skeleton-desc-line"></view>
+
+        <view class="panel">
+          <view class="skeleton-panel-head">
+            <view class="skeleton-section-title"></view>
+            <view class="skeleton-status-tag"></view>
+          </view>
+          <view class="skeleton-desc">
+            <view class="skeleton-desc-line"></view>
+          </view>
+        </view>
+
+        <view class="panel">
+          <view class="skeleton-section-title"></view>
+          <view class="skeleton-host">
+            <view class="skeleton-avatar"></view>
+            <view class="skeleton-host-info">
+              <view class="skeleton-host-name"></view>
+              <view class="skeleton-host-meta"></view>
+            </view>
+          </view>
         </view>
       </view>
 
-      <view class="panel">
-        <view class="skeleton-section-title"></view>
-        <view class="skeleton-host">
-          <view class="skeleton-avatar"></view>
-          <view class="skeleton-host-info">
-            <view class="skeleton-host-name"></view>
-            <view class="skeleton-host-meta"></view>
+      <!-- Activity Detail -->
+      <view v-else-if="activity">
+        <view class="hero" :style="{ background: activity.cover }">
+          <view class="hero__tag-row">
+            <view class="hero__tag" :style="{ background: activity.tagBg, color: activity.tagColor }">
+              <text>{{ activity.category }}</text>
+            </view>
+            <view class="hero__tag hero__tag--verified">
+              <wm-icon name="check" :size="20" color="#10b981" />
+              <text>已认证</text>
+            </view>
+          </view>
+          <text class="hero__title">{{ activity.title }}</text>
+        </view>
+
+        <view class="panel">
+          <view class="meta-item">
+            <wm-icon name="clock" :size="30" color="#6366f1" />
+            <view class="meta-item__body">
+              <text class="meta-item__label">活动时间</text>
+              <text class="meta-item__value">{{ activity.time }}</text>
+            </view>
+          </view>
+          <view class="meta-item">
+            <wm-icon name="mapPin" :size="30" color="#6366f1" />
+            <view class="meta-item__body">
+              <text class="meta-item__label">活动地点</text>
+              <text class="meta-item__value">{{ activity.location }} · {{ activity.distance }}</text>
+            </view>
+          </view>
+          <view class="meta-item">
+            <wm-icon name="users" :size="30" color="#6366f1" />
+            <view class="meta-item__body">
+              <text class="meta-item__label">参与人数</text>
+              <text class="meta-item__value">{{ activity.joined }}/{{ activity.total }} 人</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="panel">
+          <text class="section-title">活动说明</text>
+          <text class="desc">{{ activity.description }}</text>
+        </view>
+
+        <view class="panel">
+          <view class="panel__head">
+            <text class="section-title">活动状态</text>
+            <view class="status-tag" :style="{ background: activity.statusBg, color: activity.statusColor }">
+              <text>{{ activity.statusLabel }}</text>
+            </view>
+          </view>
+          <text class="desc">{{ statusHint }}</text>
+        </view>
+
+        <view class="panel">
+          <text class="section-title">发起人</text>
+          <view class="host">
+            <view class="host__avatar"><text>{{ activity.organizer.slice(0, 1) }}</text></view>
+            <view class="host__info">
+              <text class="host__name">{{ activity.organizer }}</text>
+              <text class="host__meta">组织了 {{ activity.hostedCount }} 场活动</text>
+            </view>
           </view>
         </view>
       </view>
     </view>
 
-    <view class="detail__content" v-else-if="activity">
-      <view class="hero" :style="{ background: activity.cover }">
-        <view class="hero__tag-row">
-          <view class="hero__tag" :style="{ background: activity.tagBg, color: activity.tagColor }">
-            <text>{{ activity.category }}</text>
-          </view>
-          <view class="hero__tag hero__tag--verified">
-            <wm-icon name="check" :size="20" color="#10b981" />
-            <text>已认证</text>
-          </view>
-        </view>
-        <text class="hero__title">{{ activity.title }}</text>
-      </view>
-
-      <view class="panel">
-        <view class="meta-item">
-          <wm-icon name="clock" :size="30" color="#6366f1" />
-          <view class="meta-item__body">
-            <text class="meta-item__label">活动时间</text>
-            <text class="meta-item__value">{{ activity.time }}</text>
-          </view>
-        </view>
-        <view class="meta-item">
-          <wm-icon name="mapPin" :size="30" color="#6366f1" />
-          <view class="meta-item__body">
-            <text class="meta-item__label">活动地点</text>
-            <text class="meta-item__value">{{ activity.location }} · {{ activity.distance }}</text>
-          </view>
-        </view>
-        <view class="meta-item">
-          <wm-icon name="users" :size="30" color="#6366f1" />
-          <view class="meta-item__body">
-            <text class="meta-item__label">参与人数</text>
-            <text class="meta-item__value">{{ activity.joined }}/{{ activity.total }} 人</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="panel">
-        <text class="section-title">活动说明</text>
-        <text class="desc">{{ activity.description }}</text>
-      </view>
-
-      <view class="panel">
-        <view class="panel__head">
-          <text class="section-title">活动状态</text>
-          <view class="status-tag" :style="{ background: activity.statusBg, color: activity.statusColor }">
-            <text>{{ activity.statusLabel }}</text>
-          </view>
-        </view>
-        <text class="desc">{{ statusHint }}</text>
-      </view>
-
-      <view class="panel">
-        <text class="section-title">发起人</text>
-        <view class="host">
-          <view class="host__avatar"><text>{{ activity.organizer.slice(0, 1) }}</text></view>
-          <view class="host__info">
-            <text class="host__name">{{ activity.organizer }}</text>
-            <text class="host__meta">组织了 {{ activity.hostedCount }} 场活动</text>
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <view class="detail__action" v-if="activity">
+    <!-- Fixed Bottom Action Area -->
+    <view class="detail__action">
       <view
         v-if="canEnterGroup"
         class="detail__action-btn detail__action-btn--ghost"
@@ -337,7 +342,6 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 20rpx;
-    animation: fadeInUp 0.4s ease-out;
   }
 
   &__action {
