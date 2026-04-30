@@ -21,13 +21,40 @@
       </view>
     </view>
 
+    <!-- Loading state - Skeleton -->
+    <view v-if="loading" class="home__list">
+      <view v-for="index in 3" :key="index" class="skeleton-card">
+        <view class="skeleton-tag-row">
+          <view class="skeleton-tag skeleton-tag--small"></view>
+          <view class="skeleton-tag skeleton-tag--small"></view>
+        </view>
+        <view class="skeleton-title"></view>
+        <view class="skeleton-meta">
+          <view class="skeleton-meta-row"></view>
+          <view class="skeleton-meta-row"></view>
+        </view>
+        <view class="skeleton-footer">
+          <view class="skeleton-quota"></view>
+          <view class="skeleton-organizer"></view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Empty state -->
+    <view v-else-if="!loading && activities.length === 0" class="home__empty">
+      <wm-icon name="users" :size="96" color="#cbd5e1" />
+      <text class="empty-title">暂无活动</text>
+      <text class="empty-desc">看看其他时间段，或者去发布一个？</text>
+    </view>
+
     <!-- Activity list -->
-    <view class="home__list">
+    <view v-else class="home__list">
       <view
-        v-for="item in activities"
+        v-for="(item, index) in activities"
         :key="item.id"
         class="card"
         hover-class="card--hover"
+        :style="{ animationDelay: `${index * 80}ms` }"
         @click="onOpenActivity(item)"
       >
         <view class="card__top">
@@ -100,6 +127,7 @@ export default {
       ],
       activities: [],
       userLocation: null,
+      loading: false,
     }
   },
   onShow() {
@@ -127,6 +155,8 @@ export default {
       })
     },
     async loadActivities() {
+      this.loading = true
+      this.activities = []
       try {
         if (this.activeChip === 'nearby') {
           this.ensureCachedLocation()
@@ -163,9 +193,12 @@ export default {
       } catch (e) {
         this.activities = []
         uni.showToast({ title: e?.message || '活动加载失败', icon: 'none' })
+      } finally {
+        this.loading = false
       }
     },
     onChipClick(key) {
+      if (key === this.activeChip) return
       this.activeChip = key
       this.loadActivities()
     },
@@ -227,12 +260,31 @@ export default {
     gap: 14rpx;
   }
 
+  &__empty {
+    padding: 120rpx 32rpx;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24rpx;
+  }
+
   &__list {
     padding: 24rpx 32rpx 40rpx;
     display: flex;
     flex-direction: column;
     gap: 24rpx;
   }
+}
+
+.empty-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #374151;
+}
+
+.empty-desc {
+  font-size: 24rpx;
+  color: #94a3b8;
 }
 
 .chip {
@@ -247,11 +299,102 @@ export default {
   font-size: 24rpx;
   font-weight: 500;
   line-height: 1;
-  transition: background-color 0.15s, color 0.15s;
+  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.1s;
+
+  &:active {
+    transform: scale(0.95);
+  }
 
   &--active {
     background: #6366f1;
     color: #ffffff;
+    box-shadow: 0 4rpx 12rpx rgba(99, 102, 241, 0.3);
+  }
+}
+
+.skeleton-card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 28rpx 28rpx 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+}
+
+.skeleton-tag-row {
+  display: flex;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+}
+
+.skeleton-tag {
+  height: 36rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-tag--small {
+  width: 100rpx;
+}
+
+.skeleton-title {
+  height: 40rpx;
+  width: 80%;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  margin-bottom: 18rpx;
+}
+
+.skeleton-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  margin-bottom: 22rpx;
+}
+
+.skeleton-meta-row {
+  height: 28rpx;
+  width: 60%;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-footer {
+  padding-top: 20rpx;
+  border-top: 1rpx dashed #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.skeleton-quota {
+  height: 26rpx;
+  width: 120rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-organizer {
+  height: 22rpx;
+  width: 160rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
   }
 }
 
@@ -260,10 +403,12 @@ export default {
   border-radius: 24rpx;
   padding: 28rpx 28rpx 24rpx;
   box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
-  transition: transform 0.15s;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) backwards;
 
   &--hover {
-    transform: scale(0.985);
+    transform: scale(0.98);
+    box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.08);
   }
 
   &__top {
@@ -318,6 +463,17 @@ export default {
   &__organizer {
     font-size: 22rpx;
     color: #94a3b8;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

@@ -12,92 +12,82 @@
           @click="activeTab = tab.key"
         >
           <text>{{ tab.label }}</text>
-          <view v-if="tab.key === 'group' ? hasUnreadGroup : tab.badge" class="tab__dot" />
+          <view v-if="tab.key === 'group' ? hasUnreadGroup : tab.badge" class="tab__dot"></view>
         </view>
       </view>
     </view>
 
-    <!-- Group chats -->
-    <view v-if="activeTab === 'group'" class="messages__list">
-      <view v-if="!groupChats.length" class="messages__empty">
-        <text>还没有活动群聊，报名一个活动就能进群</text>
-      </view>
-      <view
-        v-for="chat in groupChats"
-        :key="chat.id"
-        class="chat"
-        hover-class="chat--hover"
-        @click="onOpenGroup(chat)"
-      >
-        <view class="chat__avatar" :style="{ background: chat.color }">
-          <wm-icon name="message" :size="40" color="#ffffff" />
-        </view>
-        <view class="chat__body">
-          <view class="chat__top">
-            <text class="chat__name">{{ chat.name }}</text>
-            <text class="chat__time">{{ chat.time }}</text>
-          </view>
-          <view class="chat__bottom">
-            <text class="chat__msg">
-              <text class="chat__sender">{{ chat.sender }}：</text>{{ chat.preview }}
-            </text>
-            <view v-if="chat.unread" class="chat__badge">
-              <text>{{ chat.unread }}</text>
+    <!-- Skeleton Loading -->
+    <view v-if="loading" class="skeleton-content">
+      <view class="messages__list">
+        <view v-for="i in 4" :key="i" class="skeleton-chat">
+          <view class="skeleton-chat-avatar"></view>
+          <view class="skeleton-chat-body">
+            <view class="skeleton-chat-top">
+              <view class="skeleton-chat-name"></view>
+              <view class="skeleton-chat-time"></view>
+            </view>
+            <view class="skeleton-chat-bottom">
+              <view class="skeleton-chat-msg"></view>
             </view>
           </view>
         </view>
       </view>
     </view>
 
-    <!-- System -->
-    <view v-if="activeTab === 'system'" class="messages__list">
-      <view v-if="!systemNotifs.length" class="messages__empty">
-        <text>暂无系统通知</text>
-      </view>
-      <view v-if="hasUnreadNotif" class="messages__actions">
-        <view class="messages__read-all" @click="onReadAll">
-          <text>全部标记已读</text>
+    <!-- Actual Content -->
+    <template v-else>
+      <!-- Group chats -->
+      <view v-if="activeTab === 'group'" class="messages__list">
+        <view v-if="!groupChats.length" class="messages__empty">
+          <text>还没有活动群聊，报名一个活动就能进群</text>
         </view>
-      </view>
-      <view
-        v-for="item in systemNotifs"
-        :key="item.id"
-        class="system"
-        :class="{ 'system--unread': !item.read }"
-        @click="onReadNotif(item)"
-      >
-        <view class="system__icon" :style="{ background: item.bg, color: item.color }">
-          <wm-icon :name="item.icon" :size="36" :color="item.color" />
-        </view>
-        <view class="system__body">
-          <view class="system__top">
-            <text class="system__title">{{ item.title }}</text>
-            <text class="system__time">{{ item.time }}</text>
-          </view>
-          <text class="system__desc">{{ item.desc }}</text>
-        </view>
-        <view v-if="!item.read" class="system__dot" />
-      </view>
-    </view>
-
-    <!-- Bottom: always show system section in group tab as preview -->
-    <view v-if="activeTab === 'group'" class="messages__section">
-      <view class="messages__section-head">
-        <text class="messages__section-title">系统通知</text>
-        <text v-if="systemNotifs.length" class="messages__section-more" @click="activeTab = 'system'">
-          查看全部
-        </text>
-      </view>
-      <view class="messages__list messages__list--tight">
         <view
-          v-for="item in systemNotifs.slice(0, 3)"
+          v-for="chat in groupChats"
+          :key="chat.id"
+          class="chat"
+          hover-class="chat--hover"
+          @click="onOpenGroup(chat)"
+        >
+          <view class="chat__avatar" :style="{ background: chat.color }">
+            <wm-icon name="message" :size="40" color="#ffffff" />
+          </view>
+          <view class="chat__body">
+            <view class="chat__top">
+              <text class="chat__name">{{ chat.name }}</text>
+              <text class="chat__time">{{ chat.time }}</text>
+            </view>
+            <view class="chat__bottom">
+              <text class="chat__msg">
+                <text class="chat__sender">{{ chat.sender }}：</text>{{ chat.preview }}
+              </text>
+              <view v-if="chat.unread" class="chat__badge">
+                <text>{{ chat.unread }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- System -->
+      <view v-if="activeTab === 'system'" class="messages__list">
+        <view v-if="!systemNotifs.length" class="messages__empty">
+          <text>暂无系统通知</text>
+        </view>
+        <view v-if="hasUnreadNotif" class="messages__actions">
+          <view class="messages__read-all" @click="onReadAll">
+            <text>全部标记已读</text>
+          </view>
+        </view>
+        <view
+          v-for="item in systemNotifs"
           :key="item.id"
-          class="system system--compact"
+          class="system"
           :class="{ 'system--unread': !item.read }"
           @click="onReadNotif(item)"
         >
           <view class="system__icon" :style="{ background: item.bg, color: item.color }">
-            <wm-icon :name="item.icon" :size="32" :color="item.color" />
+            <wm-icon :name="item.icon" :size="36" :color="item.color" />
           </view>
           <view class="system__body">
             <view class="system__top">
@@ -106,10 +96,41 @@
             </view>
             <text class="system__desc">{{ item.desc }}</text>
           </view>
-          <view v-if="!item.read" class="system__dot" />
+          <view v-if="!item.read" class="system__dot"></view>
         </view>
       </view>
-    </view>
+
+      <!-- Bottom: always show system section in group tab as preview -->
+      <view v-if="activeTab === 'group'" class="messages__section">
+        <view class="messages__section-head">
+          <text class="messages__section-title">系统通知</text>
+          <text v-if="systemNotifs.length" class="messages__section-more" @click="activeTab = 'system'">
+            查看全部
+          </text>
+        </view>
+        <view class="messages__list messages__list--tight">
+          <view
+            v-for="item in systemNotifs.slice(0, 3)"
+            :key="item.id"
+            class="system system--compact"
+            :class="{ 'system--unread': !item.read }"
+            @click="onReadNotif(item)"
+          >
+            <view class="system__icon" :style="{ background: item.bg, color: item.color }">
+              <wm-icon :name="item.icon" :size="32" :color="item.color" />
+            </view>
+            <view class="system__body">
+              <view class="system__top">
+                <text class="system__title">{{ item.title }}</text>
+                <text class="system__time">{{ item.time }}</text>
+              </view>
+              <text class="system__desc">{{ item.desc }}</text>
+            </view>
+            <view v-if="!item.read" class="system__dot"></view>
+          </view>
+        </view>
+      </view>
+    </template>
 
     <wm-tab-bar active="messages" />
   </view>
@@ -187,6 +208,7 @@ export default {
       ],
       groupChats: [],
       systemNotifs: [],
+      loading: false,
     }
   },
   computed: {
@@ -202,6 +224,7 @@ export default {
   },
   methods: {
     async loadMessages() {
+      this.loading = true
       try {
         const [convData, notifData] = await Promise.all([
           getMyChats({ page: 1, pageSize: 20 }),
@@ -213,6 +236,8 @@ export default {
         this.groupChats = []
         this.systemNotifs = []
         uni.showToast({ title: e?.message || '消息加载失败', icon: 'none' })
+      } finally {
+        this.loading = false
       }
     },
     async onOpenGroup(chat) {
@@ -532,6 +557,95 @@ export default {
     font-size: 24rpx;
     color: #64748b;
     line-height: 1.5;
+  }
+}
+
+/* Skeleton Styles */
+.skeleton-content {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.skeleton-chat {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 24rpx;
+  display: flex;
+  gap: 20rpx;
+  align-items: center;
+}
+
+.skeleton-chat-avatar {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  flex-shrink: 0;
+}
+
+.skeleton-chat-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.skeleton-chat-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.skeleton-chat-name {
+  width: 160rpx;
+  height: 34rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-chat-time {
+  width: 80rpx;
+  height: 26rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-chat-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.skeleton-chat-msg {
+  width: 70%;
+  height: 28rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
   }
 }
 </style>

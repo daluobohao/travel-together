@@ -6,92 +6,143 @@
       <text class="discover__subtitle">找到你感兴趣的活动</text>
     </view>
 
-    <!-- Nearby -->
-    <view class="section section--nearby">
-      <view class="section__head section__head--nearby">
-        <text class="section__title section__title--inline">附近活动</text>
-        <view class="radius-chips">
-          <view
-            v-for="r in radiusOptions"
-            :key="r"
-            class="radius-chip"
-            :class="{ 'radius-chip--active': r === nearbyRadiusKm }"
-            @click="onRadiusChange(r)"
-          >
-            <text>{{ r }}km</text>
+    <!-- Skeleton Loading -->
+    <view v-if="loading" class="skeleton-content">
+      <!-- Nearby Skeleton -->
+      <view class="section section--nearby">
+        <view class="section__head section__head--nearby">
+          <view class="skeleton-section-title"></view>
+          <view class="radius-chips">
+            <view v-for="r in radiusOptions" :key="r" class="skeleton-radius-chip"></view>
           </view>
         </view>
-      </view>
-      <view v-if="nearbyLoading" class="nearby-loading">
-        <text>加载附近活动…</text>
-      </view>
-      <view v-else-if="!nearbyCards.length" class="nearby-empty">
-        <text>暂无附近活动，试试放大半径或晚点再来看看</text>
-      </view>
-      <view v-else class="nearby-list">
-        <view
-          v-for="item in nearbyCards"
-          :key="item.id"
-          class="nearby-card"
-          @click="onOpenNearby(item)"
-        >
-          <view class="nearby-card__main">
-            <view class="nearby-card__tags">
-              <view class="nearby-card__cat" :style="{ color: item.tagColor, background: item.tagBg }">
-                <text>{{ item.category }}</text>
+        <view class="nearby-list">
+          <view v-for="i in 3" :key="i" class="skeleton-nearby-card">
+            <view class="skeleton-nearby-main">
+              <view class="skeleton-nearby-tags">
+                <view class="skeleton-nearby-cat"></view>
+                <view class="skeleton-nearby-dist"></view>
               </view>
-              <text v-if="item.distance" class="nearby-card__dist">{{ item.distance }}</text>
+              <view class="skeleton-nearby-title"></view>
+              <view class="skeleton-nearby-meta"></view>
             </view>
-            <text class="nearby-card__title">{{ item.title }}</text>
-            <text class="nearby-card__meta">{{ item.time }} · {{ item.location }}</text>
           </view>
-          <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
+        </view>
+      </view>
+
+      <!-- Categories Skeleton -->
+      <view class="section">
+        <view class="skeleton-section-title"></view>
+        <view class="categories">
+          <view v-for="i in 6" :key="i" class="skeleton-category-card">
+            <view class="skeleton-category-icon"></view>
+            <view class="skeleton-category-label"></view>
+            <view class="skeleton-category-count"></view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Featured Skeleton -->
+      <view class="section">
+        <view class="section__head">
+          <view class="skeleton-section-title"></view>
+          <view class="skeleton-section-more"></view>
+        </view>
+        <view class="featured">
+          <view v-for="i in 3" :key="i" class="skeleton-featured-card"></view>
         </view>
       </view>
     </view>
 
-    <!-- Categories -->
-    <view class="section">
-      <text class="section__title">活动分类</text>
-      <view class="categories">
-        <view v-for="c in categories" :key="c.key" class="category-card" @click="onCategory(c)">
-          <view class="category-card__icon" :style="{ background: c.bg }">
-            <text class="category-card__emoji">{{ c.emoji }}</text>
+    <!-- Actual Content -->
+    <template v-else>
+      <!-- Nearby -->
+      <view class="section section--nearby">
+        <view class="section__head section__head--nearby">
+          <text class="section__title section__title--inline">附近活动</text>
+          <view class="radius-chips">
+            <view
+              v-for="r in radiusOptions"
+              :key="r"
+              class="radius-chip"
+              :class="{ 'radius-chip--active': r === nearbyRadiusKm }"
+              @click="onRadiusChange(r)"
+            >
+              <text>{{ r }}km</text>
+            </view>
           </view>
-          <text class="category-card__label">{{ c.label }}</text>
-          <text class="category-card__count">{{ c.count }} 场活动</text>
+        </view>
+        <view v-if="nearbyLoading" class="nearby-loading">
+          <text>加载附近活动…</text>
+        </view>
+        <view v-else-if="!nearbyCards.length" class="nearby-empty">
+          <text>暂无附近活动，试试放大半径或晚点再来看看</text>
+        </view>
+        <view v-else class="nearby-list">
+          <view
+            v-for="item in nearbyCards"
+            :key="item.id"
+            class="nearby-card"
+            @click="onOpenNearby(item)"
+          >
+            <view class="nearby-card__main">
+              <view class="nearby-card__tags">
+                <view class="nearby-card__cat" :style="{ color: item.tagColor, background: item.tagBg }">
+                  <text>{{ item.category }}</text>
+                </view>
+                <text v-if="item.distance" class="nearby-card__dist">{{ item.distance }}</text>
+              </view>
+              <text class="nearby-card__title">{{ item.title }}</text>
+              <text class="nearby-card__meta">{{ item.time }} · {{ item.location }}</text>
+            </view>
+            <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
+          </view>
         </view>
       </view>
-    </view>
 
-    <!-- Featured activities -->
-    <view class="section">
-      <view class="section__head">
-        <text class="section__title">精选活动</text>
-        <text class="section__more" @click="onViewAll">查看全部</text>
-      </view>
-      <view class="featured">
-        <view
-          v-for="f in featured"
-          :key="f.id"
-          class="featured-card"
-          :style="{ background: f.gradient }"
-          @click="onFeatured(f)"
-        >
-          <view class="featured-card__inner">
-            <view class="featured-card__tag">
-              <text>{{ f.tag }}</text>
+      <!-- Categories -->
+      <view class="section">
+        <text class="section__title">活动分类</text>
+        <view class="categories">
+          <view v-for="c in categories" :key="c.key" class="category-card" @click="onCategory(c)">
+            <view class="category-card__icon" :style="{ background: c.bg }">
+              <text class="category-card__emoji">{{ c.emoji }}</text>
             </view>
-            <text class="featured-card__title">{{ f.title }}</text>
-            <view class="featured-card__meta">
-              <text>{{ f.date }}</text>
-              <text class="featured-card__dot">·</text>
-              <text>{{ f.enrolled }}人已报名</text>
+            <text class="category-card__label">{{ c.label }}</text>
+            <text class="category-card__count">{{ c.count }} 场活动</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- Featured activities -->
+      <view class="section">
+        <view class="section__head">
+          <text class="section__title">精选活动</text>
+          <text class="section__more" @click="onViewAll">查看全部</text>
+        </view>
+        <view class="featured">
+          <view
+            v-for="f in featured"
+            :key="f.id"
+            class="featured-card"
+            :style="{ background: f.gradient }"
+            @click="onFeatured(f)"
+          >
+            <view class="featured-card__inner">
+              <view class="featured-card__tag">
+                <text>{{ f.tag }}</text>
+              </view>
+              <text class="featured-card__title">{{ f.title }}</text>
+              <view class="featured-card__meta">
+                <text>{{ f.date }}</text>
+                <text class="featured-card__dot">·</text>
+                <text>{{ f.enrolled }}人已报名</text>
+              </view>
             </view>
           </view>
         </view>
       </view>
-    </view>
+    </template>
 
     <wm-tab-bar active="discover" />
   </view>
@@ -114,6 +165,7 @@ export default {
       radiusOptions: [3, 5, 10],
       nearbyCards: [],
       nearbyLoading: false,
+      loading: false,
       userLocation: null,
     }
   },
@@ -183,6 +235,7 @@ export default {
       })
     },
     async loadData() {
+      this.loading = true
       try {
         const [categoryData, activityData] = await Promise.all([
           getActivityCategories(),
@@ -227,6 +280,8 @@ export default {
         this.categories = []
         this.featured = []
         uni.showToast({ title: e?.message || '发现页加载失败', icon: 'none' })
+      } finally {
+        this.loading = false
       }
     },
     onCategory(c) {
@@ -513,6 +568,163 @@ export default {
 
   &__dot {
     opacity: 0.6;
+  }
+}
+
+/* Skeleton Styles */
+.skeleton-content {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.skeleton-section-title {
+  width: 140rpx;
+  height: 36rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  margin-bottom: 24rpx;
+}
+
+.skeleton-section-more {
+  width: 100rpx;
+  height: 28rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-radius-chip {
+  width: 70rpx;
+  height: 40rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-nearby-card {
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 22rpx 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.skeleton-nearby-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.skeleton-nearby-tags {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.skeleton-nearby-cat {
+  width: 80rpx;
+  height: 36rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-nearby-dist {
+  width: 60rpx;
+  height: 28rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-nearby-title {
+  width: 80%;
+  height: 36rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-nearby-meta {
+  width: 60%;
+  height: 28rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-category-card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 28rpx 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.skeleton-category-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-category-label {
+  width: 100rpx;
+  height: 32rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-category-count {
+  width: 80rpx;
+  height: 24rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-featured-card {
+  border-radius: 28rpx;
+  min-height: 240rpx;
+  background: linear-gradient(90deg, #e2e8f0 25%, #cbd5e0 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
   }
 }
 </style>

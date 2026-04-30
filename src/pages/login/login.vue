@@ -6,7 +6,7 @@
     </view>
 
     <view class="login__form">
-      <view class="field">
+      <view class="field" :class="{ 'field--error': phoneError }">
         <text class="field__label">手机号</text>
         <input
           v-model="form.phone"
@@ -15,10 +15,12 @@
           maxlength="11"
           placeholder="请输入 11 位手机号"
           placeholder-class="field__placeholder"
+          @input="onPhoneInput"
         />
+        <text v-if="phoneError" class="field__error">{{ phoneError }}</text>
       </view>
 
-      <view class="field">
+      <view class="field" :class="{ 'field--error': codeError }">
         <text class="field__label">验证码</text>
         <view class="field__row">
           <input
@@ -28,17 +30,25 @@
             maxlength="6"
             placeholder="请输入验证码"
             placeholder-class="field__placeholder"
+            @input="onCodeInput"
           />
           <view class="field__sms-btn" :class="{ 'field__sms-btn--disabled': smsDisabled }" @click="onSendSms">
             <text>{{ smsText }}</text>
           </view>
         </view>
+        <text v-if="codeError" class="field__error">{{ codeError }}</text>
       </view>
     </view>
 
     <view class="login__action">
-      <view class="login__btn" @click="onLogin">
-        <text>登录</text>
+      <view 
+        class="login__btn" 
+        :class="{ 'login__btn--loading': loading, 'login__btn--disabled': !canSubmit }" 
+        :hover-class="canSubmit && !loading ? 'login__btn--hover' : ''"
+        @click="onLogin"
+      >
+        <view v-if="loading" class="btn-spinner"></view>
+        <text v-else>{{ loading ? '登录中...' : '登录' }}</text>
       </view>
     </view>
   </view>
@@ -59,6 +69,8 @@ export default {
       countdown: 0,
       timer: null,
       loading: false,
+      phoneError: '',
+      codeError: '',
     }
   },
   computed: {
@@ -67,6 +79,9 @@ export default {
     },
     smsText() {
       return this.countdown > 0 ? `${this.countdown}s后重试` : '发送验证码'
+    },
+    canSubmit() {
+      return PHONE_REG.test(this.form.phone) && /^\d{4,6}$/.test(this.form.code) && !this.loading
     },
   },
   onUnload() {
@@ -90,6 +105,16 @@ export default {
         }
       }, 1000)
     },
+    onPhoneInput() {
+      if (this.phoneError) {
+        this.phoneError = ''
+      }
+    },
+    onCodeInput() {
+      if (this.codeError) {
+        this.codeError = ''
+      }
+    },
     async onSendSms() {
       if (this.smsDisabled) return
       try {
@@ -101,15 +126,20 @@ export default {
       }
     },
     async onLogin() {
-      if (this.loading) return
+      if (this.loading || !this.canSubmit) return
+      
+      this.phoneError = ''
+      this.codeError = ''
+      
       if (!PHONE_REG.test(this.form.phone)) {
-        uni.showToast({ title: '请输入正确手机号', icon: 'none' })
+        this.phoneError = '请输入正确的手机号'
         return
       }
       if (!/^\d{4,6}$/.test(this.form.code)) {
-        uni.showToast({ title: '请输入验证码', icon: 'none' })
+        this.codeError = '请输入验证码'
         return
       }
+      
       this.loading = true
       try {
         const data = await loginBySms({ phone: this.form.phone, code: this.form.code })
@@ -139,6 +169,7 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 12rpx;
+    animation: fadeInDown 0.5s ease-out;
   }
 
   &__title {
@@ -156,10 +187,12 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 20rpx;
+    animation: fadeInUp 0.5s ease-out 0.1s both;
   }
 
   &__action {
     margin-top: 40rpx;
+    animation: fadeInUp 0.5s ease-out 0.2s both;
   }
 
   &__btn {
@@ -172,7 +205,61 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 12rpx;
     box-shadow: 0 12rpx 28rpx rgba(99, 102, 241, 0.4);
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
+
+    &--hover {
+      transform: scale(0.98);
+      box-shadow: 0 8rpx 20rpx rgba(99, 102, 241, 0.3);
+    }
+
+    &--disabled {
+      background: #e2e8f0;
+      color: #94a3b8;
+      box-shadow: none;
+    }
+
+    &--loading {
+      opacity: 0.8;
+    }
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.btn-spinner {
+  width: 36rpx;
+  height: 36rpx;
+  border: 3rpx solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -182,8 +269,15 @@ export default {
   padding: 24rpx 28rpx;
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: 12rpx;
   box-shadow: 0 2rpx 10rpx rgba(15, 23, 42, 0.03);
+  border: 2rpx solid transparent;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &--error {
+    border-color: #ef4444;
+    animation: shake 0.4s ease-in-out;
+  }
 
   &__label {
     font-size: 26rpx;
@@ -226,11 +320,30 @@ export default {
     color: #4f46e5;
     font-size: 24rpx;
     font-weight: 600;
+    transition: background-color 0.2s, color 0.2s, transform 0.1s;
+
+    &:active {
+      transform: scale(0.95);
+    }
 
     &--disabled {
       background: #f1f5f9;
       color: #94a3b8;
     }
   }
+
+  &__error {
+    font-size: 22rpx;
+    color: #ef4444;
+    margin-top: 4rpx;
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8rpx); }
+  40% { transform: translateX(8rpx); }
+  60% { transform: translateX(-8rpx); }
+  80% { transform: translateX(8rpx); }
 }
 </style>

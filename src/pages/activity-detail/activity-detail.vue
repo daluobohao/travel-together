@@ -5,10 +5,51 @@
         <wm-icon name="chevronLeft" :size="36" color="#0f172a" />
       </view>
       <text class="detail__header-title">活动详情</text>
-      <view class="detail__placeholder" />
+      <view class="detail__placeholder"></view>
     </view>
 
-    <view class="detail__content" v-if="activity">
+    <!-- Loading state - Skeleton -->
+    <view v-if="loading" class="detail__content">
+      <view class="skeleton-hero"></view>
+      
+      <view class="panel">
+        <view class="skeleton-meta-item"></view>
+        <view class="skeleton-meta-item"></view>
+        <view class="skeleton-meta-item"></view>
+      </view>
+
+      <view class="panel">
+        <view class="skeleton-section-title"></view>
+        <view class="skeleton-desc">
+          <view class="skeleton-desc-line"></view>
+          <view class="skeleton-desc-line"></view>
+          <view class="skeleton-desc-line skeleton-desc-line--short"></view>
+        </view>
+      </view>
+
+      <view class="panel">
+        <view class="skeleton-panel-head">
+          <view class="skeleton-section-title"></view>
+          <view class="skeleton-status-tag"></view>
+        </view>
+        <view class="skeleton-desc">
+          <view class="skeleton-desc-line"></view>
+        </view>
+      </view>
+
+      <view class="panel">
+        <view class="skeleton-section-title"></view>
+        <view class="skeleton-host">
+          <view class="skeleton-avatar"></view>
+          <view class="skeleton-host-info">
+            <view class="skeleton-host-name"></view>
+            <view class="skeleton-host-meta"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="detail__content" v-else-if="activity">
       <view class="hero" :style="{ background: activity.cover }">
         <view class="hero__tag-row">
           <view class="hero__tag" :style="{ background: activity.tagBg, color: activity.tagColor }">
@@ -77,16 +118,19 @@
       <view
         v-if="canEnterGroup"
         class="detail__action-btn detail__action-btn--ghost"
+        :hover-class="'detail__action-btn--ghost-active'"
         @click="onEnterGroup"
       >
         <text>进入群聊</text>
       </view>
       <view
         class="detail__action-btn"
-        :class="actionBtnClass"
+        :class="[actionBtnClass, { 'detail__action-btn--loading': actionLoading }]"
+        :hover-class="!actionBtnClass.includes('disabled') ? 'detail__action-btn--hover' : ''"
         @click="onPrimaryAction"
       >
-        <text>{{ actionText }}</text>
+        <view v-if="actionLoading" class="btn-spinner"></view>
+        <text v-else>{{ actionText }}</text>
       </view>
     </view>
   </view>
@@ -107,6 +151,7 @@ export default {
     return {
       activity: null,
       actionLoading: false,
+      loading: false,
     }
   },
   computed: {
@@ -149,6 +194,7 @@ export default {
   },
   methods: {
     async loadActivity(id) {
+      this.loading = true
       try {
         const detail = await getActivityDetail(id)
         if (detail) {
@@ -174,7 +220,11 @@ export default {
           }
           return
         }
-      } catch (e) {}
+      } catch (e) {
+        uni.showToast({ title: '加载失败', icon: 'none' })
+      } finally {
+        this.loading = false
+      }
       this.activity = null
     },
     refreshStatus() {
@@ -183,8 +233,8 @@ export default {
         activityStatus: this.activity.isCancelled
           ? 'cancelled'
           : this.activity.isEnded
-            ? 'ended'
-            : 'published',
+          ? 'ended'
+          : 'published',
         enrolledCount: this.activity.joined,
         maxMembers: this.activity.total,
         startAt: this.activity.time,
@@ -193,11 +243,11 @@ export default {
     },
     goBack() {
       uni.navigateBack({
-        fail: () => uni.reLaunch({ url: '/pages/home/home' }),
+        fail: () => uni.reLaunch({ url: '/pages/home/home' })
       })
     },
     onPrimaryAction() {
-      if (!this.activity) return
+      if (!this.activity || this.actionLoading) return
       if (
         this.activity.isEnded ||
         this.activity.isCancelled ||
@@ -287,6 +337,7 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 20rpx;
+    animation: fadeInUp 0.4s ease-out;
   }
 
   &__action {
@@ -313,22 +364,82 @@ export default {
     color: #ffffff;
     font-size: 30rpx;
     font-weight: 600;
+    gap: 12rpx;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
+
+    &--hover {
+      transform: scale(0.98);
+      box-shadow: 0 8rpx 20rpx rgba(99, 102, 241, 0.3);
+    }
 
     &--cancel {
       background: #f97316;
+
+      &.detail__action-btn--hover {
+        box-shadow: 0 8rpx 20rpx rgba(249, 115, 22, 0.3);
+      }
     }
 
     &--ghost {
       background: #ffffff;
       color: #6366f1;
       border: 2rpx solid #c7d2fe;
+
+      &-active {
+        background: #eef2ff;
+        transform: scale(0.98);
+      }
     }
 
     &--disabled {
       background: #e2e8f0;
       color: #94a3b8;
     }
+
+    &--loading {
+      opacity: 0.8;
+    }
   }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.loading-spinner {
+  width: 60rpx;
+  height: 60rpx;
+  border: 4rpx solid #e2e8f0;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.btn-spinner {
+  width: 36rpx;
+  height: 36rpx;
+  border: 3rpx solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.loading-text {
+  font-size: 26rpx;
+  color: #94a3b8;
 }
 
 .hero {
@@ -472,6 +583,125 @@ export default {
     font-size: 22rpx;
     color: #94a3b8;
     margin-top: 4rpx;
+  }
+}
+
+/* Skeleton Styles */
+.skeleton-hero {
+  border-radius: 24rpx;
+  height: 200rpx;
+  background: linear-gradient(135deg, #e2e8f0 25%, #cbd5e0 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-meta-item {
+  height: 70rpx;
+  border-bottom: 1rpx solid #eef2f7;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 0;
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.skeleton-section-title {
+  height: 36rpx;
+  width: 140rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  margin-bottom: 14rpx;
+}
+
+.skeleton-desc {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.skeleton-desc-line {
+  height: 26rpx;
+  width: 100%;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-desc-line--short {
+  width: 70%;
+}
+
+.skeleton-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14rpx;
+  
+  .skeleton-section-title {
+    margin-bottom: 0;
+  }
+}
+
+.skeleton-status-tag {
+  height: 34rpx;
+  width: 120rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-host {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.skeleton-avatar {
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-host-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.skeleton-host-name {
+  height: 32rpx;
+  width: 180rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-host-meta {
+  height: 24rpx;
+  width: 220rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
   }
 }
 </style>

@@ -6,6 +6,7 @@
       :key="item.key"
       class="wm-tabbar__item"
       :class="{ 'wm-tabbar__item--center': item.center }"
+      :hover-class="!item.center ? 'wm-tabbar__item--hover' : ''"
       @click="onSwitch(item)"
     >
       <template v-if="item.center">
@@ -15,11 +16,13 @@
         <text class="wm-tabbar__label wm-tabbar__label--center">{{ item.label }}</text>
       </template>
       <template v-else>
-        <wm-icon
-          :name="item.icon"
-          :size="44"
-          :color="active === item.key ? '#6366f1' : '#94a3b8'"
-        />
+        <view class="wm-tabbar__icon-wrapper">
+          <wm-icon
+            :name="item.icon"
+            :size="44"
+            :color="active === item.key ? '#6366f1' : '#94a3b8'"
+          />
+        </view>
         <text class="wm-tabbar__label" :class="{ 'wm-tabbar__label--active': active === item.key }">
           {{ item.label }}
         </text>
@@ -87,10 +90,25 @@ export default {
     align-items: center;
     gap: 4rpx;
     padding-top: 10rpx;
+    transition: transform 0.15s;
+
+    &--hover {
+      transform: scale(0.95);
+    }
 
     &--center {
       margin-top: -36rpx;
+
+      &.wm-tabbar__item--hover .wm-tabbar__fab {
+        transform: scale(0.95);
+      }
     }
+  }
+
+  &__icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   &__fab {
@@ -103,12 +121,14 @@ export default {
     justify-content: center;
     box-shadow: 0 12rpx 28rpx rgba(99, 102, 241, 0.45);
     border: 6rpx solid #ffffff;
+    transition: transform 0.15s, box-shadow 0.15s;
   }
 
   &__label {
     font-size: 20rpx;
     color: #94a3b8;
     line-height: 1;
+    transition: color 0.2s, font-weight 0.2s;
 
     &--active {
       color: #6366f1;
