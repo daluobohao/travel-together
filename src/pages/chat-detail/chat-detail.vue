@@ -58,6 +58,7 @@ import {
   getAccessToken,
   getActivityDetail,
   getActivityMessages,
+  getMe,
   markMyChatRead,
   sendActivityMessage,
 } from '@/api'
@@ -102,6 +103,7 @@ export default {
       pollingPaused: false,
       socketTask: null,
       useWebSocket: false, // 切到 true 时优先走 WS，失败自动退回轮询
+      currentUserId: '', // 当前登录用户的ID
     }
   },
   onLoad(query) {
@@ -130,12 +132,26 @@ export default {
   },
   methods: {
     async bootstrapGroup() {
+      await this.loadCurrentUser()
       await this.loadGroup()
+      try {
+        await markMyChatRead(this.chatId)
+      } catch (e) {
+        console.warn('标记已读失败', e)
+      }
       if (this.useWebSocket) {
         const ok = this.openSocket()
         if (!ok) this.startPolling()
       } else {
         this.startPolling()
+      }
+    },
+    async loadCurrentUser() {
+      try {
+        const user = await getMe()
+        this.currentUserId = user?.userId || ''
+      } catch (e) {
+        console.warn('获取当前用户信息失败', e)
       }
     },
     async loadGroup() {
@@ -164,12 +180,14 @@ export default {
       const id = raw.messageId || `local_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
       if (this.messageIds[id]) return null
       this.messageIds[id] = true
+      const senderUserId = raw.sender?.userId
+      const isMine = senderUserId === 'me' || (this.currentUserId && senderUserId === this.currentUserId)
       return {
         id,
         sender: raw.sender?.nickname || '用户',
         text: raw.text || '',
         time: formatTime(raw.createdAt),
-        mine: raw.sender?.userId === 'me',
+        mine: isMine,
         createdAt: raw.createdAt,
       }
     },
@@ -313,6 +331,11 @@ export default {
           }
         }
         this.updateLastCreatedAt([{ createdAt: row?.createdAt }])
+        try {
+          await markMyChatRead(this.chatId)
+        } catch (e) {
+          console.warn('标记已读失败', e)
+        }
       } catch (e) {
         const idx = this.messages.findIndex((m) => m.id === tempId)
         if (idx >= 0) this.messages.splice(idx, 1, { ...this.messages[idx], failed: true, pending: false })

@@ -421,7 +421,7 @@ export const sendActivityMessage = (activityId, payload) =>
       const row = {
         messageId: `msg_${Date.now()}`,
         activityId: String(activityId),
-        sender: { userId: 'me', nickname: '你', avatarUrl: null },
+        sender: { userId: wmDB.profile.userId, nickname: wmDB.profile.nickname, avatarUrl: null },
         msgType: data.msgType,
         text: data.text || null,
         imageUrl: data.imageUrl || null,
