@@ -22,6 +22,13 @@
 			}
 		},
 		{
+			"path": "pages/user-public/user-public",
+			"style": {
+				"navigationBarTitleText": "发起人资料",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/category-list/category-list",
 			"style": {
 				"navigationBarTitleText": "分类活动",

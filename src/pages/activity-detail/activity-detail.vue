@@ -64,31 +64,23 @@
       <view class="panel">
         <text class="section-title">发起人</text>
         <view class="host">
-          <view class="host__avatar">
-            <image
-              v-if="activity.organizerAvatar"
-              class="host__avatar-img"
-              :src="activity.organizerAvatar"
-              mode="aspectFill"
-            />
-            <text v-else>{{ activity.organizer.slice(0, 1) }}</text>
+          <view class="host__avatar-wrap" @click="onOpenOrganizerProfile">
+            <view class="host__avatar">
+              <image
+                v-if="activity.organizerAvatar"
+                class="host__avatar-img"
+                :src="activity.organizerAvatar"
+                mode="aspectFill"
+              />
+              <text v-else>{{ activity.organizer.slice(0, 1) }}</text>
+            </view>
+            <text class="host__tap-hint">点头像看资料</text>
           </view>
           <view class="host__info">
-            <view class="host__name-row">
-              <text class="host__name">{{ activity.organizer }}</text>
-              <view v-if="activity.organizerVerified" class="host__badge">
-                <wm-icon name="check" :size="18" color="#059669" />
-                <text>已认证</text>
-              </view>
-            </view>
+            <text class="host__name">{{ activity.organizer }}</text>
             <text class="host__meta">已组织 {{ activity.hostedCount }} 场活动</text>
-            <view v-if="activity.organizerTags && activity.organizerTags.length" class="host__tags">
-              <text v-for="(tag, ti) in activity.organizerTags" :key="ti" class="host__tag">{{ tag }}</text>
-            </view>
           </view>
         </view>
-        <text v-if="activity.organizerBio" class="host__bio">{{ activity.organizerBio }}</text>
-        <text v-else class="host__bio host__bio--empty">暂无个人简介</text>
       </view>
     </view>
 
@@ -119,7 +111,6 @@ import {
   enrollActivity,
   formatActivityTimeRange,
   getActivityDetail,
-  getUserPublicProfile,
 } from '@/api'
 
 export default {
@@ -173,23 +164,7 @@ export default {
       try {
         const detail = await getActivityDetail(id)
         if (detail) {
-          let org = detail.organizer || {}
-          if (org.userId && !String(org.bio || '').trim()) {
-            try {
-              const pub = await getUserPublicProfile(org.userId)
-              if (pub) {
-                org = {
-                  ...org,
-                  nickname: pub.nickname || org.nickname,
-                  avatarUrl: pub.avatarUrl != null ? pub.avatarUrl : org.avatarUrl,
-                  bio: pub.bio != null ? pub.bio : '',
-                  tags: Array.isArray(pub.tags) ? pub.tags : org.tags || [],
-                  verificationBadge:
-                    pub.verificationBadge != null ? pub.verificationBadge : org.verificationBadge,
-                }
-              }
-            } catch (e) {}
-          }
+          const org = detail.organizer || {}
           const status = computeActivityStatus(detail)
           this.activity = {
             id: String(detail.activityId || ''),
@@ -208,7 +183,7 @@ export default {
             organizer: org.nickname || '组织者',
             organizerId: org.userId || '',
             organizerAvatar: org.avatarUrl || '',
-            organizerBio: org.bio || '',
+            organizerBio: (org.bio && String(org.bio).trim()) || '',
             organizerTags: Array.isArray(org.tags) ? org.tags : [],
             organizerVerified: !!org.verificationBadge,
             hostedCount: Number(detail.organizerHostedCount || 0),
@@ -220,6 +195,30 @@ export default {
         }
       } catch (e) {}
       this.activity = null
+    },
+    onOpenOrganizerProfile() {
+      const uid = this.activity?.organizerId
+      if (!uid) {
+        uni.showToast({ title: '暂无发起人信息', icon: 'none' })
+        return
+      }
+      const p = this.activity
+      const q = [
+        `userId=${encodeURIComponent(uid)}`,
+        `nick=${encodeURIComponent(p.organizer || '')}`,
+        `hosted=${Number(p.hostedCount) || 0}`,
+      ]
+      if (p.organizerAvatar) q.push(`ava=${encodeURIComponent(p.organizerAvatar)}`)
+      if (p.organizerBio) q.push(`bio=${encodeURIComponent(p.organizerBio)}`)
+      if (p.organizerTags && p.organizerTags.length) {
+        try {
+          q.push(`tags=${encodeURIComponent(JSON.stringify(p.organizerTags))}`)
+        } catch (e) {}
+      }
+      if (p.organizerVerified) q.push('v=1')
+      uni.navigateTo({
+        url: `/pages/user-public/user-public?${q.join('&')}`,
+      })
     },
     refreshStatus() {
       if (!this.activity) return
@@ -481,8 +480,22 @@ export default {
 
 .host {
   display: flex;
-  align-items: flex-start;
-  gap: 16rpx;
+  align-items: center;
+  gap: 20rpx;
+
+  &__avatar-wrap {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8rpx;
+  }
+
+  &__tap-hint {
+    font-size: 20rpx;
+    color: #6366f1;
+    font-weight: 500;
+  }
 
   &__info {
     flex: 1;
@@ -498,7 +511,6 @@ export default {
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    flex-shrink: 0;
 
     text {
       color: #ffffff;
@@ -512,32 +524,11 @@ export default {
     height: 100%;
   }
 
-  &__name-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12rpx;
-  }
-
   &__name {
+    display: block;
     font-size: 30rpx;
     color: #0f172a;
     font-weight: 600;
-  }
-
-  &__badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4rpx;
-    padding: 2rpx 12rpx;
-    border-radius: 999rpx;
-    background: #ecfdf5;
-
-    text {
-      font-size: 20rpx;
-      color: #059669;
-      font-weight: 600;
-    }
   }
 
   &__meta {
@@ -545,37 +536,6 @@ export default {
     font-size: 22rpx;
     color: #94a3b8;
     margin-top: 6rpx;
-  }
-
-  &__tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10rpx;
-    margin-top: 12rpx;
-  }
-
-  &__tag {
-    font-size: 20rpx;
-    color: #6366f1;
-    background: #eef2ff;
-    padding: 4rpx 14rpx;
-    border-radius: 999rpx;
-    font-weight: 500;
-  }
-
-  &__bio {
-    display: block;
-    margin-top: 20rpx;
-    padding-top: 20rpx;
-    border-top: 1rpx solid #eef2f7;
-    font-size: 26rpx;
-    line-height: 1.65;
-    color: #475569;
-
-    &--empty {
-      color: #94a3b8;
-      font-style: italic;
-    }
   }
 }
 </style>
