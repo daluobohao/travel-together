@@ -5,137 +5,107 @@
         <wm-icon name="chevronLeft" :size="36" color="#0f172a" />
       </view>
       <text class="detail__header-title">活动详情</text>
-      <view class="detail__placeholder"></view>
+      <view class="detail__placeholder" />
     </view>
 
-    <!-- Content Area -->
-    <view class="detail__content">
-      <!-- Loading state - Skeleton -->
-      <view v-if="loading">
-        <view class="skeleton-hero"></view>
-        
-        <view class="panel">
-          <view class="skeleton-meta-item"></view>
-          <view class="skeleton-meta-item"></view>
-          <view class="skeleton-meta-item"></view>
-        </view>
-
-        <view class="panel">
-          <view class="skeleton-section-title"></view>
-          <view class="skeleton-desc">
-            <view class="skeleton-desc-line"></view>
-            <view class="skeleton-desc-line"></view>
-            <view class="skeleton-desc-line skeleton-desc-line--short"></view>
+    <view class="detail__content" v-if="activity">
+      <view class="hero" :style="{ background: activity.cover }">
+        <view class="hero__tag-row">
+          <view class="hero__tag" :style="{ background: activity.tagBg, color: activity.tagColor }">
+            <text>{{ activity.category }}</text>
+          </view>
+          <view class="hero__tag hero__tag--verified">
+            <wm-icon name="check" :size="20" color="#10b981" />
+            <text>已认证</text>
           </view>
         </view>
+        <text class="hero__title">{{ activity.title }}</text>
+      </view>
 
-        <view class="panel">
-          <view class="skeleton-panel-head">
-            <view class="skeleton-section-title"></view>
-            <view class="skeleton-status-tag"></view>
-          </view>
-          <view class="skeleton-desc">
-            <view class="skeleton-desc-line"></view>
+      <view class="panel">
+        <view class="meta-item">
+          <wm-icon name="clock" :size="30" color="#6366f1" />
+          <view class="meta-item__body">
+            <text class="meta-item__label">活动时间</text>
+            <text class="meta-item__value">{{ activity.time }}</text>
           </view>
         </view>
-
-        <view class="panel">
-          <view class="skeleton-section-title"></view>
-          <view class="skeleton-host">
-            <view class="skeleton-avatar"></view>
-            <view class="skeleton-host-info">
-              <view class="skeleton-host-name"></view>
-              <view class="skeleton-host-meta"></view>
-            </view>
+        <view class="meta-item">
+          <wm-icon name="mapPin" :size="30" color="#6366f1" />
+          <view class="meta-item__body">
+            <text class="meta-item__label">活动地点</text>
+            <text class="meta-item__value">{{ activity.location }} · {{ activity.distance }}</text>
+          </view>
+        </view>
+        <view class="meta-item">
+          <wm-icon name="users" :size="30" color="#6366f1" />
+          <view class="meta-item__body">
+            <text class="meta-item__label">参与人数</text>
+            <text class="meta-item__value">{{ activity.joined }}/{{ activity.total }} 人</text>
           </view>
         </view>
       </view>
 
-      <!-- Activity Detail -->
-      <view v-else-if="activity">
-        <view class="hero" :style="{ background: activity.cover }">
-          <view class="hero__tag-row">
-            <view class="hero__tag" :style="{ background: activity.tagBg, color: activity.tagColor }">
-              <text>{{ activity.category }}</text>
-            </view>
-            <view class="hero__tag hero__tag--verified">
-              <wm-icon name="check" :size="20" color="#10b981" />
-              <text>已认证</text>
-            </view>
-          </view>
-          <text class="hero__title">{{ activity.title }}</text>
-        </view>
+      <view class="panel">
+        <text class="section-title">活动说明</text>
+        <text class="desc">{{ activity.description }}</text>
+      </view>
 
-        <view class="panel">
-          <view class="meta-item">
-            <wm-icon name="clock" :size="30" color="#6366f1" />
-            <view class="meta-item__body">
-              <text class="meta-item__label">活动时间</text>
-              <text class="meta-item__value">{{ activity.time }}</text>
-            </view>
-          </view>
-          <view class="meta-item">
-            <wm-icon name="mapPin" :size="30" color="#6366f1" />
-            <view class="meta-item__body">
-              <text class="meta-item__label">活动地点</text>
-              <text class="meta-item__value">{{ activity.location }} · {{ activity.distance }}</text>
-            </view>
-          </view>
-          <view class="meta-item">
-            <wm-icon name="users" :size="30" color="#6366f1" />
-            <view class="meta-item__body">
-              <text class="meta-item__label">参与人数</text>
-              <text class="meta-item__value">{{ activity.joined }}/{{ activity.total }} 人</text>
-            </view>
+      <view class="panel">
+        <view class="panel__head">
+          <text class="section-title">活动状态</text>
+          <view class="status-tag" :style="{ background: activity.statusBg, color: activity.statusColor }">
+            <text>{{ activity.statusLabel }}</text>
           </view>
         </view>
+        <text class="desc">{{ statusHint }}</text>
+      </view>
 
-        <view class="panel">
-          <text class="section-title">活动说明</text>
-          <text class="desc">{{ activity.description }}</text>
-        </view>
-
-        <view class="panel">
-          <view class="panel__head">
-            <text class="section-title">活动状态</text>
-            <view class="status-tag" :style="{ background: activity.statusBg, color: activity.statusColor }">
-              <text>{{ activity.statusLabel }}</text>
-            </view>
+      <view class="panel">
+        <text class="section-title">发起人</text>
+        <view class="host">
+          <view class="host__avatar">
+            <image
+              v-if="activity.organizerAvatar"
+              class="host__avatar-img"
+              :src="activity.organizerAvatar"
+              mode="aspectFill"
+            />
+            <text v-else>{{ activity.organizer.slice(0, 1) }}</text>
           </view>
-          <text class="desc">{{ statusHint }}</text>
-        </view>
-
-        <view class="panel">
-          <text class="section-title">发起人</text>
-          <view class="host">
-            <view class="host__avatar"><text>{{ activity.organizer.slice(0, 1) }}</text></view>
-            <view class="host__info">
+          <view class="host__info">
+            <view class="host__name-row">
               <text class="host__name">{{ activity.organizer }}</text>
-              <text class="host__meta">组织了 {{ activity.hostedCount }} 场活动</text>
+              <view v-if="activity.organizerVerified" class="host__badge">
+                <wm-icon name="check" :size="18" color="#059669" />
+                <text>已认证</text>
+              </view>
+            </view>
+            <text class="host__meta">已组织 {{ activity.hostedCount }} 场活动</text>
+            <view v-if="activity.organizerTags && activity.organizerTags.length" class="host__tags">
+              <text v-for="(tag, ti) in activity.organizerTags" :key="ti" class="host__tag">{{ tag }}</text>
             </view>
           </view>
         </view>
+        <text v-if="activity.organizerBio" class="host__bio">{{ activity.organizerBio }}</text>
+        <text v-else class="host__bio host__bio--empty">暂无个人简介</text>
       </view>
     </view>
 
-    <!-- Fixed Bottom Action Area -->
-    <view class="detail__action">
+    <view class="detail__action" v-if="activity">
       <view
         v-if="canEnterGroup"
         class="detail__action-btn detail__action-btn--ghost"
-        :hover-class="'detail__action-btn--ghost-active'"
         @click="onEnterGroup"
       >
         <text>进入群聊</text>
       </view>
       <view
         class="detail__action-btn"
-        :class="[actionBtnClass, { 'detail__action-btn--loading': actionLoading }]"
-        :hover-class="!actionBtnClass.includes('disabled') ? 'detail__action-btn--hover' : ''"
+        :class="actionBtnClass"
         @click="onPrimaryAction"
       >
-        <view v-if="actionLoading" class="btn-spinner"></view>
-        <text v-else>{{ actionText }}</text>
+        <text>{{ actionText }}</text>
       </view>
     </view>
   </view>
@@ -149,6 +119,7 @@ import {
   enrollActivity,
   formatActivityTimeRange,
   getActivityDetail,
+  getUserPublicProfile,
 } from '@/api'
 
 export default {
@@ -157,7 +128,6 @@ export default {
     return {
       activity: null,
       actionLoading: false,
-      loading: false,
     }
   },
   computed: {
@@ -200,10 +170,26 @@ export default {
   },
   methods: {
     async loadActivity(id) {
-      this.loading = true
       try {
         const detail = await getActivityDetail(id)
         if (detail) {
+          let org = detail.organizer || {}
+          if (org.userId && !String(org.bio || '').trim()) {
+            try {
+              const pub = await getUserPublicProfile(org.userId)
+              if (pub) {
+                org = {
+                  ...org,
+                  nickname: pub.nickname || org.nickname,
+                  avatarUrl: pub.avatarUrl != null ? pub.avatarUrl : org.avatarUrl,
+                  bio: pub.bio != null ? pub.bio : '',
+                  tags: Array.isArray(pub.tags) ? pub.tags : org.tags || [],
+                  verificationBadge:
+                    pub.verificationBadge != null ? pub.verificationBadge : org.verificationBadge,
+                }
+              }
+            } catch (e) {}
+          }
           const status = computeActivityStatus(detail)
           this.activity = {
             id: String(detail.activityId || ''),
@@ -219,8 +205,12 @@ export default {
             distance: detail.distanceMeters ? `${(detail.distanceMeters / 1000).toFixed(1)}km` : '',
             joined: Number(detail.enrolledCount || 0),
             total: Number(detail.maxMembers || 0),
-            organizer: detail.organizer?.nickname || '组织者',
-            organizerId: detail.organizer?.userId || '',
+            organizer: org.nickname || '组织者',
+            organizerId: org.userId || '',
+            organizerAvatar: org.avatarUrl || '',
+            organizerBio: org.bio || '',
+            organizerTags: Array.isArray(org.tags) ? org.tags : [],
+            organizerVerified: !!org.verificationBadge,
             hostedCount: Number(detail.organizerHostedCount || 0),
             description: detail.description || '暂无说明',
             enrollmentStatus: detail.myEnrollment?.status || null,
@@ -228,11 +218,7 @@ export default {
           }
           return
         }
-      } catch (e) {
-        uni.showToast({ title: '加载失败', icon: 'none' })
-      } finally {
-        this.loading = false
-      }
+      } catch (e) {}
       this.activity = null
     },
     refreshStatus() {
@@ -241,8 +227,8 @@ export default {
         activityStatus: this.activity.isCancelled
           ? 'cancelled'
           : this.activity.isEnded
-          ? 'ended'
-          : 'published',
+            ? 'ended'
+            : 'published',
         enrolledCount: this.activity.joined,
         maxMembers: this.activity.total,
         startAt: this.activity.startAt,
@@ -252,11 +238,11 @@ export default {
     },
     goBack() {
       uni.navigateBack({
-        fail: () => uni.reLaunch({ url: '/pages/home/home' })
+        fail: () => uni.reLaunch({ url: '/pages/home/home' }),
       })
     },
     onPrimaryAction() {
-      if (!this.activity || this.actionLoading) return
+      if (!this.activity) return
       if (
         this.activity.isEnded ||
         this.activity.isCancelled ||
@@ -372,82 +358,22 @@ export default {
     color: #ffffff;
     font-size: 30rpx;
     font-weight: 600;
-    gap: 12rpx;
-    transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
-
-    &--hover {
-      transform: scale(0.98);
-      box-shadow: 0 8rpx 20rpx rgba(99, 102, 241, 0.3);
-    }
 
     &--cancel {
       background: #f97316;
-
-      &.detail__action-btn--hover {
-        box-shadow: 0 8rpx 20rpx rgba(249, 115, 22, 0.3);
-      }
     }
 
     &--ghost {
       background: #ffffff;
       color: #6366f1;
       border: 2rpx solid #c7d2fe;
-
-      &-active {
-        background: #eef2ff;
-        transform: scale(0.98);
-      }
     }
 
     &--disabled {
       background: #e2e8f0;
       color: #94a3b8;
     }
-
-    &--loading {
-      opacity: 0.8;
-    }
   }
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20rpx);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.loading-spinner {
-  width: 60rpx;
-  height: 60rpx;
-  border: 4rpx solid #e2e8f0;
-  border-top-color: #6366f1;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.btn-spinner {
-  width: 36rpx;
-  height: 36rpx;
-  border: 3rpx solid rgba(255, 255, 255, 0.3);
-  border-top-color: #ffffff;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-.loading-text {
-  font-size: 26rpx;
-  color: #94a3b8;
 }
 
 .hero {
@@ -555,7 +481,7 @@ export default {
 
 .host {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16rpx;
 
   &__info {
@@ -564,152 +490,92 @@ export default {
   }
 
   &__avatar {
-    width: 76rpx;
-    height: 76rpx;
+    width: 96rpx;
+    height: 96rpx;
     border-radius: 50%;
     background: linear-gradient(135deg, #a78bfa, #6366f1);
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
 
     text {
       color: #ffffff;
-      font-size: 30rpx;
+      font-size: 32rpx;
       font-weight: 700;
     }
   }
 
+  &__avatar-img {
+    width: 100%;
+    height: 100%;
+  }
+
+  &__name-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12rpx;
+  }
+
   &__name {
-    display: block;
-    font-size: 28rpx;
+    font-size: 30rpx;
     color: #0f172a;
     font-weight: 600;
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4rpx;
+    padding: 2rpx 12rpx;
+    border-radius: 999rpx;
+    background: #ecfdf5;
+
+    text {
+      font-size: 20rpx;
+      color: #059669;
+      font-weight: 600;
+    }
   }
 
   &__meta {
     display: block;
     font-size: 22rpx;
     color: #94a3b8;
-    margin-top: 4rpx;
+    margin-top: 6rpx;
   }
-}
 
-/* Skeleton Styles */
-.skeleton-hero {
-  border-radius: 24rpx;
-  height: 200rpx;
-  background: linear-gradient(135deg, #e2e8f0 25%, #cbd5e0 50%, #e2e8f0 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-.skeleton-meta-item {
-  height: 70rpx;
-  border-bottom: 1rpx solid #eef2f7;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 0;
-  &:last-child {
-    border-bottom: none;
+  &__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10rpx;
+    margin-top: 12rpx;
   }
-}
 
-.skeleton-section-title {
-  height: 36rpx;
-  width: 140rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  margin-bottom: 14rpx;
-}
-
-.skeleton-desc {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-}
-
-.skeleton-desc-line {
-  height: 26rpx;
-  width: 100%;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-.skeleton-desc-line--short {
-  width: 70%;
-}
-
-.skeleton-panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14rpx;
-  
-  .skeleton-section-title {
-    margin-bottom: 0;
+  &__tag {
+    font-size: 20rpx;
+    color: #6366f1;
+    background: #eef2ff;
+    padding: 4rpx 14rpx;
+    border-radius: 999rpx;
+    font-weight: 500;
   }
-}
 
-.skeleton-status-tag {
-  height: 34rpx;
-  width: 120rpx;
-  border-radius: 999rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
+  &__bio {
+    display: block;
+    margin-top: 20rpx;
+    padding-top: 20rpx;
+    border-top: 1rpx solid #eef2f7;
+    font-size: 26rpx;
+    line-height: 1.65;
+    color: #475569;
 
-.skeleton-host {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-
-.skeleton-avatar {
-  width: 76rpx;
-  height: 76rpx;
-  border-radius: 50%;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-.skeleton-host-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-}
-
-.skeleton-host-name {
-  height: 32rpx;
-  width: 180rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-.skeleton-host-meta {
-  height: 24rpx;
-  width: 220rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
+    &--empty {
+      color: #94a3b8;
+      font-style: italic;
+    }
   }
 }
 </style>

@@ -212,6 +212,20 @@ export const getNearbyActivities = (query = {}) =>
     },
   })
 
+function mergeOrganizerPublic(row) {
+  const uid = row.organizer?.userId
+  const u = uid && wmDB.users?.[uid] ? wmDB.users[uid] : null
+  if (!u) return row.organizer
+  return {
+    ...row.organizer,
+    nickname: u.nickname || row.organizer.nickname,
+    avatarUrl: u.avatarUrl != null ? u.avatarUrl : row.organizer.avatarUrl,
+    bio: u.bio != null ? u.bio : '',
+    tags: Array.isArray(u.tags) ? u.tags : [],
+    verificationBadge: u.verificationBadge != null ? u.verificationBadge : row.organizer.verificationBadge,
+  }
+}
+
 // 11
 export const getActivityDetail = (activityId, query = {}) =>
   wmRequest({
@@ -225,7 +239,36 @@ export const getActivityDetail = (activityId, query = {}) =>
       const organizerHostedCount = organizerId
         ? wmDB.activities.filter((x) => x.organizer?.userId === organizerId).length
         : 0
-      return ok({ ...row, organizerHostedCount })
+      const organizer = mergeOrganizerPublic(row)
+      return ok({ ...row, organizer, organizerHostedCount })
+    },
+  })
+
+/** 发起人/用户公开资料（便于详情页单独拉取或与后端对齐） */
+export const getUserPublicProfile = (userId) =>
+  wmRequest({
+    method: 'GET',
+    path: `/users/${String(userId)}/public`,
+    mockHandler: () => {
+      const uid = String(userId)
+      const organizedCount = wmDB.activities.filter((x) => x.organizer?.userId === uid).length
+      const u = wmDB.users?.[uid]
+      if (u) {
+        return ok({ ...u, organizedCount })
+      }
+      const act = wmDB.activities.find((x) => x.organizer?.userId === uid)
+      if (act?.organizer) {
+        return ok({
+          userId: act.organizer.userId,
+          nickname: act.organizer.nickname,
+          avatarUrl: act.organizer.avatarUrl,
+          bio: '',
+          tags: [],
+          verificationBadge: act.organizer.verificationBadge,
+          organizedCount,
+        })
+      }
+      return ok(null)
     },
   })
 

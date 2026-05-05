@@ -14,6 +14,41 @@ export const wmDB = {
       canCreateActivity: true,
     },
   },
+  /** 对外展示的用户资料（活动发起人等），按 userId 索引 */
+  users: {
+    u_10001: {
+      userId: 'u_10001',
+      nickname: '小林',
+      avatarUrl: null,
+      bio: '数字游民 · 周末喜欢找咖啡局，聊旅行与生活。',
+      tags: ['咖啡', 'Citywalk'],
+      verificationBadge: true,
+    },
+    u_10002: {
+      userId: 'u_10002',
+      nickname: '阿文',
+      avatarUrl: null,
+      bio: '摄影师 · 热衷中轴线与城市徒步，欢迎一起拍照打卡。',
+      tags: ['摄影', 'Citywalk'],
+      verificationBadge: true,
+    },
+    u_10003: {
+      userId: 'u_10003',
+      nickname: 'Emma',
+      avatarUrl: null,
+      bio: '跑步爱好者，组织轻松夜跑，新手友好。',
+      tags: ['夜跑', '健身'],
+      verificationBadge: true,
+    },
+    u_10004: {
+      userId: 'u_10004',
+      nickname: 'Jake',
+      avatarUrl: null,
+      bio: '桌游老玩家，狼人杀/阿瓦隆都可，欢迎新老朋友。',
+      tags: ['桌游', '社交'],
+      verificationBadge: true,
+    },
+  },
   categories: [
     { categoryId: 'coffee', name: '咖啡', icon: null },
     { categoryId: 'citywalk', name: 'Citywalk', icon: null },
