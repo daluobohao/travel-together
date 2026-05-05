@@ -118,7 +118,10 @@
       <view class="section">
         <view class="section__head">
           <text class="section__title">精选活动</text>
-          <text class="section__more" @click="onViewAll">查看全部</text>
+          <view class="section__head-actions">
+            <text class="section__more section__more--muted" @click.stop="showFeaturedPicker = true">配色</text>
+            <text class="section__more" @click="onViewAll">查看全部</text>
+          </view>
         </view>
         <view class="featured">
           <view
@@ -145,13 +148,26 @@
     </template>
 
     <wm-tab-bar active="discover" />
+
+    <featured-color-picker-modal
+      :visible="showFeaturedPicker"
+      :value-slots="featuredGradientSlots"
+      @close="showFeaturedPicker = false"
+      @save="onFeaturedGradientSave"
+    />
   </view>
 </template>
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
+import FeaturedColorPickerModal from '@/components/FeaturedColorPickerModal/FeaturedColorPickerModal.vue'
 import { getActivities, getActivityCategories, getNearbyActivities, mapActivityCard } from '@/api'
+import {
+  gradientsFromSlots,
+  loadFeaturedGradientSlots,
+  saveFeaturedGradientSlots,
+} from '@/utils/featuredGradient.js'
 
 const BEIJING_FALLBACK_LOCATION = { lat: 39.90923, lng: 116.397428 }
 const FEATURED_LIMIT = 3
@@ -204,12 +220,14 @@ function buildFeaturedCards(allCards) {
 }
 
 export default {
-  components: { WmIcon, WmTabBar },
+  components: { WmIcon, WmTabBar, FeaturedColorPickerModal },
   data() {
     return {
       loading: false,
       categories: [],
       featured: [],
+      featuredGradientSlots: [],
+      showFeaturedPicker: false,
       nearbyRadiusKm: 5,
       radiusOptions: [3, 5, 10],
       nearbyCards: [],
@@ -218,6 +236,7 @@ export default {
     }
   },
   onShow() {
+    this.featuredGradientSlots = loadFeaturedGradientSlots()
     this.loadData()
   },
   methods: {
@@ -309,11 +328,7 @@ export default {
           ...(iconMap[c.categoryId] || { emoji: '✨', bg: '#e2e8f0' }),
         }))
 
-        const gradients = [
-          'linear-gradient(135deg, #34d399 0%, #059669 100%)',
-          'linear-gradient(135deg, #a78bfa 0%, #ec4899 100%)',
-          'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)',
-        ]
+        const gradients = gradientsFromSlots(this.featuredGradientSlots)
         this.featured = buildFeaturedCards(allCards).map((a, idx) => ({
           id: idx + 1,
           activityId: String(a.activityId || ''),
@@ -346,6 +361,15 @@ export default {
       uni.navigateTo({
         url: '/pages/activity-list/activity-list',
       })
+    },
+    onFeaturedGradientSave(slots) {
+      this.featuredGradientSlots = slots
+      saveFeaturedGradientSlots(slots)
+      const gradients = gradientsFromSlots(slots)
+      this.featured = (this.featured || []).map((f, idx) => ({
+        ...f,
+        gradient: gradients[idx % gradients.length],
+      }))
     },
   },
 }
@@ -386,6 +410,13 @@ export default {
     align-items: baseline;
   }
 
+  &__head-actions {
+    display: flex;
+    align-items: center;
+    gap: 24rpx;
+    flex-shrink: 0;
+  }
+
   &__title {
     display: block;
     font-size: 32rpx;
@@ -398,6 +429,10 @@ export default {
     font-size: 24rpx;
     color: #6366f1;
     font-weight: 500;
+
+    &--muted {
+      color: #64748b;
+    }
   }
 
   &--nearby {
