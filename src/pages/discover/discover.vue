@@ -8,6 +8,28 @@
 
     <!-- Skeleton Loading -->
     <view v-if="loading" class="skeleton-content">
+      <!-- Nearby Skeleton -->
+      <view class="section section--nearby">
+        <view class="section__head section__head--nearby">
+          <view class="skeleton-section-title" style="width: 160rpx" />
+          <view class="skeleton-radius-row">
+            <view v-for="i in 3" :key="i" class="skeleton-radius-chip" />
+          </view>
+        </view>
+        <view class="nearby-list">
+          <view v-for="i in 2" :key="i" class="skeleton-nearby-card">
+            <view class="skeleton-nearby-main">
+              <view class="skeleton-nearby-tags">
+                <view class="skeleton-nearby-cat" />
+                <view class="skeleton-nearby-dist" />
+              </view>
+              <view class="skeleton-nearby-title" />
+              <view class="skeleton-nearby-meta" />
+            </view>
+          </view>
+        </view>
+      </view>
+
       <!-- Categories Skeleton -->
       <view class="section">
         <view class="skeleton-section-title"></view>
@@ -34,6 +56,50 @@
 
     <!-- Actual Content -->
     <template v-else>
+      <!-- Nearby -->
+      <view class="section section--nearby">
+        <view class="section__head section__head--nearby">
+          <text class="section__title section__title--inline">附近活动</text>
+          <view class="radius-chips">
+            <view
+              v-for="r in radiusOptions"
+              :key="r"
+              class="radius-chip"
+              :class="{ 'radius-chip--active': r === nearbyRadiusKm }"
+              @click="onRadiusChange(r)"
+            >
+              <text>{{ r }}km</text>
+            </view>
+          </view>
+        </view>
+        <view v-if="nearbyLoading" class="nearby-loading">
+          <text>加载附近活动…</text>
+        </view>
+        <view v-else-if="!nearbyCards.length" class="nearby-empty">
+          <text>暂无附近活动，试试放大半径或晚点再来看看</text>
+        </view>
+        <view v-else class="nearby-list">
+          <view
+            v-for="item in nearbyCards"
+            :key="item.id"
+            class="nearby-card"
+            @click="onOpenNearby(item)"
+          >
+            <view class="nearby-card__main">
+              <view class="nearby-card__tags">
+                <view class="nearby-card__cat" :style="{ color: item.tagColor, background: item.tagBg }">
+                  <text>{{ item.category }}</text>
+                </view>
+                <text v-if="item.distance" class="nearby-card__dist">{{ item.distance }}</text>
+              </view>
+              <text class="nearby-card__title">{{ item.title }}</text>
+              <text class="nearby-card__meta">{{ item.time }} · {{ item.location }}</text>
+            </view>
+            <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
+          </view>
+        </view>
+      </view>
+
       <!-- Categories -->
       <view class="section">
         <text class="section__title">活动分类</text>
@@ -85,21 +151,137 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
-import { getActivities, getActivityCategories, mapActivityCard } from '@/api'
+import { getActivities, getActivityCategories, getNearbyActivities, mapActivityCard } from '@/api'
+
+const BEIJING_FALLBACK_LOCATION = { lat: 39.90923, lng: 116.397428 }
+const FEATURED_LIMIT = 3
+
+function toDistanceMeters(distanceText = '') {
+  const n = Number(String(distanceText).replace('km', ''))
+  if (!Number.isFinite(n)) return null
+  return Math.round(n * 1000)
+}
+
+function scoreFeaturedCard(card) {
+  const joined = Number(card?.joined || 0)
+  const total = Number(card?.total || 0)
+  const distanceMeters = toDistanceMeters(card?.distance)
+  let score = 0
+
+  if (!card?.isEnded && !card?.isCancelled) score += 80
+  if (card?.canJoin) score += 60
+  if (card?.enrollmentStatus === 'joined') score += 40
+  score += Math.min(40, joined * 4)
+  if (total > 0 && joined >= total) score -= 15
+  if (distanceMeters !== null) {
+    score += Math.max(0, 25 - Math.floor(distanceMeters / 1000) * 5)
+  }
+  return score
+}
+
+function buildFeaturedCards(allCards) {
+  const scored = (allCards || [])
+    .map((card) => ({ card, score: scoreFeaturedCard(card) }))
+    .sort((a, b) => b.score - a.score)
+
+  const selected = []
+  const categorySet = new Set()
+  for (const row of scored) {
+    if (!categorySet.has(row.card.categoryId)) {
+      selected.push(row.card)
+      categorySet.add(row.card.categoryId)
+    }
+    if (selected.length >= FEATURED_LIMIT) break
+  }
+  if (selected.length < FEATURED_LIMIT) {
+    for (const row of scored) {
+      if (selected.find((x) => x.activityId === row.card.activityId)) continue
+      selected.push(row.card)
+      if (selected.length >= FEATURED_LIMIT) break
+    }
+  }
+  return selected.slice(0, FEATURED_LIMIT)
+}
 
 export default {
   components: { WmIcon, WmTabBar },
   data() {
     return {
+      loading: false,
       categories: [],
       featured: [],
-      loading: false,
+      nearbyRadiusKm: 5,
+      radiusOptions: [3, 5, 10],
+      nearbyCards: [],
+      nearbyLoading: false,
+      userLocation: null,
     }
   },
   onShow() {
     this.loadData()
   },
   methods: {
+    ensureCachedLocation() {
+      const fromStorage = uni.getStorageSync('DISCOVER_USER_LOCATION')
+      if (fromStorage?.lat && fromStorage?.lng) {
+        this.userLocation = { lat: Number(fromStorage.lat), lng: Number(fromStorage.lng) }
+      }
+    },
+    async getCurrentLocation() {
+      return new Promise((resolve, reject) => {
+        uni.getLocation({
+          type: 'wgs84',
+          success: (res) => {
+            resolve({
+              lat: Number(res.latitude),
+              lng: Number(res.longitude),
+            })
+          },
+          fail: reject,
+        })
+      })
+    },
+    onRadiusChange(r) {
+      this.nearbyRadiusKm = r
+      this.loadNearby()
+    },
+    async loadNearby() {
+      this.nearbyLoading = true
+      try {
+        this.ensureCachedLocation()
+        if (!this.userLocation) {
+          try {
+            this.userLocation = await this.getCurrentLocation()
+            uni.setStorageSync('DISCOVER_USER_LOCATION', this.userLocation)
+          } catch (e) {
+            this.userLocation = BEIJING_FALLBACK_LOCATION
+          }
+        }
+        const data = await getNearbyActivities({
+          lat: this.userLocation.lat,
+          lng: this.userLocation.lng,
+          radiusKm: this.nearbyRadiusKm,
+          cityCode: '110000',
+          dateRange: 'all',
+          sortBy: 'distance',
+          page: 1,
+          pageSize: 20,
+        })
+        this.nearbyCards = (data?.list || []).map(mapActivityCard)
+      } catch (e) {
+        this.nearbyCards = []
+        uni.showToast({ title: e?.message || '附近活动加载失败', icon: 'none' })
+      } finally {
+        this.nearbyLoading = false
+      }
+    },
+    onOpenNearby(item) {
+      const id = item?.activityId || item?.id
+      if (!id) return
+      uni.navigateTo({
+        url: `/pages/activity-detail/activity-detail?id=${id}`,
+      })
+    },
     async loadData() {
       this.loading = true
       try {
@@ -132,7 +314,7 @@ export default {
           'linear-gradient(135deg, #a78bfa 0%, #ec4899 100%)',
           'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)',
         ]
-        this.featured = allCards.slice(0, 3).map((a, idx) => ({
+        this.featured = buildFeaturedCards(allCards).map((a, idx) => ({
           id: idx + 1,
           activityId: String(a.activityId || ''),
           tag: a.category,
@@ -141,6 +323,7 @@ export default {
           enrolled: a.joined,
           gradient: gradients[idx % gradients.length],
         }))
+        await this.loadNearby()
       } catch (e) {
         this.categories = []
         this.featured = []
@@ -439,6 +622,13 @@ export default {
 /* Skeleton Styles */
 .skeleton-content {
   animation: fadeIn 0.3s ease-out;
+}
+
+.skeleton-radius-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-left: auto;
 }
 
 @keyframes fadeIn {

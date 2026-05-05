@@ -1,5 +1,8 @@
 import { API_BASE_URL, getAccessToken, getMockEnabled } from './config'
 
+/** 毫秒；小程序默认较短，列表/冷启动接口可适当加长避免误报 timeout */
+const REQUEST_TIMEOUT_MS = 60000
+
 function buildQuery(query = {}) {
   const entries = Object.entries(query).filter(([, value]) => value !== undefined && value !== null && value !== '')
   if (!entries.length) return ''
@@ -46,6 +49,7 @@ export async function wmRequest({
     method,
     data,
     header: headers,
+    timeout: REQUEST_TIMEOUT_MS,
   })
 
   let error = null

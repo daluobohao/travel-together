@@ -147,6 +147,7 @@ import {
   cancelEnrollment,
   computeActivityStatus,
   enrollActivity,
+  formatActivityTimeRange,
   getActivityDetail,
 } from '@/api'
 
@@ -211,7 +212,9 @@ export default {
             tagBg: '#eef2ff',
             title: detail.title,
             cover: 'linear-gradient(135deg, #a78bfa 0%, #6366f1 100%)',
-            time: detail.startAt,
+            time: formatActivityTimeRange(detail.startAt, detail.endAt),
+            startAt: detail.startAt,
+            endAt: detail.endAt,
             location: detail.locationName,
             distance: detail.distanceMeters ? `${(detail.distanceMeters / 1000).toFixed(1)}km` : '',
             joined: Number(detail.enrolledCount || 0),
@@ -242,7 +245,8 @@ export default {
           : 'published',
         enrolledCount: this.activity.joined,
         maxMembers: this.activity.total,
-        startAt: this.activity.time,
+        startAt: this.activity.startAt,
+        endAt: this.activity.endAt,
       })
       Object.assign(this.activity, status)
     },

@@ -632,12 +632,51 @@ const categoryColorMap = {
   camping: { color: '#a16207', bg: '#fef9c3', label: '露营' },
 }
 
-function fmtTime(startAt) {
-  if (!startAt) return ''
+/**
+ * 活动开始时间展示：固定按 **北京时间 (Asia/Shanghai)** 的日历日与时、分。
+ * 避免用 `getHours()` 依赖本机/开发者工具时区，以及接口返回无时区 ISO 时的错位（例如选 20 点却像 8 点）。
+ */
+export function formatActivityTime(startAt) {
+  if (startAt === null || startAt === undefined || startAt === '') return ''
   const d = new Date(startAt)
+  if (Number.isNaN(d.getTime())) return ''
+  if (typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function') {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Shanghai',
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).formatToParts(d)
+      const by = (t) => parts.find((p) => p.type === t)?.value
+      const month = by('month')
+      const day = by('day')
+      const hourRaw = by('hour')
+      const minute = by('minute')
+      if (month && day && hourRaw != null && minute != null) {
+        const hour = String(hourRaw).padStart(2, '0')
+        return `${month}/${day} ${hour}:${minute}`
+      }
+    } catch (e) {
+      // fall through
+    }
+  }
   const h = String(d.getHours()).padStart(2, '0')
   const m = String(d.getMinutes()).padStart(2, '0')
   return `${d.getMonth() + 1}/${d.getDate()} ${h}:${m}`
+}
+
+/** 开始～结束，均为北京时间展示；无结束时间则只显示开始 */
+export function formatActivityTimeRange(startAt, endAt) {
+  const start = formatActivityTime(startAt)
+  if (endAt === null || endAt === undefined || endAt === '') return start
+  return `${start} - ${formatActivityTime(endAt)}`
+}
+
+function fmtTime(startAt) {
+  return formatActivityTime(startAt)
 }
 
 function metersToKm(meters) {
