@@ -633,13 +633,32 @@ const categoryColorMap = {
 }
 
 /**
+ * 解析接口返回的时间字符串。MySQL/SQLAlchemy 常见 **无时区 ISO**（无 Z），语义为 UTC；
+ * 若直接用 `new Date('2026-05-01T14:00:00')`，部分环境会按**本地**解析，导致与结束时间差 8 小时等问题。
+ */
+export function parseApiDateTime(value) {
+  if (value === null || value === undefined || value === '') return null
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value
+  const s = String(value).trim()
+  if (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(s)) {
+    const d = new Date(s)
+    return Number.isNaN(d.getTime()) ? null : d
+  }
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(s)) {
+    const d = new Date(`${s}Z`)
+    return Number.isNaN(d.getTime()) ? null : d
+  }
+  const d = new Date(s)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+/**
  * 活动开始时间展示：固定按 **北京时间 (Asia/Shanghai)** 的日历日与时、分。
- * 避免用 `getHours()` 依赖本机/开发者工具时区，以及接口返回无时区 ISO 时的错位（例如选 20 点却像 8 点）。
  */
 export function formatActivityTime(startAt) {
   if (startAt === null || startAt === undefined || startAt === '') return ''
-  const d = new Date(startAt)
-  if (Number.isNaN(d.getTime())) return ''
+  const d = parseApiDateTime(startAt)
+  if (!d) return ''
   if (typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function') {
     try {
       const parts = new Intl.DateTimeFormat('en-US', {
@@ -697,7 +716,8 @@ export function computeActivityStatus(raw) {
   const activityStatus = raw?.activityStatus || 'published'
   const enrolled = Number(raw?.enrolledCount || 0)
   const max = Number(raw?.maxMembers || 0)
-  const endAt = raw?.endAt ? new Date(raw.endAt).getTime() : 0
+  const endAtDt = raw?.endAt ? parseApiDateTime(raw.endAt) : null
+  const endAt = endAtDt ? endAtDt.getTime() : 0
   const now = Date.now()
   // 仅在“后端明确 ended”或“提供了 endAt 且已过期”时判定结束，避免误伤未来活动
   const timeEnded = endAt && now > endAt
