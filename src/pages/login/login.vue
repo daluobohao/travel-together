@@ -38,6 +38,8 @@
         </view>
         <text v-if="codeError" class="field__error">{{ codeError }}</text>
       </view>
+
+      <text v-if="hintSmsFirst" class="login__hint">请先点击「发送验证码」，成功后再登录</text>
     </view>
 
     <view class="login__action">
@@ -69,19 +71,37 @@ export default {
       countdown: 0,
       timer: null,
       loading: false,
+      /** 当前手机号是否已成功走通一次发码（避免未写入 Redis 就点登录导致 400） */
+      smsSentOk: false,
+      sendingSms: false,
+      /** 登录防抖时间戳 */
+      lastLoginTapAt: 0,
       phoneError: '',
       codeError: '',
     }
   },
   computed: {
     smsDisabled() {
-      return this.countdown > 0 || !PHONE_REG.test(this.form.phone)
+      return this.countdown > 0 || !PHONE_REG.test(this.form.phone) || this.sendingSms
     },
     smsText() {
+      if (this.sendingSms) return '发送中…'
       return this.countdown > 0 ? `${this.countdown}s后重试` : '发送验证码'
     },
     canSubmit() {
-      return PHONE_REG.test(this.form.phone) && /^\d{4,6}$/.test(this.form.code) && !this.loading
+      return (
+        PHONE_REG.test(this.form.phone) &&
+        /^\d{4,6}$/.test(this.form.code) &&
+        !this.loading &&
+        this.smsSentOk
+      )
+    },
+    hintSmsFirst() {
+      return (
+        PHONE_REG.test(this.form.phone) &&
+        String(this.form.code || '').length >= 4 &&
+        !this.smsSentOk
+      )
     },
   },
   onUnload() {
@@ -109,6 +129,7 @@ export default {
       if (this.phoneError) {
         this.phoneError = ''
       }
+      this.smsSentOk = false
     },
     onCodeInput() {
       if (this.codeError) {
@@ -117,17 +138,25 @@ export default {
     },
     async onSendSms() {
       if (this.smsDisabled) return
+      this.sendingSms = true
       try {
         const data = await sendSmsCode({ phone: this.form.phone, scene: 'login' })
+        this.smsSentOk = true
         this.startCountdown(data?.expireInSeconds || 60)
         uni.showToast({ title: '验证码已发送', icon: 'none' })
       } catch (e) {
+        this.smsSentOk = false
         uni.showToast({ title: e?.message || '发送失败', icon: 'none' })
+      } finally {
+        this.sendingSms = false
       }
     },
     async onLogin() {
       if (this.loading || !this.canSubmit) return
-      
+      const now = Date.now()
+      if (now - this.lastLoginTapAt < 800) return
+      this.lastLoginTapAt = now
+
       this.phoneError = ''
       this.codeError = ''
       
@@ -188,6 +217,13 @@ export default {
     flex-direction: column;
     gap: 20rpx;
     animation: fadeInUp 0.5s ease-out 0.1s both;
+  }
+
+  &__hint {
+    font-size: 22rpx;
+    color: #f59e0b;
+    line-height: 1.4;
+    padding: 0 8rpx;
   }
 
   &__action {
