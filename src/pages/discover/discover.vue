@@ -8,28 +8,6 @@
 
     <!-- Skeleton Loading -->
     <view v-if="loading" class="skeleton-content">
-      <!-- Nearby Skeleton -->
-      <view class="section section--nearby">
-        <view class="section__head section__head--nearby">
-          <view class="skeleton-section-title" style="width: 160rpx" />
-          <view class="skeleton-radius-row">
-            <view v-for="i in 3" :key="i" class="skeleton-radius-chip" />
-          </view>
-        </view>
-        <view class="nearby-list">
-          <view v-for="i in 2" :key="i" class="skeleton-nearby-card">
-            <view class="skeleton-nearby-main">
-              <view class="skeleton-nearby-tags">
-                <view class="skeleton-nearby-cat" />
-                <view class="skeleton-nearby-dist" />
-              </view>
-              <view class="skeleton-nearby-title" />
-              <view class="skeleton-nearby-meta" />
-            </view>
-          </view>
-        </view>
-      </view>
-
       <!-- Categories Skeleton -->
       <view class="section">
         <view class="skeleton-section-title"></view>
@@ -56,50 +34,6 @@
 
     <!-- Actual Content -->
     <template v-else>
-      <!-- Nearby -->
-      <view class="section section--nearby">
-        <view class="section__head section__head--nearby">
-          <text class="section__title section__title--inline">附近活动</text>
-          <view class="radius-chips">
-            <view
-              v-for="r in radiusOptions"
-              :key="r"
-              class="radius-chip"
-              :class="{ 'radius-chip--active': r === nearbyRadiusKm }"
-              @click="onRadiusChange(r)"
-            >
-              <text>{{ r }}km</text>
-            </view>
-          </view>
-        </view>
-        <view v-if="nearbyLoading" class="nearby-loading">
-          <text>加载附近活动…</text>
-        </view>
-        <view v-else-if="!nearbyCards.length" class="nearby-empty">
-          <text>暂无附近活动，试试放大半径或晚点再来看看</text>
-        </view>
-        <view v-else class="nearby-list">
-          <view
-            v-for="item in nearbyCards"
-            :key="item.id"
-            class="nearby-card"
-            @click="onOpenNearby(item)"
-          >
-            <view class="nearby-card__main">
-              <view class="nearby-card__tags">
-                <view class="nearby-card__cat" :style="{ color: item.tagColor, background: item.tagBg }">
-                  <text>{{ item.category }}</text>
-                </view>
-                <text v-if="item.distance" class="nearby-card__dist">{{ item.distance }}</text>
-              </view>
-              <text class="nearby-card__title">{{ item.title }}</text>
-              <text class="nearby-card__meta">{{ item.time }} · {{ item.location }}</text>
-            </view>
-            <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
-          </view>
-        </view>
-      </view>
-
       <!-- Categories -->
       <view class="section">
         <text class="section__title">活动分类</text>
@@ -162,14 +96,13 @@
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import FeaturedColorPickerModal from '@/components/FeaturedColorPickerModal/FeaturedColorPickerModal.vue'
-import { getActivities, getActivityCategories, getNearbyActivities, mapActivityCard } from '@/api'
+import { getActivities, getActivityCategories, mapActivityCard } from '@/api'
 import {
   gradientsFromSlots,
   loadFeaturedGradientSlots,
   saveFeaturedGradientSlots,
 } from '@/utils/featuredGradient.js'
 
-const BEIJING_FALLBACK_LOCATION = { lat: 39.90923, lng: 116.397428 }
 const FEATURED_LIMIT = 3
 
 function toDistanceMeters(distanceText = '') {
@@ -228,11 +161,6 @@ export default {
       featured: [],
       featuredGradientSlots: [],
       showFeaturedPicker: false,
-      nearbyRadiusKm: 5,
-      radiusOptions: [3, 5, 10],
-      nearbyCards: [],
-      nearbyLoading: false,
-      userLocation: null,
     }
   },
   onShow() {
@@ -240,67 +168,6 @@ export default {
     this.loadData()
   },
   methods: {
-    ensureCachedLocation() {
-      const fromStorage = uni.getStorageSync('DISCOVER_USER_LOCATION')
-      if (fromStorage?.lat && fromStorage?.lng) {
-        this.userLocation = { lat: Number(fromStorage.lat), lng: Number(fromStorage.lng) }
-      }
-    },
-    async getCurrentLocation() {
-      return new Promise((resolve, reject) => {
-        uni.getLocation({
-          type: 'wgs84',
-          success: (res) => {
-            resolve({
-              lat: Number(res.latitude),
-              lng: Number(res.longitude),
-            })
-          },
-          fail: reject,
-        })
-      })
-    },
-    onRadiusChange(r) {
-      this.nearbyRadiusKm = r
-      this.loadNearby()
-    },
-    async loadNearby() {
-      this.nearbyLoading = true
-      try {
-        this.ensureCachedLocation()
-        if (!this.userLocation) {
-          try {
-            this.userLocation = await this.getCurrentLocation()
-            uni.setStorageSync('DISCOVER_USER_LOCATION', this.userLocation)
-          } catch (e) {
-            this.userLocation = BEIJING_FALLBACK_LOCATION
-          }
-        }
-        const data = await getNearbyActivities({
-          lat: this.userLocation.lat,
-          lng: this.userLocation.lng,
-          radiusKm: this.nearbyRadiusKm,
-          cityCode: '110000',
-          dateRange: 'all',
-          sortBy: 'distance',
-          page: 1,
-          pageSize: 20,
-        })
-        this.nearbyCards = (data?.list || []).map(mapActivityCard)
-      } catch (e) {
-        this.nearbyCards = []
-        uni.showToast({ title: e?.message || '附近活动加载失败', icon: 'none' })
-      } finally {
-        this.nearbyLoading = false
-      }
-    },
-    onOpenNearby(item) {
-      const id = item?.activityId || item?.id
-      if (!id) return
-      uni.navigateTo({
-        url: `/pages/activity-detail/activity-detail?id=${id}`,
-      })
-    },
     async loadData() {
       this.loading = true
       try {
@@ -338,7 +205,6 @@ export default {
           enrolled: a.joined,
           gradient: gradients[idx % gradients.length],
         }))
-        await this.loadNearby()
       } catch (e) {
         this.categories = []
         this.featured = []
@@ -435,114 +301,6 @@ export default {
     }
   }
 
-  &--nearby {
-    padding-top: 24rpx;
-  }
-
-  &__head--nearby {
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 16rpx;
-    margin-bottom: 8rpx;
-  }
-
-  &__title--inline {
-    display: inline-block;
-    margin-bottom: 0;
-    flex-shrink: 0;
-  }
-}
-
-.radius-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-  margin-left: auto;
-}
-
-.radius-chip {
-  padding: 8rpx 20rpx;
-  border-radius: 999rpx;
-  background: #f1f5f9;
-  font-size: 22rpx;
-  color: #64748b;
-  font-weight: 500;
-
-  &--active {
-    background: #6366f1;
-    color: #ffffff;
-  }
-}
-
-.nearby-loading,
-.nearby-empty {
-  padding: 28rpx 8rpx 8rpx;
-  text-align: center;
-  font-size: 24rpx;
-  color: #94a3b8;
-}
-
-.nearby-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-  padding-bottom: 8rpx;
-}
-
-.nearby-card {
-  background: #ffffff;
-  border-radius: 20rpx;
-  padding: 22rpx 24rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
-
-  &__main {
-    flex: 1;
-    min-width: 0;
-  }
-
-  &__tags {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12rpx;
-    margin-bottom: 10rpx;
-  }
-
-  &__cat {
-    display: inline-flex;
-    align-items: center;
-    height: 36rpx;
-    padding: 0 14rpx;
-    border-radius: 8rpx;
-    font-size: 20rpx;
-    font-weight: 600;
-  }
-
-  &__dist {
-    font-size: 22rpx;
-    color: #6366f1;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-
-  &__title {
-    display: block;
-    font-size: 30rpx;
-    font-weight: 600;
-    color: #0f172a;
-    line-height: 1.35;
-  }
-
-  &__meta {
-    display: block;
-    margin-top: 8rpx;
-    font-size: 22rpx;
-    color: #94a3b8;
-  }
 }
 
 .categories {
@@ -659,13 +417,6 @@ export default {
   animation: fadeIn 0.3s ease-out;
 }
 
-.skeleton-radius-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-  margin-left: auto;
-}
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -687,76 +438,6 @@ export default {
 
 .skeleton-section-more {
   width: 100rpx;
-  height: 28rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-.skeleton-radius-chip {
-  width: 70rpx;
-  height: 40rpx;
-  border-radius: 999rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-.skeleton-nearby-card {
-  background: #ffffff;
-  border-radius: 20rpx;
-  padding: 22rpx 24rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-}
-
-.skeleton-nearby-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10rpx;
-}
-
-.skeleton-nearby-tags {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12rpx;
-}
-
-.skeleton-nearby-cat {
-  width: 80rpx;
-  height: 36rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-.skeleton-nearby-dist {
-  width: 60rpx;
-  height: 28rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-.skeleton-nearby-title {
-  width: 80%;
-  height: 36rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-.skeleton-nearby-meta {
-  width: 60%;
   height: 28rpx;
   border-radius: 8rpx;
   background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
