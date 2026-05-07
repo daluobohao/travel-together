@@ -13,6 +13,7 @@ dist
 *.local
 
 # Editor directories and files
+.cursor/
 .idea
 *.suo
 *.ntvs*
