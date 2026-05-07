@@ -9,11 +9,31 @@
     </view>
 
     <view class="profile-edit__content">
+      <view v-if="firstCompleteHint" class="first-hint">
+        <text>请先完善资料：性别保存后不可修改</text>
+      </view>
       <view class="avatar-card">
         <view class="avatar-card__avatar">
           <text>{{ (form.name || '用').slice(0, 1) }}</text>
         </view>
         <text class="avatar-card__tip">头像首字母随昵称自动更新</text>
+      </view>
+
+      <view class="field-card">
+        <text class="field-card__label">性别</text>
+        <view v-if="!genderLocked" class="gender-row">
+          <view
+            v-for="opt in genderOptions"
+            :key="opt.value"
+            class="gender-chip"
+            :class="{ 'gender-chip--active': form.gender === opt.value }"
+            @click="setGender(opt.value)"
+          >
+            <text>{{ opt.label }}</text>
+          </view>
+        </view>
+        <text v-else class="field-card__readonly">{{ genderReadonlyDisplay }}</text>
+        <text v-if="!genderLocked" class="field-card__hint">保存后不可修改，请谨慎选择</text>
       </view>
 
       <view class="field-card">
@@ -44,25 +64,45 @@
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
-import { getMe, updateMe } from '@/api'
+import { formatUserGenderLabel, getMe, updateMe } from '@/api'
 
 export default {
   components: { WmIcon },
   data() {
     return {
+      firstCompleteHint: false,
+      serverGender: null,
+      genderOptions: [
+        { value: 'male', label: '男' },
+        { value: 'female', label: '女' },
+        { value: 'unspecified', label: '保密' },
+      ],
       form: {
         name: '小林',
         bio: '数字游民 · 周末出行爱好者',
+        gender: null,
       },
     }
   },
-  async onLoad() {
+  computed: {
+    genderLocked() {
+      return this.serverGender != null && this.serverGender !== ''
+    },
+    genderReadonlyDisplay() {
+      return formatUserGenderLabel(this.serverGender) || '—'
+    },
+  },
+  async onLoad(query) {
+    this.firstCompleteHint = query?.first === '1'
     try {
       const me = await getMe()
+      const g = me.gender != null && me.gender !== '' ? me.gender : null
+      this.serverGender = g
       this.form = {
         ...this.form,
         name: me.nickname || this.form.name,
         bio: me.bio || this.form.bio,
+        gender: g,
       }
       return
     } catch (e) {}
@@ -76,8 +116,31 @@ export default {
     }
   },
   methods: {
+    setGender(value) {
+      if (this.genderLocked) return
+      this.form.gender = value
+    },
+    goToAfterSave() {
+      if (this.firstCompleteHint) {
+        uni.reLaunch({ url: '/pages/home/home' })
+        return
+      }
+      uni.navigateBack({
+        fail: () => {
+          uni.reLaunch({ url: '/pages/home/home' })
+        },
+      })
+    },
     goBack() {
-      uni.navigateBack()
+      if (this.firstCompleteHint) {
+        uni.reLaunch({ url: '/pages/home/home' })
+        return
+      }
+      uni.navigateBack({
+        fail: () => {
+          uni.reLaunch({ url: '/pages/home/home' })
+        },
+      })
     },
     saveProfile() {
       const name = (this.form.name || '').trim()
@@ -85,21 +148,32 @@ export default {
         uni.showToast({ title: '昵称不能为空', icon: 'none' })
         return
       }
+      if (!this.genderLocked && !this.form.gender) {
+        uni.showToast({ title: '请选择性别', icon: 'none' })
+        return
+      }
 
       const nextProfile = {
         name,
         bio: (this.form.bio || '').trim() || '这个人很神秘，什么都没留下。',
+        gender: this.form.gender,
       }
 
-      updateMe({
+      const payload = {
         nickname: nextProfile.name,
         bio: nextProfile.bio,
-      })
+      }
+      if (!this.genderLocked && this.form.gender) {
+        payload.gender = this.form.gender
+      }
+
+      updateMe(payload)
         .then(() => {
+          this.serverGender = nextProfile.gender || this.serverGender
           uni.setStorageSync('user_profile', nextProfile)
           uni.showToast({ title: '已保存', icon: 'success' })
           setTimeout(() => {
-            uni.navigateBack()
+            this.goToAfterSave()
           }, 350)
         })
         .catch(() => {
@@ -155,6 +229,44 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 16rpx;
+  }
+}
+
+.first-hint {
+  background: #eef2ff;
+  border-radius: 16rpx;
+  padding: 20rpx 22rpx;
+  font-size: 24rpx;
+  color: #4338ca;
+  line-height: 1.5;
+}
+
+.gender-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.gender-chip {
+  padding: 14rpx 28rpx;
+  border-radius: 999rpx;
+  background: #f1f5f9;
+  border: 2rpx solid transparent;
+
+  text {
+    font-size: 26rpx;
+    color: #64748b;
+    font-weight: 500;
+  }
+
+  &--active {
+    background: #eef2ff;
+    border-color: #6366f1;
+
+    text {
+      color: #4338ca;
+      font-weight: 600;
+    }
   }
 }
 
@@ -233,6 +345,20 @@ export default {
     margin-top: 8rpx;
     font-size: 22rpx;
     color: #94a3b8;
+  }
+
+  &__readonly {
+    font-size: 28rpx;
+    color: #0f172a;
+    font-weight: 500;
+  }
+
+  &__hint {
+    display: block;
+    margin-top: 10rpx;
+    font-size: 22rpx;
+    color: #94a3b8;
+    line-height: 1.4;
   }
 }
 </style>

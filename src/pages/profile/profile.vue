@@ -15,6 +15,7 @@
             </view>
           </view>
           <text class="profile__bio">{{ user.bio }}</text>
+          <text v-if="genderDisplay" class="profile__gender">{{ genderDisplay }}</text>
         </view>
         <text class="profile__edit" @click="onEdit">编辑</text>
       </view>
@@ -86,7 +87,7 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
-import { getMe, getMyActivities, getMyStats, mapActivityCard } from '@/api'
+import { formatUserGenderLabel, getMe, getMyActivities, getMyStats, mapActivityCard } from '@/api'
 
 export default {
   components: { WmIcon, WmTabBar },
@@ -95,6 +96,7 @@ export default {
       user: {
         name: '小林',
         bio: '数字游民 · 周末出行爱好者',
+        gender: null,
       },
       stats: [
         { value: 12, label: '参加活动' },
@@ -107,6 +109,11 @@ export default {
         { key: 'privacy', icon: 'shield', color: '#6366f1', bg: '#eef2ff', label: '隐私政策' },
       ],
     }
+  },
+  computed: {
+    genderDisplay() {
+      return formatUserGenderLabel(this.user.gender)
+    },
   },
   methods: {
     onEdit() {
@@ -166,6 +173,7 @@ export default {
         ...this.user,
         name: me.nickname || this.user.name,
         bio: me.bio || this.user.bio,
+        gender: me.gender != null ? me.gender : this.user.gender,
       }
       this.stats = [
         { value: stats?.joinedCount ?? 0, label: '参加活动' },
@@ -267,6 +275,14 @@ export default {
   &__bio {
     font-size: 24rpx;
     color: #64748b;
+  }
+
+  &__gender {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 22rpx;
+    color: #94a3b8;
+    font-weight: 500;
   }
 
   &__edit {

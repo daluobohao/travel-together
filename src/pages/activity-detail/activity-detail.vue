@@ -111,6 +111,7 @@ import {
   enrollActivity,
   formatActivityTimeRange,
   getActivityDetail,
+  getMe,
 } from '@/api'
 
 export default {
@@ -119,9 +120,14 @@ export default {
     return {
       activity: null,
       actionLoading: false,
+      currentUserId: '',
     }
   },
   computed: {
+    isOrganizer() {
+      if (!this.activity?.organizerId || !this.currentUserId) return false
+      return String(this.currentUserId) === String(this.activity.organizerId)
+    },
     isJoined() {
       return this.activity?.enrollmentStatus === 'joined'
     },
@@ -133,16 +139,19 @@ export default {
       if (!this.activity) return ''
       if (this.activity.isCancelled) return '活动已取消'
       if (this.activity.isEnded) return '活动已结束'
+      if (this.activity.statusKey === 'pending') return '审核中'
+      if (this.isOrganizer && this.isJoined) return '你是发起人'
       if (this.isJoined) return '取消报名'
       if (this.activity.isFull) return '已满员'
-      if (this.activity.statusKey === 'pending') return '审核中'
       return '立即报名'
     },
     actionBtnClass() {
       if (!this.activity) return ''
-      if (this.activity.isEnded || this.activity.isCancelled || this.activity.isFull || this.activity.statusKey === 'pending') {
+      if (this.activity.isEnded || this.activity.isCancelled || this.activity.statusKey === 'pending') {
         return 'detail__action-btn--disabled'
       }
+      if (this.isOrganizer && this.isJoined) return 'detail__action-btn--disabled'
+      if (!this.isJoined && this.activity.isFull) return 'detail__action-btn--disabled'
       if (this.isJoined) return 'detail__action-btn--cancel'
       return ''
     },
@@ -162,6 +171,15 @@ export default {
   methods: {
     async loadActivity(id) {
       try {
+        let meId = ''
+        try {
+          const me = await getMe()
+          meId = me?.userId ? String(me.userId) : ''
+        } catch (e) {
+          meId = ''
+        }
+        this.currentUserId = meId
+
         const detail = await getActivityDetail(id)
         if (detail) {
           const org = detail.organizer || {}
@@ -254,10 +272,18 @@ export default {
         uni.showToast({ title: '活动已满员', icon: 'none' })
         return
       }
+      if (this.isOrganizer && this.isJoined) {
+        uni.showToast({ title: '发起人不能取消报名，如需结束请取消活动', icon: 'none' })
+        return
+      }
       this.toggleEnroll()
     },
     async toggleEnroll() {
       if (!this.activity || this.actionLoading) return
+      if (this.isOrganizer && this.isJoined) {
+        uni.showToast({ title: '发起人不能取消报名，如需结束请取消活动', icon: 'none' })
+        return
+      }
       this.actionLoading = true
       const joined = this.isJoined
       try {

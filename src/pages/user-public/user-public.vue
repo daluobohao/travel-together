@@ -31,6 +31,7 @@
           </view>
         </view>
         <text class="hero__stat">已组织 {{ profile.organizedCount || 0 }} 场活动</text>
+        <text v-if="publicGenderLabel" class="hero__gender">{{ publicGenderLabel }}</text>
       </view>
 
       <view v-if="profile.tags && profile.tags.length" class="panel">
@@ -91,6 +92,7 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import {
+  formatUserGenderLabel,
   getUserPublicProfile,
   getUserDmContext,
   normalizeActivityIdForApi,
@@ -130,6 +132,9 @@ export default {
     displayInitial() {
       const n = this.profile?.nickname || '用'
       return String(n).slice(0, 1)
+    },
+    publicGenderLabel() {
+      return formatUserGenderLabel(this.profile?.gender)
     },
     denyDmText() {
       const r = this.dmCtx?.denyReason
@@ -442,6 +447,13 @@ export default {
   &__stat {
     font-size: 26rpx;
     color: #64748b;
+  }
+
+  &__gender {
+    margin-top: 12rpx;
+    font-size: 24rpx;
+    color: #94a3b8;
+    font-weight: 500;
   }
 }
 

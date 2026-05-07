@@ -173,9 +173,14 @@ export default {
       try {
         const data = await loginBySms({ phone: this.form.phone, code: this.form.code })
         if (data?.accessToken) setAccessToken(data.accessToken)
+        const needGender = data?.user != null && (data.user.gender === null || data.user.gender === undefined)
         uni.showToast({ title: '登录成功', icon: 'success' })
         setTimeout(() => {
-          uni.reLaunch({ url: '/pages/home/home' })
+          if (needGender) {
+            uni.reLaunch({ url: '/pages/profile-edit/profile-edit?first=1' })
+          } else {
+            uni.reLaunch({ url: '/pages/home/home' })
+          }
         }, 400)
       } catch (e) {
         uni.showToast({ title: e?.message || '登录失败', icon: 'none' })

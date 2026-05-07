@@ -1,6 +1,7 @@
 import { wmRequest, paginate } from './client'
 import { setAccessToken } from './config'
 import { wmDB, toActivityCard } from '@/mock/wandermeet-db'
+import { contactTextBlockedReason } from '@/utils/contactContentFilter'
 
 const ok = (data) => ({ code: 0, message: 'ok', data })
 
@@ -52,6 +53,7 @@ export const loginBySms = (payload) =>
           userId: wmDB.profile.userId,
           nickname: wmDB.profile.nickname,
           avatarUrl: wmDB.profile.avatarUrl,
+          gender: wmDB.profile.gender,
           status: wmDB.profile.status,
         },
       }
@@ -97,12 +99,24 @@ export const updateMe = (payload) =>
     path: '/me',
     data: payload,
     mockHandler: ({ data }) => {
+      if (data.gender != null) {
+        if (wmDB.profile.gender != null && data.gender !== wmDB.profile.gender) {
+          return { code: 400, message: '提交后不可修改性别', data: null }
+        }
+        if (wmDB.profile.gender == null) {
+          wmDB.profile.gender = data.gender
+        }
+      }
       wmDB.profile = {
         ...wmDB.profile,
         nickname: data.nickname ?? wmDB.profile.nickname,
         avatarUrl: data.avatarUrl ?? wmDB.profile.avatarUrl,
         tags: data.tags ?? wmDB.profile.tags,
         bio: data.bio ?? wmDB.profile.bio,
+      }
+      const uid = wmDB.profile.userId
+      if (uid && wmDB.users?.[uid]) {
+        wmDB.users[uid] = { ...wmDB.users[uid], gender: wmDB.profile.gender }
       }
       return ok(wmDB.profile)
     },
@@ -299,11 +313,18 @@ export const createActivity = (payload) =>
         rulesAccepted: data.rulesAccepted,
         activityStatus: 'pending_review',
         organizer: { userId: wmDB.profile.userId, nickname: wmDB.profile.nickname, avatarUrl: null, verificationBadge: true },
-        enrolledCount: 0,
-        myEnrollment: null,
+        enrolledCount: 1,
+        myEnrollment: { status: 'joined' },
       }
       wmDB.activities.unshift(row)
-      return ok({ activityId: row.activityId, title: row.title, activityStatus: row.activityStatus, organizer: row.organizer })
+      return ok({
+        activityId: row.activityId,
+        title: row.title,
+        activityStatus: row.activityStatus,
+        organizer: row.organizer,
+        enrolledCount: 1,
+        myEnrollment: { status: 'joined' },
+      })
     },
   })
 
@@ -398,6 +419,13 @@ export const cancelEnrollment = (activityId) =>
     path: `/activities/${activityId}/enrollments/me`,
     mockHandler: () => {
       const row = wmDB.activities.find((x) => x.activityId === String(activityId))
+      if (row?.organizer?.userId && row.organizer.userId === wmDB.profile.userId) {
+        return {
+          code: 403,
+          message: '发起人不能取消报名，如需结束请取消活动',
+          data: null,
+        }
+      }
       if (row) {
         row.enrolledCount = Math.max(0, Number(row.enrolledCount || 0) - 1)
         row.myEnrollment = null
@@ -461,6 +489,10 @@ export const sendActivityMessage = (activityId, payload) =>
     path: `/activities/${activityId}/messages`,
     data: payload,
     mockHandler: ({ data }) => {
+      if (data.msgType === 'text' && data.text) {
+        const blocked = contactTextBlockedReason(data.text)
+        if (blocked) return { code: 400, message: blocked, data: null }
+      }
       const row = {
         messageId: `msg_${Date.now()}`,
         activityId: String(activityId),
@@ -735,6 +767,18 @@ export function formatActivityTimeRange(startAt, endAt) {
   const start = formatActivityTime(startAt)
   if (endAt === null || endAt === undefined || endAt === '') return start
   return `${start} - ${formatActivityTime(endAt)}`
+}
+
+const USER_GENDER_LABELS = {
+  male: '男',
+  female: '女',
+  unspecified: '保密',
+}
+
+/** API 值 male/female/unspecified → 展示文案；未设置返回空串 */
+export function formatUserGenderLabel(g) {
+  if (g === null || g === undefined || g === '') return ''
+  return USER_GENDER_LABELS[g] || ''
 }
 
 function fmtTime(startAt) {
@@ -1014,6 +1058,10 @@ export const createDmRequest = (activityId, payload) =>
       const me = wmDB.profile.userId
       const to = data?.toUserId
       if (!to) return { code: 400, message: 'invalid toUserId', data: null }
+      if (data?.introText) {
+        const blocked = contactTextBlockedReason(String(data.introText))
+        if (blocked) return { code: 400, message: blocked, data: null }
+      }
       const aid = String(activityId).replace(/^act_/, '')
       const nextId = Math.max(0, ...wmDB.dmRequests.map((r) => r.id)) + 1
       wmDB.dmRequests.push({
@@ -1203,6 +1251,10 @@ export const sendDirectMessage = (threadId, payload) =>
       if (!t) return { code: 404, message: 'thread not found', data: null }
       const me = wmDB.profile.userId
       if (t.userLow !== me && t.userHigh !== me) return { code: 403, message: 'forbidden', data: null }
+      if (data.msgType === 'text' && data.text) {
+        const blocked = contactTextBlockedReason(data.text)
+        if (blocked) return { code: 400, message: blocked, data: null }
+      }
       const row = {
         messageId: `dmmsg_${Date.now()}`,
         threadId: `dmthr_${tid}`,
