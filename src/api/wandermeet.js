@@ -883,6 +883,359 @@ export const markChatRead = (activityId) =>
 // Alias for new naming used by messages page.
 export const markMyChatRead = (activityId) => markChatRead(activityId)
 
+/** 活动 id 统一为 act_*（与后端文档一致） */
+export function normalizeActivityIdForApi(raw) {
+  const s = raw === undefined || raw === null ? '' : String(raw).trim()
+  if (!s) return ''
+  return s.startsWith('act_') ? s : `act_${s}`
+}
+
+function sortUserPairIds(a, b) {
+  const x = String(a)
+  const y = String(b)
+  return x < y ? [x, y] : [y, x]
+}
+
+function parseDmReqId(s) {
+  const t = String(s || '').replace(/^dmreq_/, '')
+  const n = Number(t)
+  return Number.isFinite(n) ? n : 0
+}
+
+function parseDmThrId(s) {
+  const t = String(s || '').replace(/^dmthr_/, '')
+  const n = Number(t)
+  return Number.isFinite(n) ? n : 0
+}
+
+/** 在同一活动语境下查询与对方的私聊关系 */
+export const getUserDmContext = (userId, activityId) =>
+  wmRequest({
+    method: 'GET',
+    path: `/users/${encodeURIComponent(userId)}/dm-context`,
+    query: { activityId: normalizeActivityIdForApi(activityId) },
+    mockHandler: ({ query }) => {
+      const rawAct = String(query.activityId || '')
+      const aid = rawAct.replace(/^act_/, '')
+      const me = wmDB.profile.userId
+      const target = String(userId)
+      if (target === me) {
+        return ok({ threadId: null, outgoingPendingRequestId: null, incomingPendingRequestId: null, canRequest: false, denyReason: 'self' })
+      }
+      const activity = wmDB.activities.find((x) => String(x.activityId) === aid)
+      if (!activity) {
+        return ok({
+          threadId: null,
+          outgoingPendingRequestId: null,
+          incomingPendingRequestId: null,
+          canRequest: false,
+          denyReason: 'not_in_activity',
+        })
+      }
+      const iJoin =
+        activity.organizer?.userId === me ||
+        !!(activity.myEnrollment && activity.myEnrollment.status === 'joined')
+      if (!iJoin) {
+        return ok({
+          threadId: null,
+          outgoingPendingRequestId: null,
+          incomingPendingRequestId: null,
+          canRequest: false,
+          denyReason: 'not_in_activity',
+        })
+      }
+      const targetJoin =
+        activity.organizer?.userId === target ||
+        !!(activity.myEnrollment && activity.myEnrollment.status === 'joined') ||
+        Object.prototype.hasOwnProperty.call(wmDB.users || {}, target)
+      if (!targetJoin) {
+        return ok({
+          threadId: null,
+          outgoingPendingRequestId: null,
+          incomingPendingRequestId: null,
+          canRequest: false,
+          denyReason: 'target_not_in_activity',
+        })
+      }
+      const thread = wmDB.dmThreads.find((t) => {
+        const [lo, hi] = sortUserPairIds(t.userLow, t.userHigh)
+        const [a, b] = sortUserPairIds(me, target)
+        return lo === a && hi === b
+      })
+      if (thread) {
+        return ok({
+          threadId: `dmthr_${thread.id}`,
+          outgoingPendingRequestId: null,
+          incomingPendingRequestId: null,
+          canRequest: false,
+          denyReason: 'has_thread',
+        })
+      }
+      const pendingOut = wmDB.dmRequests.find(
+        (r) => r.fromUserId === me && r.toUserId === target && r.status === 'pending'
+      )
+      if (pendingOut) {
+        return ok({
+          threadId: null,
+          outgoingPendingRequestId: `dmreq_${pendingOut.id}`,
+          incomingPendingRequestId: null,
+          canRequest: false,
+          denyReason: 'pending_outgoing',
+        })
+      }
+      const pendingIn = wmDB.dmRequests.find(
+        (r) => r.fromUserId === target && r.toUserId === me && r.status === 'pending'
+      )
+      if (pendingIn) {
+        return ok({
+          threadId: null,
+          outgoingPendingRequestId: null,
+          incomingPendingRequestId: `dmreq_${pendingIn.id}`,
+          canRequest: false,
+          denyReason: 'pending_incoming',
+        })
+      }
+      return ok({
+        threadId: null,
+        outgoingPendingRequestId: null,
+        incomingPendingRequestId: null,
+        canRequest: true,
+        denyReason: null,
+      })
+    },
+  })
+
+export const createDmRequest = (activityId, payload) =>
+  wmRequest({
+    method: 'POST',
+    path: `/activities/${normalizeActivityIdForApi(activityId)}/dm-requests`,
+    data: payload,
+    mockHandler: ({ data }) => {
+      const me = wmDB.profile.userId
+      const to = data?.toUserId
+      if (!to) return { code: 400, message: 'invalid toUserId', data: null }
+      const aid = String(activityId).replace(/^act_/, '')
+      const nextId = Math.max(0, ...wmDB.dmRequests.map((r) => r.id)) + 1
+      wmDB.dmRequests.push({
+        id: nextId,
+        activityId: aid,
+        fromUserId: me,
+        toUserId: to,
+        introText: (data.introText && String(data.introText).slice(0, 500)) || null,
+        status: 'pending',
+        threadId: null,
+        createdAt: new Date().toISOString(),
+        respondedAt: null,
+      })
+      wmDB.notifications.unshift({
+        notificationId: `ntf_dm_${nextId}`,
+        type: 'dm_request',
+        title: '私聊申请',
+        body: `${wmDB.profile.nickname} 申请与你私聊`,
+        payload: { dmRequestId: `dmreq_${nextId}`, activityId: `act_${aid}`, fromUserId: me },
+        readAt: null,
+        createdAt: new Date().toISOString(),
+      })
+      return ok({ requestId: `dmreq_${nextId}`, threadId: null, status: 'pending' })
+    },
+  })
+
+export const listDmRequests = (query = {}) =>
+  wmRequest({
+    method: 'GET',
+    path: '/me/dm-requests',
+    query,
+    mockHandler: ({ query: q }) => {
+      const me = wmDB.profile.userId
+      const dir = q.direction || 'incoming'
+      const st = q.status || 'pending'
+      let list = wmDB.dmRequests.slice()
+      if (dir === 'incoming') list = list.filter((r) => r.toUserId === me)
+      else list = list.filter((r) => r.fromUserId === me)
+      if (st === 'pending') list = list.filter((r) => r.status === 'pending')
+      const rows = list.map((r) => {
+        const fromU = wmDB.users[r.fromUserId] || { nickname: '用户' }
+        const toU = wmDB.users[r.toUserId] || { nickname: '用户' }
+        return {
+          requestId: `dmreq_${r.id}`,
+          activityId: `act_${r.activityId}`,
+          fromUser: {
+            userId: r.fromUserId,
+            nickname: fromU.nickname,
+            avatarUrl: fromU.avatarUrl || null,
+          },
+          toUser: { userId: r.toUserId, nickname: toU.nickname, avatarUrl: toU.avatarUrl || null },
+          introText: r.introText,
+          status: r.status,
+          threadId: r.threadId ? `dmthr_${r.threadId}` : null,
+          createdAt: r.createdAt,
+          respondedAt: r.respondedAt,
+        }
+      })
+      return ok(paginate(rows, q.page, q.pageSize))
+    },
+  })
+
+export const acceptDmRequest = (requestId) =>
+  wmRequest({
+    method: 'POST',
+    path: `/me/dm-requests/${requestId}/accept`,
+    mockHandler: () => {
+      const id = parseDmReqId(requestId)
+      const req = wmDB.dmRequests.find((r) => r.id === id)
+      if (!req) return { code: 404, message: 'request not found', data: null }
+      const me = wmDB.profile.userId
+      if (req.toUserId !== me) return { code: 403, message: 'not your request', data: null }
+      if (req.status !== 'pending') return { code: 400, message: 'request not pending', data: null }
+      const tid = Math.max(0, ...wmDB.dmThreads.map((t) => t.id)) + 1
+      const [userLow, userHigh] = sortUserPairIds(req.fromUserId, req.toUserId)
+      wmDB.dmThreads.push({ id: tid, userLow, userHigh })
+      req.status = 'accepted'
+      req.threadId = tid
+      req.respondedAt = new Date().toISOString()
+      if (!wmDB.dmMessages[String(tid)]) wmDB.dmMessages[String(tid)] = []
+      return ok({ requestId: `dmreq_${id}`, threadId: `dmthr_${tid}`, status: 'accepted' })
+    },
+  })
+
+export const rejectDmRequest = (requestId) =>
+  wmRequest({
+    method: 'POST',
+    path: `/me/dm-requests/${requestId}/reject`,
+    mockHandler: () => {
+      const id = parseDmReqId(requestId)
+      const req = wmDB.dmRequests.find((r) => r.id === id)
+      if (!req) return { code: 404, message: 'request not found', data: null }
+      if (req.toUserId !== wmDB.profile.userId) return { code: 403, message: 'not your request', data: null }
+      req.status = 'rejected'
+      req.respondedAt = new Date().toISOString()
+      return ok({ status: 'rejected' })
+    },
+  })
+
+export const cancelDmRequest = (requestId) =>
+  wmRequest({
+    method: 'DELETE',
+    path: `/me/dm-requests/${requestId}`,
+    mockHandler: () => {
+      const id = parseDmReqId(requestId)
+      const req = wmDB.dmRequests.find((r) => r.id === id)
+      if (!req) return { code: 404, message: 'request not found', data: null }
+      if (req.fromUserId !== wmDB.profile.userId) return { code: 403, message: 'not your request', data: null }
+      req.status = 'cancelled'
+      req.respondedAt = new Date().toISOString()
+      return ok({ status: 'cancelled' })
+    },
+  })
+
+export const getDirectChats = (query = {}) =>
+  wmRequest({
+    method: 'GET',
+    path: '/me/direct-chats',
+    query,
+    mockHandler: ({ query: q }) => {
+      const me = wmDB.profile.userId
+      const list = wmDB.dmThreads
+        .map((t) => {
+          let peer = null
+          if (t.userLow === me) peer = t.userHigh
+          else if (t.userHigh === me) peer = t.userLow
+          else return null
+          const u = wmDB.users[peer]
+          const msgs = wmDB.dmMessages[String(t.id)] || []
+          const last = msgs.length ? msgs[msgs.length - 1] : null
+          return {
+            threadId: `dmthr_${t.id}`,
+            peerUserId: peer,
+            peerNickname: u?.nickname || '用户',
+            peerAvatarUrl: u?.avatarUrl || null,
+            lastMessage: last ? (last.msgType === 'image' ? '[图片]' : last.text) : null,
+            lastMessageAt: last?.createdAt || null,
+            unreadCount: 0,
+          }
+        })
+        .filter(Boolean)
+      list.sort((a, b) => {
+        const ta = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0
+        const tb = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0
+        return tb - ta
+      })
+      return ok(paginate(list, q.page, q.pageSize))
+    },
+  })
+
+export const getDirectMessages = (threadId, query = {}) =>
+  wmRequest({
+    method: 'GET',
+    path: `/direct-chats/${threadId}/messages`,
+    query,
+    mockHandler: ({ query: q }) => {
+      const tid = parseDmThrId(threadId)
+      const t = wmDB.dmThreads.find((x) => x.id === tid)
+      if (!t) return { code: 404, message: 'thread not found', data: null }
+      const me = wmDB.profile.userId
+      if (t.userLow !== me && t.userHigh !== me) return { code: 403, message: 'forbidden', data: null }
+      let list = (wmDB.dmMessages[String(tid)] || []).slice()
+      const limit = Math.min(50, Math.max(1, Number(q.limit) || 30))
+      list = list.slice(-limit)
+      const mapped = list.map((m) => ({
+        messageId: m.messageId,
+        threadId: `dmthr_${tid}`,
+        sender: m.sender,
+        msgType: m.msgType,
+        text: m.text,
+        imageUrl: m.imageUrl,
+        createdAt: m.createdAt,
+      }))
+      const nextCursor = mapped.length ? mapped[0].messageId : null
+      return ok({ list: mapped, nextCursor })
+    },
+  })
+
+export const sendDirectMessage = (threadId, payload) =>
+  wmRequest({
+    method: 'POST',
+    path: `/direct-chats/${threadId}/messages`,
+    data: payload,
+    mockHandler: ({ data }) => {
+      const tid = parseDmThrId(threadId)
+      const t = wmDB.dmThreads.find((x) => x.id === tid)
+      if (!t) return { code: 404, message: 'thread not found', data: null }
+      const me = wmDB.profile.userId
+      if (t.userLow !== me && t.userHigh !== me) return { code: 403, message: 'forbidden', data: null }
+      const row = {
+        messageId: `dmmsg_${Date.now()}`,
+        threadId: `dmthr_${tid}`,
+        sender: {
+          userId: wmDB.profile.userId,
+          nickname: wmDB.profile.nickname,
+          avatarUrl: wmDB.profile.avatarUrl,
+        },
+        msgType: data.msgType || 'text',
+        text: data.text || null,
+        imageUrl: data.imageUrl || null,
+        createdAt: new Date().toISOString(),
+      }
+      if (!wmDB.dmMessages[String(tid)]) wmDB.dmMessages[String(tid)] = []
+      wmDB.dmMessages[String(tid)].push({
+        messageId: row.messageId,
+        sender: row.sender,
+        msgType: row.msgType,
+        text: row.text,
+        imageUrl: row.imageUrl,
+        createdAt: row.createdAt,
+      })
+      return ok(row)
+    },
+  })
+
+export const markDirectChatRead = (threadId) =>
+  wmRequest({
+    method: 'PATCH',
+    path: `/direct-chats/${threadId}/read`,
+    mockHandler: () => ok({ updatedCount: 1 }),
+  })
+
 // Backward compatible alias for existing pages.
 export const getConversationList = (query = {}) =>
   getMyChats(query).then((data) => {

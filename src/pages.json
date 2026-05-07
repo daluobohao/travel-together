@@ -50,6 +50,20 @@
 			}
 		},
 		{
+			"path": "pages/direct-chat-detail/direct-chat-detail",
+			"style": {
+				"navigationBarTitleText": "私聊",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/dm-requests/dm-requests",
+			"style": {
+				"navigationBarTitleText": "私聊申请",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/hosted-activity-list/hosted-activity-list",
 			"style": {
 				"navigationBarTitleText": "发起活动列表",

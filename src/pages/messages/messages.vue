@@ -12,8 +12,12 @@
           @click="activeTab = tab.key"
         >
           <text>{{ tab.label }}</text>
-          <view v-if="tab.key === 'group' ? hasUnreadGroup : tab.badge" class="tab__dot"></view>
+          <view v-if="tab.key === 'group' ? hasUnreadGroup : tab.key === 'private' ? hasUnreadPrivate : tab.badge" class="tab__dot"></view>
         </view>
+      </view>
+      <view class="messages__dm-entry" @click="goDmRequests">
+        <text class="messages__dm-entry-text">私聊申请</text>
+        <wm-icon name="chevronRight" :size="28" color="#6366f1" />
       </view>
     </view>
 
@@ -60,6 +64,38 @@
             <view class="chat__bottom">
               <text class="chat__msg">
                 <text class="chat__sender">{{ chat.sender }}：</text>{{ chat.preview }}
+              </text>
+              <view v-if="chat.unread" class="chat__badge">
+                <text>{{ chat.unread }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 私聊 -->
+      <view v-if="activeTab === 'private'" class="messages__list">
+        <view v-if="!privateChats.length" class="messages__empty">
+          <text>暂无私聊，可在活动群聊中点击对方头像申请私聊</text>
+        </view>
+        <view
+          v-for="chat in privateChats"
+          :key="chat.id"
+          class="chat"
+          hover-class="chat--hover"
+          @click="onOpenPrivate(chat)"
+        >
+          <view class="chat__avatar chat__avatar--dm">
+            <text class="chat__dm-initial">{{ chat.initial }}</text>
+          </view>
+          <view class="chat__body">
+            <view class="chat__top">
+              <text class="chat__name">{{ chat.name }}</text>
+              <text class="chat__time">{{ chat.time }}</text>
+            </view>
+            <view class="chat__bottom">
+              <text class="chat__msg">
+                <text class="chat__sender">私聊：</text>{{ chat.preview }}
               </text>
               <view v-if="chat.unread" class="chat__badge">
                 <text>{{ chat.unread }}</text>
@@ -141,6 +177,7 @@ import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import {
   getMyChats,
+  getDirectChats,
   markMyChatRead,
   getNotifications,
   readAllNotifications,
@@ -197,6 +234,20 @@ function mapGroupChat(item, idx) {
   }
 }
 
+function mapPrivateChat(item) {
+  const name = item.peerNickname || '用户'
+  return {
+    id: String(item.threadId),
+    threadId: item.threadId,
+    peerNickname: name,
+    initial: String(name).slice(0, 1),
+    name,
+    preview: item.lastMessage || '暂无消息',
+    time: relativeTime(item.lastMessageAt) || '最近',
+    unread: Number(item.unreadCount || 0),
+  }
+}
+
 export default {
   components: { WmIcon, WmTabBar },
   data() {
@@ -204,9 +255,11 @@ export default {
       activeTab: 'group',
       tabs: [
         { key: 'group', label: '活动群聊', badge: true },
+        { key: 'private', label: '私聊', badge: false },
         { key: 'system', label: '系统通知' },
       ],
       groupChats: [],
+      privateChats: [],
       systemNotifs: [],
       loading: false,
     }
@@ -214,6 +267,9 @@ export default {
   computed: {
     hasUnreadGroup() {
       return this.groupChats.some((x) => Number(x.unread || 0) > 0)
+    },
+    hasUnreadPrivate() {
+      return this.privateChats.some((x) => Number(x.unread || 0) > 0)
     },
     hasUnreadNotif() {
       return this.systemNotifs.some((x) => !x.read)
@@ -226,19 +282,34 @@ export default {
     async loadMessages() {
       this.loading = true
       try {
-        const [convData, notifData] = await Promise.all([
+        const [convData, dmData, notifData] = await Promise.all([
           getMyChats({ page: 1, pageSize: 20 }),
+          getDirectChats({ page: 1, pageSize: 50 }),
           getNotifications({ page: 1, pageSize: 20 }),
         ])
         this.groupChats = (convData?.list || []).map(mapGroupChat)
+        this.privateChats = (dmData?.list || []).map(mapPrivateChat)
         this.systemNotifs = (notifData?.list || []).map(mapNotif)
       } catch (e) {
         this.groupChats = []
+        this.privateChats = []
         this.systemNotifs = []
         uni.showToast({ title: e?.message || '消息加载失败', icon: 'none' })
       } finally {
         this.loading = false
       }
+    },
+    goDmRequests() {
+      uni.navigateTo({ url: '/pages/dm-requests/dm-requests' })
+    },
+    onOpenPrivate(chat) {
+      if (!chat?.threadId) return
+      const q =
+        'threadId=' +
+        encodeURIComponent(chat.threadId) +
+        '&peerNickname=' +
+        encodeURIComponent(chat.peerNickname || chat.name || '')
+      uni.navigateTo({ url: '/pages/direct-chat-detail/direct-chat-detail?' + q })
     },
     async onOpenGroup(chat) {
       const activityId = chat?.id || chat?.activityId
@@ -301,6 +372,20 @@ export default {
     font-weight: 700;
     color: #0f172a;
     margin-bottom: 28rpx;
+  }
+
+  &__dm-entry {
+    margin-top: 8rpx;
+    padding: 12rpx 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__dm-entry-text {
+    font-size: 26rpx;
+    color: #6366f1;
+    font-weight: 600;
   }
 
   &__tabs {

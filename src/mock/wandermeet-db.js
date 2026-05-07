@@ -170,6 +170,23 @@ export const wmDB = {
   ],
   reports: [],
   blocks: [],
+  /** 私聊 Mock：请求、线程、消息（threadId 与后端一致为数字 id，接口层包装为 dmthr_*） */
+  dmRequests: [
+    {
+      id: 1,
+      activityId: '1',
+      fromUserId: 'u_10002',
+      toUserId: 'u_10001',
+      introText: '你好，想和你聊聊今天的路线～',
+      status: 'pending',
+      threadId: null,
+      createdAt: now(),
+      respondedAt: null,
+    },
+  ],
+  dmThreads: [],
+  /** key: 数字 thread id 字符串，如 '1' */
+  dmMessages: {},
 }
 
 export function toActivityCard(activity) {

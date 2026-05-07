@@ -19,17 +19,26 @@
         <view
           v-for="msg in messages"
           :key="msg.id"
-          class="msg"
-          :class="msg.mine ? 'msg--mine' : 'msg--other'"
+          class="msg-row"
+          :class="msg.mine ? 'msg-row--mine' : 'msg-row--other'"
         >
+          <view
+            v-if="!msg.mine && msg.openProfile"
+            class="msg-row__avatar"
+            @click.stop="openUserPublic(msg)"
+          >
+            <text>{{ msg.avatarLetter }}</text>
+          </view>
+          <view class="msg" :class="msg.mine ? 'msg--mine' : 'msg--other'">
           <view class="msg__bubble" :class="{ 'msg__bubble--failed': msg.failed }">
-            <text class="msg__sender" v-if="!msg.mine">{{ msg.sender }}</text>
+            <text class="msg__sender" v-if="!msg.mine" @click.stop="openUserPublic(msg)">{{ msg.sender }}</text>
             <text class="msg__text">{{ msg.text }}</text>
             <view class="msg__meta">
               <text v-if="msg.pending" class="msg__status">发送中…</text>
               <text v-else-if="msg.failed" class="msg__status msg__status--failed">发送失败</text>
               <text class="msg__time">{{ msg.time }}</text>
             </view>
+          </view>
           </view>
         </view>
       </view>
@@ -182,6 +191,8 @@ export default {
       this.messageIds[id] = true
       const senderUserId = raw.sender?.userId
       const isMine = senderUserId === 'me' || (this.currentUserId && senderUserId === this.currentUserId)
+      const openProfile =
+        !isMine && senderUserId && senderUserId !== 'system'
       return {
         id,
         sender: raw.sender?.nickname || '用户',
@@ -189,7 +200,20 @@ export default {
         time: formatTime(raw.createdAt),
         mine: isMine,
         createdAt: raw.createdAt,
+        userId: senderUserId,
+        openProfile,
+        avatarLetter: String(raw.sender?.nickname || '?').slice(0, 1),
       }
+    },
+    openUserPublic(msg) {
+      if (!msg?.userId || msg.userId === 'system') return
+      uni.navigateTo({
+        url:
+          '/pages/user-public/user-public?userId=' +
+          encodeURIComponent(msg.userId) +
+          '&activityId=' +
+          encodeURIComponent(this.chatId),
+      })
     },
     updateLastCreatedAt(list) {
       if (!Array.isArray(list) || !list.length) return
@@ -448,9 +472,37 @@ export default {
   }
 }
 
+.msg-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12rpx;
+  margin-bottom: 14rpx;
+
+  &--mine {
+    justify-content: flex-end;
+  }
+
+  &--other {
+    justify-content: flex-start;
+  }
+
+  &__avatar {
+    width: 56rpx;
+    height: 56rpx;
+    border-radius: 12rpx;
+    background: linear-gradient(135deg, #a78bfa, #6366f1);
+    color: #ffffff;
+    font-size: 24rpx;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+}
+
 .msg {
   display: flex;
-  margin-bottom: 14rpx;
 
   &--other {
     justify-content: flex-start;

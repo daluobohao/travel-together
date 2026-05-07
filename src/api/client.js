@@ -16,6 +16,7 @@ function unwrap(payload) {
     if (payload.code !== 0) {
       const err = new Error(payload.message || '请求失败')
       err.code = payload.code
+      err.data = payload.data
       throw err
     }
     return payload.data

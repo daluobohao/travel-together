@@ -4,7 +4,7 @@
       <view class="user-public__back" @click="goBack">
         <wm-icon name="chevronLeft" :size="36" color="#0f172a" />
       </view>
-      <text class="user-public__header-title">发起人资料</text>
+      <text class="user-public__header-title">{{ headerTitle }}</text>
       <view class="user-public__placeholder" />
     </view>
 
@@ -45,13 +45,60 @@
         <text v-if="profile.bio" class="bio">{{ profile.bio }}</text>
         <text v-else class="bio bio--empty">暂无简介</text>
       </view>
+
+      <view v-if="activityIdNorm && !profile.__offlineSnapshot" class="panel panel--dm">
+        <text class="section-title">私聊</text>
+        <view v-if="dmLoading" class="dm-hint"><text>加载关系…</text></view>
+        <template v-else>
+          <button
+            v-if="dmCtx.threadId"
+            class="dm-btn dm-btn--primary"
+            @click="openDirectChat(dmCtx.threadId)"
+          >
+            进入私聊
+          </button>
+          <template v-else-if="dmCtx.incomingPendingRequestId">
+            <text class="dm-note">对方申请与你私聊</text>
+            <view class="dm-row">
+              <button class="dm-btn dm-btn--primary" @click="acceptIncoming">同意</button>
+              <button class="dm-btn dm-btn--ghost" @click="rejectIncoming">拒绝</button>
+            </view>
+          </template>
+          <template v-else-if="dmCtx.outgoingPendingRequestId">
+            <button class="dm-btn dm-btn--disabled" disabled>已发送申请，等待对方同意</button>
+            <button class="dm-btn dm-btn--link" @click="cancelOutgoing">撤回申请</button>
+          </template>
+          <template v-else-if="dmCtx.canRequest">
+            <view v-if="showIntro">
+              <textarea
+                v-model="introDraft"
+                class="dm-textarea"
+                placeholder="选填附言"
+                maxlength="500"
+              />
+              <button class="dm-btn dm-btn--primary" @click="submitDmRequest">发送申请</button>
+              <button class="dm-btn dm-btn--link" @click="showIntro = false">取消</button>
+            </view>
+            <button v-else class="dm-btn dm-btn--primary" @click="showIntro = true">申请私聊</button>
+          </template>
+          <text v-else class="dm-note">{{ denyDmText }}</text>
+        </template>
+      </view>
     </view>
   </view>
 </template>
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
-import { getUserPublicProfile } from '@/api'
+import {
+  getUserPublicProfile,
+  getUserDmContext,
+  normalizeActivityIdForApi,
+  createDmRequest,
+  acceptDmRequest,
+  rejectDmRequest,
+  cancelDmRequest,
+} from '@/api'
 
 export default {
   components: { WmIcon },
@@ -61,16 +108,46 @@ export default {
       profile: null,
       /** 从活动详情页带入，供接口失败时展示 */
       snapshot: null,
+      /** 活动语境（群聊里点头像带入），用于私聊申请校验 */
+      activityIdNorm: '',
+      dmLoading: false,
+      dmCtx: {
+        threadId: null,
+        outgoingPendingRequestId: null,
+        incomingPendingRequestId: null,
+        canRequest: false,
+        denyReason: null,
+      },
+      showIntro: false,
+      introDraft: '',
+      targetUserId: '',
     }
   },
   computed: {
+    headerTitle() {
+      return this.activityIdNorm ? '用户资料' : '发起人资料'
+    },
     displayInitial() {
       const n = this.profile?.nickname || '用'
       return String(n).slice(0, 1)
     },
+    denyDmText() {
+      const r = this.dmCtx?.denyReason
+      const map = {
+        self: '这是你自己',
+        blocked: '无法发起私聊',
+        not_in_activity: '请先加入该活动',
+        target_not_in_activity: '对方不在该活动中',
+        has_thread: '已与对方开通私聊',
+        pending_outgoing: '已发送申请',
+        pending_incoming: '对方已向你发起申请',
+      }
+      return map[r] || (r ? `暂不可申请（${r}）` : '')
+    },
   },
   onLoad(query) {
     const userId = query?.userId ? String(query.userId) : ''
+    this.targetUserId = userId
     let snapTags = []
     if (query.tags) {
       try {
@@ -80,6 +157,9 @@ export default {
       }
     }
     if (!Array.isArray(snapTags)) snapTags = []
+    const rawAct = query.activityId || query.actId || query.activity_id
+    this.activityIdNorm = rawAct ? normalizeActivityIdForApi(String(rawAct)) : ''
+
     this.snapshot = {
       userId,
       nickname: query.nick ? decodeURIComponent(query.nick) : '',
@@ -92,6 +172,91 @@ export default {
     this.loadProfile(userId)
   },
   methods: {
+    async loadDmContext() {
+      if (!this.activityIdNorm || !this.targetUserId || this.profile?.__offlineSnapshot) return
+      this.dmLoading = true
+      try {
+        const data = await getUserDmContext(this.targetUserId, this.activityIdNorm)
+        this.dmCtx = {
+          threadId: data?.threadId || null,
+          outgoingPendingRequestId: data?.outgoingPendingRequestId || null,
+          incomingPendingRequestId: data?.incomingPendingRequestId || null,
+          canRequest: !!data?.canRequest,
+          denyReason: data?.denyReason || null,
+        }
+      } catch (e) {
+        console.warn(e)
+      } finally {
+        this.dmLoading = false
+      }
+    },
+    openDirectChat(threadId) {
+      const nick = encodeURIComponent(this.profile?.nickname || '')
+      uni.navigateTo({
+        url:
+          '/pages/direct-chat-detail/direct-chat-detail?threadId=' +
+          encodeURIComponent(threadId) +
+          '&peerNickname=' +
+          nick,
+      })
+    },
+    async submitDmRequest() {
+      const introText = (this.introDraft || '').trim() || undefined
+      try {
+        await createDmRequest(this.activityIdNorm, {
+          toUserId: this.targetUserId,
+          introText,
+        })
+        uni.showToast({ title: '已发送', icon: 'success' })
+        this.showIntro = false
+        this.introDraft = ''
+        await this.loadDmContext()
+      } catch (e) {
+        if (e?.code === 409 && e?.data?.threadId) {
+          this.openDirectChat(e.data.threadId)
+          return
+        }
+        if (e?.code === 409) {
+          uni.showToast({ title: e?.message || '请稍后再试', icon: 'none' })
+          await this.loadDmContext()
+          return
+        }
+        uni.showToast({ title: e?.message || '发送失败', icon: 'none' })
+      }
+    },
+    async acceptIncoming() {
+      const id = this.dmCtx.incomingPendingRequestId
+      if (!id) return
+      try {
+        const data = await acceptDmRequest(id)
+        uni.showToast({ title: '已同意', icon: 'success' })
+        this.openDirectChat(data.threadId)
+      } catch (e) {
+        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      }
+    },
+    async rejectIncoming() {
+      const id = this.dmCtx.incomingPendingRequestId
+      if (!id) return
+      try {
+        await rejectDmRequest(id)
+        uni.showToast({ title: '已拒绝', icon: 'none' })
+        await this.loadDmContext()
+      } catch (e) {
+        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      }
+    },
+    async cancelOutgoing() {
+      const id = this.dmCtx.outgoingPendingRequestId
+      if (!id) return
+      try {
+        await cancelDmRequest(id)
+        uni.showToast({ title: '已撤回', icon: 'none' })
+        await this.loadDmContext()
+      } catch (e) {
+        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      }
+    },
     profileFromSnapshot() {
       const s = this.snapshot
       if (!s || !s.userId) return null
@@ -129,12 +294,14 @@ export default {
         } else {
           this.profile = this.profileFromSnapshot()
         }
+        await this.loadDmContext()
       } catch (e) {
         const snap = this.profileFromSnapshot()
         this.profile = snap
         if (!snap) {
           uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
         }
+        await this.loadDmContext()
       } finally {
         this.loading = false
       }
@@ -316,5 +483,75 @@ export default {
     color: #94a3b8;
     font-style: italic;
   }
+}
+
+.panel--dm {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.dm-hint {
+  font-size: 24rpx;
+  color: #94a3b8;
+}
+
+.dm-note {
+  font-size: 26rpx;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.dm-row {
+  display: flex;
+  gap: 16rpx;
+}
+
+.dm-textarea {
+  width: 100%;
+  min-height: 120rpx;
+  padding: 16rpx;
+  box-sizing: border-box;
+  background: #f8fafc;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  margin-bottom: 8rpx;
+}
+
+.dm-btn {
+  font-size: 28rpx;
+  border-radius: 14rpx;
+  border: none;
+  padding: 20rpx 0;
+  margin: 0;
+
+  &::after {
+    border: none;
+  }
+}
+
+.dm-btn--primary {
+  background: #6366f1;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.dm-btn--ghost {
+  background: #f1f5f9;
+  color: #334155;
+  font-weight: 600;
+  flex: 1;
+}
+
+.dm-btn--disabled {
+  background: #cbd5e1;
+  color: #ffffff;
+}
+
+.dm-btn--link {
+  background: transparent;
+  color: #6366f1;
+  font-size: 26rpx;
+  padding: 8rpx 0;
 }
 </style>
