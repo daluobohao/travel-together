@@ -2,6 +2,7 @@ export const API_BASE_URL = 'https://wang-hao-hao.cn/api/v1/wm'
 // export const API_BASE_URL = 'http://106.13.108.88:8001/api/v1/wm'
 export const MOCK_SWITCH_KEY = 'wm_use_mock'
 export const ACCESS_TOKEN_KEY = 'wm_access_token'
+export const REFRESH_TOKEN_KEY = 'wm_refresh_token'
 
 export function getMockEnabled() {
   const v = uni.getStorageSync(MOCK_SWITCH_KEY)
@@ -19,4 +20,18 @@ export function getAccessToken() {
 
 export function setAccessToken(token) {
   uni.setStorageSync(ACCESS_TOKEN_KEY, token || '')
+}
+
+export function getRefreshToken() {
+  return uni.getStorageSync(REFRESH_TOKEN_KEY) || ''
+}
+
+export function setRefreshToken(token) {
+  uni.setStorageSync(REFRESH_TOKEN_KEY, token || '')
+}
+
+/** 清空本地 access / refresh（登出或刷新失败时） */
+export function clearWmAuthTokens() {
+  uni.removeStorageSync(ACCESS_TOKEN_KEY)
+  uni.removeStorageSync(REFRESH_TOKEN_KEY)
 }

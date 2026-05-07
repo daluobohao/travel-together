@@ -1,5 +1,5 @@
 import { wmRequest, paginate } from './client'
-import { setAccessToken } from './config'
+import { clearWmAuthTokens, setAccessToken, setRefreshToken } from './config'
 import { wmDB, toActivityCard } from '@/mock/wandermeet-db'
 import { contactTextBlockedReason } from '@/utils/contactContentFilter'
 
@@ -58,6 +58,7 @@ export const loginBySms = (payload) =>
         },
       }
       setAccessToken(data.accessToken)
+      setRefreshToken(data.refreshToken)
       return ok(data)
     },
   })
@@ -69,8 +70,33 @@ export const refreshToken = (payload) =>
     path: '/auth/token/refresh',
     data: payload,
     needAuth: false,
-    mockHandler: () => ok({ accessToken: 'wm_at_mock_new', expiresIn: 7200 }),
+    mockHandler: () => {
+      const data = {
+        accessToken: 'wm_at_mock_new',
+        expiresIn: 7200,
+        refreshToken: `wm_rt_mock_${Date.now()}`,
+      }
+      setAccessToken(data.accessToken)
+      setRefreshToken(data.refreshToken)
+      return ok(data)
+    },
   })
+
+/** 调用后端吊销当前 access + refresh；无论成功与否都会清空本地 token */
+export const logout = async () => {
+  try {
+    await wmRequest({
+      method: 'POST',
+      path: '/auth/logout',
+      needAuth: true,
+      mockHandler: () => ok({ status: 'ok' }),
+    })
+  } catch {
+    // 仍清本地，避免残留凭证
+  } finally {
+    clearWmAuthTokens()
+  }
+}
 
 // 4
 export const getMe = () =>

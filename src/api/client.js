@@ -1,4 +1,12 @@
-import { API_BASE_URL, getAccessToken, getMockEnabled } from './config'
+import {
+  API_BASE_URL,
+  clearWmAuthTokens,
+  getAccessToken,
+  getMockEnabled,
+  getRefreshToken,
+  setAccessToken,
+  setRefreshToken,
+} from './config'
 
 /** 毫秒；小程序默认较短，列表/冷启动接口可适当加长避免误报 timeout */
 const REQUEST_TIMEOUT_MS = 60000
@@ -9,6 +17,68 @@ function buildQuery(query = {}) {
   return `?${entries
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
     .join('&')}`
+}
+
+/** 并发 401 时共用一个刷新 Promise，避免重复 POST /auth/token/refresh */
+let refreshPromise = null
+
+async function tryRefreshAccessToken() {
+  if (getMockEnabled()) {
+    const rt = getRefreshToken()
+    if (!rt) return false
+    setAccessToken('wm_at_mock_new')
+    setRefreshToken(`wm_rt_mock_${Date.now()}`)
+    return true
+  }
+
+  const rt = getRefreshToken()
+  if (!rt) return false
+
+  if (refreshPromise) return refreshPromise
+
+  refreshPromise = (async () => {
+    try {
+      const url = `${API_BASE_URL}/auth/token/refresh`
+      const res = await uni.request({
+        url,
+        method: 'POST',
+        data: { refreshToken: rt },
+        header: { 'Content-Type': 'application/json' },
+        timeout: REQUEST_TIMEOUT_MS,
+      })
+      let response = res
+      if (Array.isArray(res)) {
+        const err = res[0]
+        response = res[1]
+        if (err) return false
+      }
+      if (!response || typeof response.statusCode !== 'number') return false
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        clearWmAuthTokens()
+        return false
+      }
+      const body = response.data
+      if (body && typeof body.code !== 'undefined' && body.code !== 0) {
+        clearWmAuthTokens()
+        return false
+      }
+      const d = body?.data
+      if (!d?.accessToken || !d?.refreshToken) {
+        clearWmAuthTokens()
+        return false
+      }
+      setAccessToken(d.accessToken)
+      setRefreshToken(d.refreshToken)
+      return true
+    } catch {
+      clearWmAuthTokens()
+      return false
+    } finally {
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
 }
 
 function unwrap(payload) {
@@ -48,6 +118,7 @@ export async function wmRequest({
   data,
   needAuth = true,
   mockHandler,
+  __didRefresh = false,
 }) {
   if (getMockEnabled() && typeof mockHandler === 'function') {
     const mockPayload = await Promise.resolve(mockHandler({ query: query || {}, data: data || {} }))
@@ -82,6 +153,26 @@ export async function wmRequest({
   if (error) throw error
   if (!response) throw new Error('请求失败：无响应数据')
   if (typeof response.statusCode === 'number' && (response.statusCode < 200 || response.statusCode >= 300)) {
+    if (
+      needAuth &&
+      response.statusCode === 401 &&
+      !__didRefresh &&
+      path !== '/auth/token/refresh'
+    ) {
+      const refreshed = await tryRefreshAccessToken()
+      if (refreshed) {
+        return wmRequest({
+          method,
+          path,
+          query,
+          data,
+          needAuth,
+          mockHandler,
+          __didRefresh: true,
+        })
+      }
+    }
+
     const fromBody = messageFromHttpErrorBody(response.data)
     const msg =
       fromBody ||
@@ -91,7 +182,9 @@ export async function wmRequest({
           ? '没有权限'
           : response.statusCode === 404
             ? '资源不存在'
-            : `请求失败（${response.statusCode}）`)
+            : response.statusCode === 429
+              ? '操作过于频繁，请稍后再试'
+              : `请求失败（${response.statusCode}）`)
     const err = new Error(msg)
     err.statusCode = response.statusCode
     err.data = response.data

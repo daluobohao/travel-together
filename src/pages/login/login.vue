@@ -57,7 +57,7 @@
 </template>
 
 <script>
-import { loginBySms, sendSmsCode, setAccessToken } from '@/api'
+import { loginBySms, sendSmsCode, setAccessToken, setRefreshToken } from '@/api'
 
 const PHONE_REG = /^1\d{10}$/
 
@@ -173,6 +173,7 @@ export default {
       try {
         const data = await loginBySms({ phone: this.form.phone, code: this.form.code })
         if (data?.accessToken) setAccessToken(data.accessToken)
+        if (data?.refreshToken) setRefreshToken(data.refreshToken)
         const needGender = data?.user != null && (data.user.gender === null || data.user.gender === undefined)
         uni.showToast({ title: '登录成功', icon: 'success' })
         setTimeout(() => {
