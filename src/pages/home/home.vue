@@ -214,15 +214,16 @@ export default {
 <style lang="scss" scoped>
 .home {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: transparent;
 
   &__header {
     position: sticky;
     top: 0;
     z-index: 10;
     padding: calc(28rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 28rpx 24rpx;
-    background: #ffffff;
-    border-bottom: 1rpx solid #e5e7eb;
+    background: $wm-sticky-header-gradient;
+    border-bottom: none;
+    box-shadow: 0 8rpx 32rpx rgba(99, 102, 241, 0.07);
     display: flex;
     flex-direction: column;
     gap: 24rpx;
@@ -242,15 +243,16 @@ export default {
   }
 
   &__logo {
-    font-size: 40rpx;
-    font-weight: 500;
-    color: #1a1a1a;
+    font-size: 44rpx;
+    font-weight: 800;
+    color: #312e81;
+    letter-spacing: 2rpx;
     line-height: 60rpx;
   }
 
   &__subtitle {
     font-size: 24rpx;
-    color: #6b7280;
+    color: #64748b;
     line-height: 34rpx;
   }
 
@@ -294,8 +296,8 @@ export default {
   height: 54rpx;
   padding: 0 22rpx;
   border-radius: 999rpx;
-  background: #f1f2f4;
-  color: #1a1a1a;
+  background: #eef2f7;
+  color: #334155;
   font-size: 24rpx;
   font-weight: 500;
   line-height: 1;
@@ -316,7 +318,8 @@ export default {
   background: #ffffff;
   border-radius: 24rpx;
   padding: 28rpx 28rpx 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+  border: $wm-card-edge;
+  box-shadow: $wm-card-elevated-shadow;
 }
 
 .skeleton-tag-row {
@@ -402,13 +405,14 @@ export default {
   background: #ffffff;
   border-radius: 24rpx;
   padding: 28rpx 28rpx 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+  border: $wm-card-edge;
+  box-shadow: $wm-shadow-md;
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) backwards;
 
   &--hover {
     transform: scale(0.98);
-    box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.08);
+    box-shadow: $wm-card-elevated-shadow;
   }
 
   &__top {

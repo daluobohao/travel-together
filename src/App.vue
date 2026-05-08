@@ -30,7 +30,7 @@ export default {
 <style lang="scss">
 /* 全局样式 */
 page {
-  background-color: #f3f4f6;
+  background: $wm-page-bg-gradient;
   color: #0f172a;
   font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Helvetica,
     'Microsoft YaHei', Arial, sans-serif;

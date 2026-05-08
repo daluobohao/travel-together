@@ -205,10 +205,10 @@ export default {
 <style lang="scss" scoped>
 .profile {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: transparent;
 
   &__hero {
-    background: linear-gradient(180deg, #eef2ff 0%, #f3f4f6 100%);
+    background: linear-gradient(180deg, #eef2ff 0%, rgba(245, 247, 251, 0.96) 100%);
     padding: calc(40rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 32rpx;
   }
 
@@ -219,7 +219,8 @@ export default {
     padding: 28rpx;
     background: #ffffff;
     border-radius: 28rpx;
-    box-shadow: 0 8rpx 24rpx rgba(99, 102, 241, 0.12);
+    border: $wm-card-edge;
+    box-shadow: $wm-card-elevated-shadow;
   }
 
   &__avatar {
@@ -298,7 +299,8 @@ export default {
     background: #ffffff;
     border-radius: 24rpx;
     padding: 28rpx 12rpx;
-    box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+    border: $wm-card-edge;
+    box-shadow: $wm-shadow-md;
   }
 }
 
@@ -357,7 +359,8 @@ export default {
   background: #ffffff;
   border-radius: 24rpx;
   overflow: hidden;
-  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+  border: $wm-card-edge;
+  box-shadow: $wm-shadow-md;
 }
 
 .activity {
@@ -419,7 +422,8 @@ export default {
   margin: 24rpx 32rpx 0;
   background: #ffffff;
   border-radius: 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+  border: $wm-card-edge;
+  box-shadow: $wm-shadow-md;
   overflow: hidden;
 
   &__item {

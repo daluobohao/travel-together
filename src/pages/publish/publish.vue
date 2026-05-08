@@ -159,6 +159,11 @@ const FALLBACK_CATEGORIES = [
   { categoryId: 'citywalk', name: 'Citywalk' },
   { categoryId: 'hiking', name: '徒步' },
   { categoryId: 'boardgame', name: '桌游' },
+  { categoryId: 'coworking', name: '联合办公·共创' },
+  { categoryId: 'indie', name: '副业·独立开发' },
+  { categoryId: 'language', name: '语言交换' },
+  { categoryId: 'dining', name: '约饭·探店' },
+  { categoryId: 'photography', name: '摄影扫街' },
   { categoryId: 'exhibit', name: '展览' },
   { categoryId: 'night_run', name: '夜跑' },
 ]
@@ -332,7 +337,7 @@ export default {
 <style lang="scss" scoped>
 .publish {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: transparent;
   padding-bottom: 200rpx;
 
   &__nav {
@@ -343,8 +348,9 @@ export default {
     align-items: center;
     justify-content: space-between;
     padding: calc(24rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 24rpx;
-    background: #ffffff;
-    border-bottom: 1rpx solid #eef2f7;
+    background: $wm-sticky-header-gradient;
+    border-bottom: none;
+    box-shadow: 0 8rpx 28rpx rgba(99, 102, 241, 0.07);
   }
 
   &__cancel {
@@ -415,7 +421,8 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 16rpx;
-  box-shadow: 0 2rpx 10rpx rgba(15, 23, 42, 0.03);
+  border: $wm-card-edge;
+  box-shadow: $wm-shadow-md;
 
   &--category {
     padding-right: 28px;

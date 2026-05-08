@@ -245,7 +245,7 @@ export default {
 <style lang="scss" scoped>
 .picker-page {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: transparent;
   padding: 20rpx 24rpx 24rpx;
 }
 
@@ -260,6 +260,8 @@ export default {
   height: 80rpx;
   border-radius: 16rpx;
   background: #ffffff;
+  border: $wm-card-edge;
+  box-shadow: $wm-shadow-sm;
   padding: 0 22rpx;
   font-size: 28rpx;
   color: #0f172a;

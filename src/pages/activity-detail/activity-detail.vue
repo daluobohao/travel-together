@@ -321,7 +321,7 @@ export default {
 <style lang="scss" scoped>
 .detail {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: transparent;
   padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
 
   &__header {
@@ -330,8 +330,9 @@ export default {
     z-index: 10;
     height: calc(96rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top));
     padding: calc(var(--status-bar-height, 0px) + env(safe-area-inset-top)) 24rpx 0;
-    background: #ffffff;
-    border-bottom: 1rpx solid #e5e7eb;
+    background: $wm-sticky-header-gradient;
+    border-bottom: none;
+    box-shadow: 0 8rpx 28rpx rgba(99, 102, 241, 0.07);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -366,8 +367,10 @@ export default {
     bottom: 0;
     z-index: 30;
     padding: 16rpx 24rpx calc(24rpx + env(safe-area-inset-bottom));
-    background: rgba(255, 255, 255, 0.95);
-    border-top: 1rpx solid #e5e7eb;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(16rpx);
+    border-top: 1rpx solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 -8rpx 32rpx rgba(15, 23, 42, 0.06);
     display: flex;
     gap: 16rpx;
   }
@@ -441,6 +444,8 @@ export default {
   background: #ffffff;
   border-radius: 20rpx;
   padding: 24rpx;
+  border: $wm-card-edge;
+  box-shadow: $wm-shadow-md;
 }
 
 .meta-item {

@@ -54,14 +54,15 @@ export default {}
 <style lang="scss" scoped>
 .privacy {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: transparent;
   padding: 24rpx;
 
   &__card {
     background: #ffffff;
     border-radius: 20rpx;
     padding: 28rpx;
-    box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+    border: $wm-card-edge;
+    box-shadow: $wm-card-elevated-shadow;
   }
 
   &__title {

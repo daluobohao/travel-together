@@ -187,7 +187,7 @@ export default {
 <style lang="scss" scoped>
 .profile-edit {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: transparent;
 
   &__header {
     position: sticky;
@@ -195,8 +195,9 @@ export default {
     z-index: 10;
     height: calc(96rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top));
     padding: calc(var(--status-bar-height, 0px) + env(safe-area-inset-top)) 24rpx 0;
-    background: #ffffff;
-    border-bottom: 1rpx solid #e5e7eb;
+    background: $wm-sticky-header-gradient;
+    border-bottom: none;
+    box-shadow: 0 8rpx 28rpx rgba(99, 102, 241, 0.07);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -278,6 +279,8 @@ export default {
   flex-direction: column;
   align-items: center;
   gap: 12rpx;
+  border: $wm-card-edge;
+  box-shadow: $wm-shadow-md;
 
   &__avatar {
     width: 120rpx;
@@ -305,6 +308,8 @@ export default {
   background: #ffffff;
   border-radius: 20rpx;
   padding: 24rpx;
+  border: $wm-card-edge;
+  box-shadow: $wm-shadow-md;
 
   &__label {
     display: block;

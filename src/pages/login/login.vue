@@ -201,7 +201,7 @@ export default {
 .login {
   min-height: 100vh;
   padding: calc(48rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 36rpx 40rpx;
-  background: #f3f4f6;
+  background: transparent;
 
   &__header {
     margin-bottom: 40rpx;
@@ -316,8 +316,8 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 12rpx;
-  box-shadow: 0 2rpx 10rpx rgba(15, 23, 42, 0.03);
-  border: 2rpx solid transparent;
+  box-shadow: $wm-card-elevated-shadow;
+  border: $wm-card-edge;
   transition: border-color 0.2s, box-shadow 0.2s;
 
   &--error {

@@ -359,11 +359,13 @@ export default {
 <style lang="scss" scoped>
 .messages {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: transparent;
 
   &__header {
     padding: calc(40rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 24rpx;
-    background: #ffffff;
+    background: $wm-sticky-header-gradient;
+    border-bottom: none;
+    box-shadow: 0 8rpx 32rpx rgba(99, 102, 241, 0.07);
   }
 
   &__title {
@@ -486,7 +488,8 @@ export default {
   display: flex;
   gap: 20rpx;
   align-items: center;
-  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+  border: $wm-card-edge;
+  box-shadow: $wm-shadow-md;
   transition: transform 0.15s;
 
   &--hover {

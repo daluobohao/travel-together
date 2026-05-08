@@ -381,7 +381,7 @@ export default {
 .page.ob {
   min-height: 100vh;
   padding: calc(32rpx + var(--status-bar-height, 0px)) 32rpx 160rpx;
-  background: #f8fafc;
+  background: transparent;
   box-sizing: border-box;
 }
 .ob__head {
@@ -411,7 +411,8 @@ export default {
   background: #fff;
   border-radius: 24rpx;
   padding: 36rpx;
-  box-shadow: 0 8rpx 30rpx rgba(15, 23, 42, 0.06);
+  border: $wm-card-edge;
+  box-shadow: $wm-card-elevated-shadow;
 }
 .ob__title {
   display: block;
@@ -566,7 +567,8 @@ export default {
   right: 0;
   bottom: 0;
   padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, transparent, #f8fafc 24%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(248, 250, 252, 0.96) 28%);
+  backdrop-filter: blur(12rpx);
   display: flex;
   gap: 20rpx;
 }
@@ -579,8 +581,9 @@ export default {
   font-weight: 600;
 }
 .ob__btn--primary {
-  background: #ec4899;
+  background: linear-gradient(135deg, #f472b6 0%, #ec4899 45%, #db2777 100%);
   color: #fff;
+  box-shadow: 0 10rpx 28rpx rgba(236, 72, 153, 0.35);
 }
 .ob__btn--ghost {
   flex: 0.45;

@@ -78,10 +78,10 @@ export default {
   justify-content: space-around;
   align-items: flex-start;
   padding: 12rpx 8rpx calc(12rpx + env(safe-area-inset-bottom));
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: saturate(1.2) blur(16rpx);
-  border-top: 1rpx solid #eef2f7;
-  box-shadow: 0 -2rpx 16rpx rgba(15, 23, 42, 0.04);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: saturate(1.15) blur(20rpx);
+  border-top: 1rpx solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 -6rpx 28rpx rgba(15, 23, 42, 0.07);
 
   &__item {
     flex: 1;
