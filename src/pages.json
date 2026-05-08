@@ -8,6 +8,13 @@
 			}
 		},
 		{
+			"path": "pages/onboarding/onboarding",
+			"style": {
+				"navigationBarTitleText": "完善资料",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/home/home",
 			"style": {
 				"navigationBarTitleText": "旅聚",

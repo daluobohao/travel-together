@@ -174,10 +174,14 @@ export default {
         const data = await loginBySms({ phone: this.form.phone, code: this.form.code })
         if (data?.accessToken) setAccessToken(data.accessToken)
         if (data?.refreshToken) setRefreshToken(data.refreshToken)
-        const needGender = data?.user != null && (data.user.gender === null || data.user.gender === undefined)
+        const oc = data?.user?.onboardingCompletedAt
+        const needGender =
+          data?.user != null && (data.user.gender === null || data.user.gender === undefined)
         uni.showToast({ title: '登录成功', icon: 'success' })
         setTimeout(() => {
-          if (needGender) {
+          if (!oc) {
+            uni.reLaunch({ url: '/pages/onboarding/onboarding' })
+          } else if (needGender) {
             uni.reLaunch({ url: '/pages/profile-edit/profile-edit?first=1' })
           } else {
             uni.reLaunch({ url: '/pages/home/home' })

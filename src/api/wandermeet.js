@@ -55,6 +55,7 @@ export const loginBySms = (payload) =>
           avatarUrl: wmDB.profile.avatarUrl,
           gender: wmDB.profile.gender,
           status: wmDB.profile.status,
+          onboardingCompletedAt: wmDB.profile.onboardingCompletedAt,
         },
       }
       setAccessToken(data.accessToken)
@@ -139,6 +140,17 @@ export const updateMe = (payload) =>
         avatarUrl: data.avatarUrl ?? wmDB.profile.avatarUrl,
         tags: data.tags ?? wmDB.profile.tags,
         bio: data.bio ?? wmDB.profile.bio,
+        countryCode: data.countryCode ?? wmDB.profile.countryCode,
+        travelerRoles: data.travelerRoles ?? wmDB.profile.travelerRoles,
+        currentPlace: data.currentPlace ?? wmDB.profile.currentPlace,
+        stayKind: data.stayKind ?? wmDB.profile.stayKind,
+        stayEndAt: data.stayEndAt ?? wmDB.profile.stayEndAt,
+        acquisitionSource: data.acquisitionSource ?? wmDB.profile.acquisitionSource,
+        notifyPrefs: data.notifyPrefs ?? wmDB.profile.notifyPrefs,
+        showDistance: data.showDistance ?? wmDB.profile.showDistance,
+      }
+      if (data.completeOnboarding) {
+        wmDB.profile.onboardingCompletedAt = new Date().toISOString()
       }
       const uid = wmDB.profile.userId
       if (uid && wmDB.users?.[uid]) {
@@ -190,6 +202,55 @@ export const submitVerification = (payload) =>
   })
 
 // 9
+export const getOnboardingMeta = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/meta/onboarding',
+    needAuth: false,
+    mockHandler: () =>
+      ok({
+        acquisitionSources: [
+          { id: 'xiaohongshu', label: '小红书' },
+          { id: 'douyin', label: '抖音' },
+          { id: 'friend', label: '朋友推荐' },
+          { id: 'other', label: '其他' },
+        ],
+        countryCodes: [
+          { id: 'CN', label: '中国' },
+          { id: 'US', label: '美国' },
+          { id: 'JP', label: '日本' },
+          { id: 'OTHER', label: '其他' },
+        ],
+        travelerRoles: [
+          { id: 'leisure', label: '休闲旅行', description: '' },
+          { id: 'digital_nomad', label: '数字游民', description: '' },
+          { id: 'local_host', label: '本地东道主', description: '' },
+        ],
+        interestCategories: [
+          {
+            categoryId: 'food',
+            name: '美食饮品',
+            tags: [
+              { id: 'foodie', label: '美食探店' },
+              { id: 'coffee', label: '咖啡' },
+            ],
+          },
+          {
+            categoryId: 'outdoor',
+            name: '户外',
+            tags: [
+              { id: 'hiking', label: '徒步' },
+              { id: 'cycling', label: '骑行' },
+            ],
+          },
+        ],
+        stayKinds: [
+          { id: 'indefinite', label: '常住 / 暂无离开计划' },
+          { id: 'fixed_dates', label: '有明确停留区间' },
+        ],
+      }),
+  })
+
 export const getActivityCategories = () =>
   wmRequest({
     method: 'GET',
