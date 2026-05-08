@@ -14,6 +14,10 @@ dist
 
 # uni-app / HBuilderX 编译产物（小程序 dist、release/apk/*.apk 等，勿提交）
 src/unpackage/
+unpackage/
+*.apk
+*.aab
+*.ipa
 
 # Editor directories and files
 .cursor/
