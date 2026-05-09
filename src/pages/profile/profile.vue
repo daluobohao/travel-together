@@ -208,36 +208,50 @@ export default {
   background: transparent;
 
   &__hero {
-    background: linear-gradient(180deg, #eef2ff 0%, rgba(245, 247, 251, 0.96) 100%);
-    padding: calc(40rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 32rpx;
+    background: linear-gradient(180deg, rgba(255, 107, 107, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%);
+    padding: calc(44rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 36rpx;
   }
 
   &__user {
     display: flex;
     align-items: center;
     gap: 24rpx;
-    padding: 28rpx;
+    padding: 32rpx;
     background: #ffffff;
-    border-radius: 28rpx;
+    border-radius: $wm-radius-xl;
     border: $wm-card-edge;
-    box-shadow: $wm-card-elevated-shadow;
+    box-shadow: $wm-shadow-lg;
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4rpx;
+      background: $wm-gradient-primary;
+      opacity: 0.6;
+    }
   }
 
   &__avatar {
-    width: 112rpx;
-    height: 112rpx;
+    width: 120rpx;
+    height: 120rpx;
     border-radius: 50%;
-    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    background: $wm-gradient-primary;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #ffffff;
     flex-shrink: 0;
+    box-shadow: 0 8rpx 24rpx rgba(255, 107, 107, 0.3);
   }
 
   &__avatar-text {
-    font-size: 48rpx;
-    font-weight: 700;
+    font-size: 52rpx;
+    font-weight: 800;
     color: #ffffff;
   }
 
@@ -246,7 +260,7 @@ export default {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 8rpx;
+    gap: 10rpx;
   }
 
   &__name-row {
@@ -256,49 +270,50 @@ export default {
   }
 
   &__name {
-    font-size: 34rpx;
-    font-weight: 700;
-    color: #0f172a;
+    font-size: 36rpx;
+    font-weight: 800;
+    color: $wm-text-1;
   }
 
   &__verified {
     display: inline-flex;
     align-items: center;
     gap: 4rpx;
-    background: #ecfdf5;
-    color: #059669;
-    font-size: 20rpx;
-    font-weight: 600;
-    padding: 2rpx 12rpx;
+    background: $wm-success-soft;
+    color: $wm-success;
+    font-size: 22rpx;
+    font-weight: 700;
+    padding: 4rpx 14rpx;
     border-radius: 999rpx;
   }
 
   &__bio {
-    font-size: 24rpx;
-    color: #64748b;
+    font-size: 26rpx;
+    color: $wm-text-2;
+    font-weight: 500;
   }
 
   &__gender {
     display: block;
-    margin-top: 8rpx;
-    font-size: 22rpx;
-    color: #94a3b8;
+    margin-top: 6rpx;
+    font-size: 24rpx;
+    color: $wm-text-3;
     font-weight: 500;
   }
 
   &__edit {
-    color: #6366f1;
-    font-size: 26rpx;
-    font-weight: 500;
+    color: $wm-primary;
+    font-size: 28rpx;
+    font-weight: 700;
     padding: 12rpx 8rpx;
   }
 
   &__stats {
-    margin-top: 20rpx;
+    margin-top: 24rpx;
     display: flex;
     background: #ffffff;
-    border-radius: 24rpx;
-    padding: 28rpx 12rpx;
+    border-radius: $wm-radius-lg;
+    padding: 32rpx 12rpx;
     border: $wm-card-edge;
     box-shadow: $wm-shadow-md;
   }
@@ -310,8 +325,9 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6rpx;
-  border-right: 1rpx solid #e2e8f0;
+  gap: 8rpx;
+  border-right: 1rpx solid #f1f5f9;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 
   &:last-child {
     border-right: none;
@@ -321,43 +337,52 @@ export default {
     cursor: pointer;
   }
 
+  &:active {
+    transform: scale(0.95);
+  }
+
   &__value {
-    font-size: 40rpx;
-    font-weight: 700;
-    color: #0f172a;
+    font-size: 44rpx;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ff6b6b 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   &__label {
-    font-size: 22rpx;
-    color: #94a3b8;
+    font-size: 24rpx;
+    color: $wm-text-3;
+    font-weight: 500;
   }
 }
 
 .section {
-  padding: 24rpx 32rpx 0;
+  padding: 28rpx 32rpx 0;
 
   &__head {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 16rpx;
+    margin-bottom: 20rpx;
   }
 
   &__title {
-    font-size: 30rpx;
+    font-size: 32rpx;
     font-weight: 700;
-    color: #0f172a;
+    color: $wm-text-1;
   }
 
   &__more {
-    font-size: 24rpx;
-    color: #6366f1;
+    font-size: 26rpx;
+    color: $wm-primary;
+    font-weight: 600;
   }
 }
 
 .activities {
   background: #ffffff;
-  border-radius: 24rpx;
+  border-radius: $wm-radius-lg;
   overflow: hidden;
   border: $wm-card-edge;
   box-shadow: $wm-shadow-md;
@@ -367,61 +392,68 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24rpx 28rpx;
-  border-bottom: 1rpx solid #f1f5f9;
+  padding: 28rpx;
+  border-bottom: 1rpx solid #f8fafc;
+  transition: background 0.2s;
 
   &:last-child {
     border-bottom: none;
   }
 
+  &:active {
+    background: $wm-primary-soft;
+  }
+
   &__title {
     display: block;
-    font-size: 28rpx;
-    font-weight: 600;
-    color: #0f172a;
+    font-size: 30rpx;
+    font-weight: 700;
+    color: $wm-text-1;
   }
 
   &__time {
     display: block;
-    margin-top: 6rpx;
-    font-size: 22rpx;
-    color: #94a3b8;
+    margin-top: 8rpx;
+    font-size: 24rpx;
+    color: $wm-text-3;
+    font-weight: 500;
   }
 
   &__right {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 6rpx;
+    gap: 8rpx;
   }
 
   &__status {
-    font-size: 20rpx;
-    font-weight: 600;
-    padding: 4rpx 12rpx;
-    border-radius: 8rpx;
+    font-size: 22rpx;
+    font-weight: 700;
+    padding: 6rpx 16rpx;
+    border-radius: $wm-radius-md;
 
     &--ongoing {
-      background: #ecfdf5;
-      color: #059669;
+      background: $wm-success-soft;
+      color: $wm-success;
     }
 
     &--enrolled {
-      background: #eef2ff;
-      color: #6366f1;
+      background: $wm-primary-soft;
+      color: $wm-primary;
     }
   }
 
   &__joined {
-    font-size: 22rpx;
-    color: #94a3b8;
+    font-size: 24rpx;
+    color: $wm-text-3;
+    font-weight: 500;
   }
 }
 
 .menu {
-  margin: 24rpx 32rpx 0;
+  margin: 28rpx 32rpx 0;
   background: #ffffff;
-  border-radius: 24rpx;
+  border-radius: $wm-radius-lg;
   border: $wm-card-edge;
   box-shadow: $wm-shadow-md;
   overflow: hidden;
@@ -430,33 +462,40 @@ export default {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 28rpx;
-    border-bottom: 1rpx solid #f1f5f9;
+    padding: 30rpx 28rpx;
+    border-bottom: 1rpx solid #f8fafc;
+    transition: background 0.2s;
 
     &--last {
       border-bottom: none;
+    }
+
+    &:active {
+      background: $wm-primary-soft;
     }
   }
 
   &__left {
     display: flex;
     align-items: center;
-    gap: 20rpx;
+    gap: 22rpx;
   }
 
   &__icon {
-    width: 64rpx;
-    height: 64rpx;
-    border-radius: 16rpx;
+    width: 72rpx;
+    height: 72rpx;
+    border-radius: 20rpx;
     display: flex;
     align-items: center;
     justify-content: center;
+    background: $wm-primary-soft;
+    box-shadow: 0 4rpx 12rpx rgba(255, 107, 107, 0.1);
   }
 
   &__label {
-    font-size: 28rpx;
-    color: #0f172a;
-    font-weight: 500;
+    font-size: 30rpx;
+    color: $wm-text-1;
+    font-weight: 600;
   }
 
   &__right {
@@ -466,8 +505,9 @@ export default {
   }
 
   &__hint {
-    font-size: 22rpx;
-    color: #94a3b8;
+    font-size: 24rpx;
+    color: $wm-text-3;
+    font-weight: 500;
   }
 }
 </style>

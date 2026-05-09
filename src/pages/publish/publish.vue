@@ -210,7 +210,9 @@ export default {
     tryApplyPickedLocation() {
       const picked = uni.getStorageSync('PUBLISH_LOCATION_PICK_RESULT')
       if (!picked || !picked.name) return
-      this.form.location = picked.name
+      const displayName = picked.name
+      const displayAddress = picked.address || ''
+      this.form.location = displayAddress ? `${displayName}（${displayAddress}）` : displayName
       this.form.lat = Number(picked.lat) || null
       this.form.lng = Number(picked.lng) || null
       uni.removeStorageSync('PUBLISH_LOCATION_PICK_RESULT')
@@ -338,7 +340,7 @@ export default {
 .publish {
   min-height: 100vh;
   background: transparent;
-  padding-bottom: 200rpx;
+  padding-bottom: 220rpx;
 
   &__nav {
     position: sticky;
@@ -350,30 +352,31 @@ export default {
     padding: calc(24rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 24rpx;
     background: $wm-sticky-header-gradient;
     border-bottom: none;
-    box-shadow: 0 8rpx 28rpx rgba(99, 102, 241, 0.07);
+    box-shadow: 0 12rpx 40rpx rgba(255, 107, 107, 0.06);
   }
 
   &__cancel {
     font-size: 28rpx;
-    color: #94a3b8;
+    color: $wm-text-3;
     padding: 8rpx 4rpx;
+    font-weight: 500;
   }
 
   &__title {
-    font-size: 32rpx;
-    font-weight: 700;
-    color: #0f172a;
+    font-size: 34rpx;
+    font-weight: 800;
+    color: $wm-text-1;
   }
 
   &__submit {
     font-size: 28rpx;
-    color: #6366f1;
-    font-weight: 600;
+    color: $wm-primary;
+    font-weight: 700;
     padding: 8rpx 4rpx;
   }
 
   &__form {
-    padding: 24rpx 32rpx 32rpx;
+    padding: 28rpx 32rpx 32rpx;
     display: flex;
     flex-direction: column;
     gap: 24rpx;
@@ -383,46 +386,77 @@ export default {
     display: flex;
     align-items: flex-start;
     gap: 12rpx;
-    padding: 20rpx 24rpx;
-    background: #eef2ff;
-    border-radius: 16rpx;
-    font-size: 22rpx;
-    color: #4f46e5;
+    padding: 24rpx 28rpx;
+    background: $wm-primary-soft;
+    border-radius: $wm-radius-md;
+    font-size: 24rpx;
+    color: $wm-primary-deep;
     line-height: 1.5;
+    font-weight: 500;
   }
 
   &__action {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: calc(140rpx + env(safe-area-inset-bottom));
+    bottom: calc(220rpx + env(safe-area-inset-bottom));
     padding: 20rpx 32rpx 0;
     z-index: 50;
   }
 
   &__btn {
-    height: 92rpx;
-    border-radius: 24rpx;
-    background: linear-gradient(135deg, #818cf8, #6366f1 60%, #4f46e5);
+    height: 96rpx;
+    border-radius: $wm-radius-xl;
+    background: $wm-gradient-primary;
     color: #ffffff;
-    font-size: 30rpx;
-    font-weight: 600;
+    font-size: 32rpx;
+    font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 12rpx 28rpx rgba(99, 102, 241, 0.4);
+    box-shadow: $wm-shadow-glow;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
+
+    &:active {
+      transform: scale(0.98);
+      box-shadow: $wm-shadow-lg;
+    }
   }
 }
 
 .field {
   background: #ffffff;
-  border-radius: 20rpx;
-  padding: 24rpx 28rpx;
+  border-radius: $wm-radius-lg;
+  padding: 28rpx;
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: 18rpx;
   border: $wm-card-edge;
   box-shadow: $wm-shadow-md;
+  transition: transform 0.15s, box-shadow 0.15s;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 6rpx;
+    bottom: 0;
+    background: $wm-gradient-primary;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  &:active {
+    transform: scale(0.995);
+    box-shadow: $wm-shadow-sm;
+
+    &::before {
+      opacity: 1;
+    }
+  }
 
   &--category {
     padding-right: 28px;
@@ -430,44 +464,51 @@ export default {
 
   &__label {
     font-size: 26rpx;
-    color: #475569;
-    font-weight: 600;
+    color: $wm-text-2;
+    font-weight: 700;
   }
 
   &__req {
-    color: #ef4444;
+    color: $wm-danger;
     margin-left: 4rpx;
   }
 
   &__input {
     font-size: 30rpx;
-    color: #0f172a;
+    color: $wm-text-1;
     padding: 8rpx 0;
     border: none;
     background: transparent;
+    font-weight: 500;
   }
 
   &__textarea {
     width: 100%;
-    min-height: 140rpx;
+    min-height: 160rpx;
     font-size: 28rpx;
-    color: #0f172a;
+    color: $wm-text-1;
     padding: 4rpx 0;
     background: transparent;
-    line-height: 1.5;
+    line-height: 1.6;
+    font-weight: 500;
   }
 
   &__placeholder {
-    color: #cbd5e1;
+    color: $wm-text-3;
   }
 
   &__select {
     display: flex;
     align-items: center;
     gap: 14rpx;
-    padding: 14rpx 18rpx;
-    border-radius: 14rpx;
-    background: #f8fafc;
+    padding: 18rpx 20rpx;
+    border-radius: $wm-radius-md;
+    background: #fafafa;
+    transition: background 0.2s;
+
+    &:active {
+      background: $wm-primary-soft;
+    }
   }
 
   &__select--clickable {
@@ -477,7 +518,8 @@ export default {
   &__select-text {
     flex: 1;
     font-size: 28rpx;
-    color: #0f172a;
+    color: $wm-text-1;
+    font-weight: 500;
   }
 
   &__select--category .field__select-text {
@@ -487,7 +529,7 @@ export default {
   &__datetime {
     display: flex;
     flex-direction: column;
-    gap: 12rpx;
+    gap: 14rpx;
   }
 
   &__datetime-item {
@@ -496,16 +538,18 @@ export default {
 
   &__datetime-summary {
     font-size: 24rpx;
-    color: #64748b;
+    color: $wm-text-3;
     padding: 0 6rpx;
+    font-weight: 500;
   }
 
   &__inline-input {
     flex: 1;
     font-size: 28rpx;
-    color: #0f172a;
+    color: $wm-text-1;
     background: transparent;
     border: none;
+    font-weight: 500;
   }
 
   &__chips {
@@ -515,25 +559,28 @@ export default {
   }
 
   &__chip {
-    padding: 10rpx 24rpx;
+    padding: 12rpx 28rpx;
     border-radius: 999rpx;
-    font-size: 24rpx;
-    color: #475569;
-    background: #f1f5f9;
-    border: 1rpx solid transparent;
+    font-size: 26rpx;
+    color: $wm-text-2;
+    background: #fafafa;
+    border: 2rpx solid transparent;
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 
     &--active {
-      background: #eef2ff;
-      color: #6366f1;
-      border-color: #c7d2fe;
-      font-weight: 600;
+      background: $wm-primary-soft;
+      color: $wm-primary;
+      border-color: rgba(255, 107, 107, 0.3);
+      font-weight: 700;
     }
   }
 
   &__counter {
     align-self: flex-end;
     font-size: 22rpx;
-    color: #cbd5e1;
+    color: $wm-text-3;
+    font-weight: 500;
   }
 }
 </style>

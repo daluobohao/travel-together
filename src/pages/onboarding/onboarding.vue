@@ -380,7 +380,7 @@ export default {
 <style lang="scss" scoped>
 .page.ob {
   min-height: 100vh;
-  padding: calc(32rpx + var(--status-bar-height, 0px)) 32rpx 160rpx;
+  padding: calc(40rpx + var(--status-bar-height, 0px)) 32rpx 180rpx;
   background: transparent;
   box-sizing: border-box;
 }
@@ -388,16 +388,20 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24rpx;
+  margin-bottom: 32rpx;
 }
 .ob__brand {
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #0f172a;
+  font-size: 32rpx;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ff6b6b 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 .ob__progress {
-  font-size: 24rpx;
-  color: #64748b;
+  font-size: 26rpx;
+  color: $wm-text-3;
+  font-weight: 500;
 }
 .ob__body {
   padding-bottom: 24rpx;
@@ -405,193 +409,241 @@ export default {
 .ob__loading {
   padding: 80rpx 0;
   text-align: center;
-  color: #64748b;
+  color: $wm-text-3;
 }
 .ob__panel {
   background: #fff;
-  border-radius: 24rpx;
+  border-radius: $wm-radius-xl;
   padding: 36rpx;
   border: $wm-card-edge;
-  box-shadow: $wm-card-elevated-shadow;
+  box-shadow: $wm-shadow-lg;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6rpx;
+    background: $wm-gradient-primary;
+    opacity: 0.8;
+  }
 }
 .ob__title {
   display: block;
-  font-size: 40rpx;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 12rpx;
+  font-size: 44rpx;
+  font-weight: 800;
+  color: $wm-text-1;
+  margin-bottom: 14rpx;
+  line-height: 1.2;
 }
 .ob__sub {
   display: block;
-  font-size: 26rpx;
-  color: #64748b;
-  margin-bottom: 28rpx;
+  font-size: 28rpx;
+  color: $wm-text-3;
+  margin-bottom: 32rpx;
+  font-weight: 500;
 }
 .ob__desc {
   display: block;
-  font-size: 28rpx;
-  color: #334155;
-  line-height: 1.65;
+  font-size: 30rpx;
+  color: $wm-text-2;
+  line-height: 1.7;
+  font-weight: 500;
 }
 .ob__chips {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: 18rpx;
 }
 .ob__chips--wrap {
   flex-direction: row;
   flex-wrap: wrap;
-  gap: 16rpx;
+  gap: 18rpx;
 }
 .ob__chips--wrap .ob__chip {
   flex: 1 1 40%;
   min-width: 200rpx;
 }
 .ob__chip {
-  padding: 24rpx 28rpx;
-  border-radius: 20rpx;
+  padding: 28rpx 32rpx;
+  border-radius: $wm-radius-lg;
   border: 2rpx solid #e2e8f0;
   background: #fff;
-  font-size: 28rpx;
-  color: #0f172a;
+  font-size: 30rpx;
+  color: $wm-text-1;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .ob__chip--sm {
-  padding: 16rpx 22rpx;
-  font-size: 26rpx;
+  padding: 20rpx 26rpx;
+  font-size: 28rpx;
 }
 .ob__chip--on {
-  border-color: #ec4899;
-  background: #fdf2f8;
-  color: #9d174d;
+  border-color: $wm-primary;
+  background: $wm-primary-soft;
+  color: $wm-primary;
+  box-shadow: 0 4rpx 16rpx rgba(255, 107, 107, 0.15);
+  transform: scale(1.02);
 }
 /* 微信小程序 input：边框与 padding 放在外层；内层固定 height === line-height，避免文字贴顶或被裁切 */
 .ob__input-wrap {
   width: 100%;
-  border-radius: 20rpx;
+  border-radius: $wm-radius-lg;
   border: 2rpx solid #e2e8f0;
   background: #fff;
   padding: 0 28rpx;
   box-sizing: border-box;
-  min-height: 96rpx;
+  min-height: 104rpx;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:focus-within {
+    border-color: $wm-primary;
+    box-shadow: 0 0 0 4rpx rgba(255, 107, 107, 0.1);
+  }
 }
 .ob__input-inner {
   display: block;
   width: 100%;
-  height: 96rpx;
-  line-height: 96rpx;
-  font-size: 30rpx;
-  color: #0f172a;
+  height: 104rpx;
+  line-height: 104rpx;
+  font-size: 32rpx;
+  color: $wm-text-1;
   border: none;
   background: transparent;
   box-sizing: border-box;
+  font-weight: 500;
   font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Helvetica,
     'Microsoft YaHei', sans-serif;
 }
 .ob__ph {
-  color: #94a3b8;
-  font-size: 30rpx;
+  color: $wm-text-3;
+  font-size: 32rpx;
 }
 .ob__textarea {
   width: 100%;
-  min-height: 180rpx;
-  padding: 24rpx 28rpx;
-  border-radius: 20rpx;
+  min-height: 200rpx;
+  padding: 28rpx;
+  border-radius: $wm-radius-lg;
   border: 2rpx solid #e2e8f0;
-  font-size: 28rpx;
-  line-height: 1.55;
-  color: #0f172a;
+  font-size: 30rpx;
+  line-height: 1.6;
+  color: $wm-text-1;
   box-sizing: border-box;
+  font-weight: 500;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:focus-within {
+    border-color: $wm-primary;
+    box-shadow: 0 0 0 4rpx rgba(255, 107, 107, 0.1);
+  }
 }
 .ob__count {
   display: block;
   text-align: right;
   font-size: 24rpx;
-  color: #94a3b8;
-  margin-top: 8rpx;
+  color: $wm-text-3;
+  margin-top: 10rpx;
+  font-weight: 500;
 }
 .ob__cards {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: 18rpx;
 }
 .ob__card {
-  padding: 24rpx 28rpx;
-  border-radius: 20rpx;
+  padding: 28rpx 32rpx;
+  border-radius: $wm-radius-lg;
   border: 2rpx solid #e2e8f0;
   background: #fff;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .ob__card--on {
-  border-color: #ec4899;
-  background: #fdf2f8;
+  border-color: $wm-primary;
+  background: $wm-primary-soft;
+  box-shadow: 0 4rpx 16rpx rgba(255, 107, 107, 0.15);
+  transform: scale(1.01);
 }
 .ob__card-title {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #0f172a;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: $wm-text-1;
 }
 .ob__card-desc {
   display: block;
-  margin-top: 8rpx;
-  font-size: 24rpx;
-  color: #64748b;
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  color: $wm-text-3;
+  font-weight: 500;
 }
 .ob__cat {
-  margin-bottom: 28rpx;
+  margin-bottom: 32rpx;
 }
 .ob__cat-name {
   display: block;
-  font-size: 28rpx;
-  font-weight: 600;
-  margin-bottom: 16rpx;
-  color: #334155;
+  font-size: 30rpx;
+  font-weight: 700;
+  margin-bottom: 18rpx;
+  color: $wm-text-2;
 }
 .ob__picker {
-  margin-top: 24rpx;
-  padding: 24rpx 28rpx;
-  border-radius: 20rpx;
-  border: 2rpx dashed #cbd5e1;
-  color: #64748b;
-  font-size: 28rpx;
+  margin-top: 28rpx;
+  padding: 28rpx 32rpx;
+  border-radius: $wm-radius-lg;
+  border: 2rpx dashed rgba(255, 107, 107, 0.4);
+  color: $wm-primary;
+  font-size: 30rpx;
+  font-weight: 600;
+  background: $wm-primary-soft;
 }
 .ob__row {
   display: flex;
   align-items: center;
   gap: 20rpx;
-  margin-top: 16rpx;
-  font-size: 28rpx;
-  color: #334155;
+  margin-top: 18rpx;
+  font-size: 30rpx;
+  color: $wm-text-2;
+  font-weight: 500;
 }
 .ob__footer {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(248, 250, 252, 0.96) 28%);
-  backdrop-filter: blur(12rpx);
+  padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(248, 250, 252, 0.98) 25%);
+  backdrop-filter: blur(20rpx);
   display: flex;
-  gap: 20rpx;
+  gap: 24rpx;
 }
 .ob__btn {
   flex: 1;
   text-align: center;
-  padding: 28rpx;
-  border-radius: 999rpx;
-  font-size: 30rpx;
-  font-weight: 600;
+  padding: 30rpx;
+  border-radius: $wm-radius-xl;
+  font-size: 32rpx;
+  font-weight: 700;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
+
+  &:active {
+    transform: scale(0.98);
+  }
 }
 .ob__btn--primary {
-  background: linear-gradient(135deg, #f472b6 0%, #ec4899 45%, #db2777 100%);
+  background: $wm-gradient-primary;
   color: #fff;
-  box-shadow: 0 10rpx 28rpx rgba(236, 72, 153, 0.35);
+  box-shadow: $wm-shadow-glow;
 }
 .ob__btn--ghost {
   flex: 0.45;
   background: #fff;
-  border: 2rpx solid #e2e8f0;
-  color: #475569;
+  border: 2rpx solid rgba(0, 0, 0, 0.08);
+  color: $wm-text-2;
+  box-shadow: $wm-shadow-sm;
 }
 .ob__btn--disabled {
-  opacity: 0.45;
+  opacity: 0.5;
 }
 </style>

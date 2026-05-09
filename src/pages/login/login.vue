@@ -200,64 +200,70 @@ export default {
 <style lang="scss" scoped>
 .login {
   min-height: 100vh;
-  padding: calc(48rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 36rpx 40rpx;
+  padding: calc(60rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 36rpx 40rpx;
   background: transparent;
 
   &__header {
-    margin-bottom: 40rpx;
+    margin-bottom: 48rpx;
     display: flex;
     flex-direction: column;
-    gap: 12rpx;
-    animation: fadeInDown 0.5s ease-out;
+    gap: 14rpx;
+    animation: fadeInDown 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   &__title {
-    font-size: 56rpx;
-    font-weight: 700;
-    color: #0f172a;
+    font-size: 64rpx;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ff6b6b 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
   }
 
   &__subtitle {
-    font-size: 24rpx;
-    color: #94a3b8;
+    font-size: 28rpx;
+    color: $wm-text-3;
+    font-weight: 500;
   }
 
   &__form {
     display: flex;
     flex-direction: column;
-    gap: 20rpx;
-    animation: fadeInUp 0.5s ease-out 0.1s both;
+    gap: 24rpx;
+    animation: fadeInUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
   }
 
   &__hint {
-    font-size: 22rpx;
-    color: #f59e0b;
-    line-height: 1.4;
+    font-size: 24rpx;
+    color: $wm-warning;
+    line-height: 1.5;
     padding: 0 8rpx;
+    font-weight: 500;
   }
 
   &__action {
-    margin-top: 40rpx;
-    animation: fadeInUp 0.5s ease-out 0.2s both;
+    margin-top: 52rpx;
+    animation: fadeInUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
   }
 
   &__btn {
-    height: 92rpx;
-    border-radius: 24rpx;
-    background: linear-gradient(135deg, #818cf8, #6366f1 60%, #4f46e5);
+    height: 100rpx;
+    border-radius: $wm-radius-xl;
+    background: $wm-gradient-primary;
     color: #ffffff;
-    font-size: 30rpx;
-    font-weight: 600;
+    font-size: 32rpx;
+    font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 12rpx;
-    box-shadow: 0 12rpx 28rpx rgba(99, 102, 241, 0.4);
-    transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
+    box-shadow: $wm-shadow-glow;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s, opacity 0.2s;
 
     &--hover {
       transform: scale(0.98);
-      box-shadow: 0 8rpx 20rpx rgba(99, 102, 241, 0.3);
+      box-shadow: $wm-shadow-lg;
     }
 
     &--disabled {
@@ -267,7 +273,7 @@ export default {
     }
 
     &--loading {
-      opacity: 0.8;
+      opacity: 0.85;
     }
   }
 }
@@ -275,7 +281,7 @@ export default {
 @keyframes fadeInDown {
   from {
     opacity: 0;
-    transform: translateY(-20rpx);
+    transform: translateY(-30rpx);
   }
   to {
     opacity: 1;
@@ -286,7 +292,7 @@ export default {
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(20rpx);
+    transform: translateY(30rpx);
   }
   to {
     opacity: 1;
@@ -295,9 +301,9 @@ export default {
 }
 
 .btn-spinner {
-  width: 36rpx;
-  height: 36rpx;
-  border: 3rpx solid rgba(255, 255, 255, 0.3);
+  width: 40rpx;
+  height: 40rpx;
+  border: 4rpx solid rgba(255, 255, 255, 0.35);
   border-top-color: #ffffff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -311,24 +317,47 @@ export default {
 
 .field {
   background: #ffffff;
-  border-radius: 20rpx;
-  padding: 24rpx 28rpx;
+  border-radius: $wm-radius-lg;
+  padding: 28rpx;
   display: flex;
   flex-direction: column;
-  gap: 12rpx;
-  box-shadow: $wm-card-elevated-shadow;
+  gap: 14rpx;
+  box-shadow: $wm-shadow-md;
   border: $wm-card-edge;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 6rpx;
+    bottom: 0;
+    background: $wm-gradient-primary;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  &:focus-within::before {
+    opacity: 1;
+  }
 
   &--error {
-    border-color: #ef4444;
-    animation: shake 0.4s ease-in-out;
+    border-color: $wm-danger;
+    animation: shake 0.5s ease-in-out;
+
+    &::before {
+      background: $wm-danger;
+      opacity: 1;
+    }
   }
 
   &__label {
-    font-size: 26rpx;
-    color: #475569;
-    font-weight: 600;
+    font-size: 28rpx;
+    color: $wm-text-2;
+    font-weight: 700;
   }
 
   &__row {
@@ -339,11 +368,12 @@ export default {
 
   &__input {
     flex: 1;
-    font-size: 30rpx;
-    color: #0f172a;
+    font-size: 32rpx;
+    color: $wm-text-1;
     padding: 8rpx 0;
     border: none;
     background: transparent;
+    font-weight: 500;
 
     &--code {
       min-width: 0;
@@ -351,22 +381,22 @@ export default {
   }
 
   &__placeholder {
-    color: #cbd5e1;
+    color: $wm-text-3;
   }
 
   &__sms-btn {
-    min-width: 190rpx;
-    height: 66rpx;
-    border-radius: 999rpx;
-    padding: 0 20rpx;
+    min-width: 200rpx;
+    height: 72rpx;
+    border-radius: $wm-radius-md;
+    padding: 0 24rpx;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #eef2ff;
-    color: #4f46e5;
-    font-size: 24rpx;
-    font-weight: 600;
-    transition: background-color 0.2s, color 0.2s, transform 0.1s;
+    background: $wm-primary-soft;
+    color: $wm-primary;
+    font-size: 26rpx;
+    font-weight: 700;
+    transition: background-color 0.2s, color 0.2s, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 
     &:active {
       transform: scale(0.95);
@@ -374,22 +404,23 @@ export default {
 
     &--disabled {
       background: #f1f5f9;
-      color: #94a3b8;
+      color: $wm-text-3;
     }
   }
 
   &__error {
-    font-size: 22rpx;
-    color: #ef4444;
-    margin-top: 4rpx;
+    font-size: 24rpx;
+    color: $wm-danger;
+    margin-top: 6rpx;
+    font-weight: 600;
   }
 }
 
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-8rpx); }
-  40% { transform: translateX(8rpx); }
-  60% { transform: translateX(-8rpx); }
-  80% { transform: translateX(8rpx); }
+  20% { transform: translateX(-10rpx); }
+  40% { transform: translateX(10rpx); }
+  60% { transform: translateX(-10rpx); }
+  80% { transform: translateX(10rpx); }
 }
 </style>

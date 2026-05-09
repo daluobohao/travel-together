@@ -322,7 +322,7 @@ export default {
 .detail {
   min-height: 100vh;
   background: transparent;
-  padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
 
   &__header {
     position: sticky;
@@ -332,7 +332,7 @@ export default {
     padding: calc(var(--status-bar-height, 0px) + env(safe-area-inset-top)) 24rpx 0;
     background: $wm-sticky-header-gradient;
     border-bottom: none;
-    box-shadow: 0 8rpx 28rpx rgba(99, 102, 241, 0.07);
+    box-shadow: 0 12rpx 40rpx rgba(255, 107, 107, 0.06);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -348,16 +348,16 @@ export default {
   }
 
   &__header-title {
-    font-size: 32rpx;
-    font-weight: 600;
-    color: #0f172a;
+    font-size: 34rpx;
+    font-weight: 700;
+    color: $wm-text-1;
   }
 
   &__content {
-    padding: 24rpx 24rpx 0;
+    padding: 28rpx 24rpx 0;
     display: flex;
     flex-direction: column;
-    gap: 20rpx;
+    gap: 24rpx;
   }
 
   &__action {
@@ -366,136 +366,188 @@ export default {
     right: 0;
     bottom: 0;
     z-index: 30;
-    padding: 16rpx 24rpx calc(24rpx + env(safe-area-inset-bottom));
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(16rpx);
-    border-top: 1rpx solid rgba(226, 232, 240, 0.9);
-    box-shadow: 0 -8rpx 32rpx rgba(15, 23, 42, 0.06);
+    padding: 18rpx 24rpx calc(28rpx + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20rpx);
+    border-top: 1rpx solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 -12rpx 44rpx rgba(255, 107, 107, 0.08);
     display: flex;
-    gap: 16rpx;
+    gap: 20rpx;
   }
 
   &__action-btn {
     flex: 1;
-    height: 88rpx;
-    border-radius: 18rpx;
-    background: #6366f1;
+    height: 92rpx;
+    border-radius: $wm-radius-lg;
+    background: $wm-gradient-primary;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #ffffff;
-    font-size: 30rpx;
-    font-weight: 600;
+    font-size: 32rpx;
+    font-weight: 700;
+    box-shadow: $wm-shadow-glow;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
+
+    &:active {
+      transform: scale(0.98);
+      box-shadow: $wm-shadow-md;
+    }
 
     &--cancel {
-      background: #f97316;
+      background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
+      box-shadow: 0 12rpx 28rpx rgba(249, 115, 22, 0.35);
     }
 
     &--ghost {
       background: #ffffff;
-      color: #6366f1;
-      border: 2rpx solid #c7d2fe;
+      color: $wm-primary;
+      border: 2rpx solid rgba(255, 107, 107, 0.3);
+      box-shadow: none;
     }
 
     &--disabled {
       background: #e2e8f0;
       color: #94a3b8;
+      box-shadow: none;
     }
   }
 }
 
 .hero {
-  border-radius: 24rpx;
-  padding: 28rpx;
+  border-radius: $wm-radius-xl;
+  padding: 32rpx;
   color: #ffffff;
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, transparent 50%, rgba(0, 0, 0, 0.15) 100%);
+    pointer-events: none;
+  }
 
   &__tag-row {
     display: flex;
-    gap: 10rpx;
-    margin-bottom: 20rpx;
+    gap: 12rpx;
+    margin-bottom: 24rpx;
+    position: relative;
+    z-index: 1;
   }
 
   &__tag {
-    padding: 4rpx 14rpx;
+    padding: 6rpx 18rpx;
     border-radius: 999rpx;
-    font-size: 20rpx;
-    font-weight: 600;
-    background: rgba(255, 255, 255, 0.18);
+    font-size: 22rpx;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(8rpx);
     color: #ffffff;
+    border: 1rpx solid rgba(255, 255, 255, 0.5);
 
     &--verified {
       display: inline-flex;
       align-items: center;
       gap: 4rpx;
-      background: #ecfdf5;
-      color: #059669;
+      background: $wm-success-soft;
+      color: $wm-success;
+      backdrop-filter: none;
+      border: none;
     }
   }
 
   &__title {
-    font-size: 42rpx;
+    font-size: 48rpx;
     line-height: 1.25;
-    font-weight: 700;
+    font-weight: 800;
     color: #ffffff;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.2);
   }
 }
 
 .panel {
   background: #ffffff;
-  border-radius: 20rpx;
-  padding: 24rpx;
+  border-radius: $wm-radius-lg;
+  padding: 28rpx;
   border: $wm-card-edge;
   box-shadow: $wm-shadow-md;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 6rpx;
+    bottom: 0;
+    background: $wm-gradient-primary;
+    opacity: 0.3;
+  }
 }
 
 .meta-item {
   display: flex;
   align-items: flex-start;
-  gap: 14rpx;
-  padding: 14rpx 0;
-  border-bottom: 1rpx solid #eef2f7;
+  gap: 16rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f8fafc;
+  transition: background 0.2s;
 
   &:last-child {
     border-bottom: none;
   }
 
+  &:active {
+    background: $wm-primary-soft;
+  }
+
   &__body {
     display: flex;
     flex-direction: column;
-    gap: 4rpx;
+    gap: 6rpx;
   }
 
   &__label {
-    font-size: 22rpx;
-    color: #94a3b8;
+    font-size: 24rpx;
+    color: $wm-text-3;
+    font-weight: 500;
   }
 
   &__value {
-    font-size: 28rpx;
-    color: #0f172a;
-    font-weight: 500;
+    font-size: 30rpx;
+    color: $wm-text-1;
+    font-weight: 600;
   }
 }
 
 .section-title {
   display: block;
-  font-size: 30rpx;
+  font-size: 32rpx;
   font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 14rpx;
+  color: $wm-text-1;
+  margin-bottom: 16rpx;
 }
 
 .desc {
-  font-size: 26rpx;
-  line-height: 1.7;
-  color: #475569;
+  font-size: 28rpx;
+  line-height: 1.75;
+  color: $wm-text-2;
+  font-weight: 500;
 }
 
 .panel__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14rpx;
+  margin-bottom: 16rpx;
 
   .section-title {
     margin-bottom: 0;
@@ -503,29 +555,34 @@ export default {
 }
 
 .status-tag {
-  padding: 6rpx 18rpx;
+  padding: 8rpx 20rpx;
   border-radius: 999rpx;
-  font-size: 22rpx;
-  font-weight: 600;
+  font-size: 24rpx;
+  font-weight: 700;
 }
 
 .host {
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  gap: 24rpx;
+  transition: transform 0.2s;
+
+  &:active {
+    transform: scale(0.98);
+  }
 
   &__avatar-wrap {
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8rpx;
+    gap: 10rpx;
   }
 
   &__tap-hint {
-    font-size: 20rpx;
-    color: #6366f1;
-    font-weight: 500;
+    font-size: 22rpx;
+    color: $wm-primary;
+    font-weight: 600;
   }
 
   &__info {
@@ -534,18 +591,19 @@ export default {
   }
 
   &__avatar {
-    width: 96rpx;
-    height: 96rpx;
+    width: 104rpx;
+    height: 104rpx;
     border-radius: 50%;
-    background: linear-gradient(135deg, #a78bfa, #6366f1);
+    background: $wm-gradient-primary;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    box-shadow: 0 6rpx 20rpx rgba(255, 107, 107, 0.25);
 
     text {
       color: #ffffff;
-      font-size: 32rpx;
+      font-size: 36rpx;
       font-weight: 700;
     }
   }
@@ -557,16 +615,17 @@ export default {
 
   &__name {
     display: block;
-    font-size: 30rpx;
-    color: #0f172a;
-    font-weight: 600;
+    font-size: 32rpx;
+    color: $wm-text-1;
+    font-weight: 700;
   }
 
   &__meta {
     display: block;
-    font-size: 22rpx;
-    color: #94a3b8;
-    margin-top: 6rpx;
+    font-size: 24rpx;
+    color: $wm-text-3;
+    margin-top: 8rpx;
+    font-weight: 500;
   }
 }
 </style>

@@ -40,7 +40,7 @@
         <view class="categories">
           <view v-for="c in categories" :key="c.key" class="category-card" @click="onCategory(c)">
             <view class="category-card__icon" :style="{ background: c.bg }">
-              <text class="category-card__emoji">{{ c.emoji }}</text>
+              <wm-icon :name="c.icon" :size="44" :color="c.color" />
             </view>
             <text class="category-card__label">{{ c.label }}</text>
             <text class="category-card__count">{{ c.count }} 场活动</text>
@@ -181,23 +181,23 @@ export default {
           return acc
         }, {})
         const iconMap = {
-          coffee: { emoji: '☕️', bg: '#fef3c7' },
-          citywalk: { emoji: '🧭', bg: '#e0e7ff' },
-          hiking: { emoji: '🏔', bg: '#d1fae5' },
-          boardgame: { emoji: '🎲', bg: '#fce7f3' },
-          coworking: { emoji: '💻', bg: '#e0f2fe' },
-          indie: { emoji: '🚀', bg: '#fef9c3' },
-          language: { emoji: '🌍', bg: '#dbeafe' },
-          dining: { emoji: '🍜', bg: '#ffedd5' },
-          photography: { emoji: '📷', bg: '#ede9fe' },
-          exhibit: { emoji: '🎨', bg: '#fee2e2' },
-          night_run: { emoji: '🌙', bg: '#ede9fe' },
+          coffee: { icon: 'coffee', bg: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', color: '#b45309' },
+          citywalk: { icon: 'walk', bg: 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)', color: '#4f46e5' },
+          hiking: { icon: 'hike', bg: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)', color: '#047857' },
+          boardgame: { icon: 'dice', bg: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)', color: '#be185d' },
+          coworking: { icon: 'laptop', bg: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)', color: '#0284c7' },
+          indie: { icon: 'rocket', bg: 'linear-gradient(135deg, #fef9c3 0%, #fde68a 100%)', color: '#b45309' },
+          language: { icon: 'globe', bg: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)', color: '#1d4ed8' },
+          dining: { icon: 'utensil', bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', color: '#c2410c' },
+          photography: { icon: 'camera', bg: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', color: '#7c3aed' },
+          exhibit: { icon: 'palette', bg: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)', color: '#dc2626' },
+          night_run: { icon: 'moon', bg: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', color: '#6d28d9' },
         }
         this.categories = (categoryData?.categories || []).map((c) => ({
           key: c.categoryId,
           label: c.name,
           count: countMap[c.categoryId] || 0,
-          ...(iconMap[c.categoryId] || { emoji: '✨', bg: '#e2e8f0' }),
+          ...(iconMap[c.categoryId] || { icon: 'tag', bg: 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)', color: '#475569' }),
         }))
 
         const gradients = gradientsFromSlots(this.featuredGradientSlots)
@@ -252,30 +252,34 @@ export default {
   background: transparent;
 
   &__header {
-    padding: calc(40rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 24rpx;
+    padding: calc(40rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 28rpx;
     background: $wm-sticky-header-gradient;
     border-bottom: none;
-    box-shadow: 0 8rpx 32rpx rgba(99, 102, 241, 0.07);
+    box-shadow: 0 12rpx 40rpx rgba(255, 107, 107, 0.06);
     display: flex;
     flex-direction: column;
-    gap: 10rpx;
+    gap: 12rpx;
   }
 
   &__title {
-    font-size: 52rpx;
-    font-weight: 700;
-    color: #0f172a;
+    font-size: 56rpx;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ff6b6b 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     line-height: 1.1;
   }
 
   &__subtitle {
-    font-size: 24rpx;
-    color: #94a3b8;
+    font-size: 26rpx;
+    color: $wm-text-3;
+    font-weight: 500;
   }
 }
 
 .section {
-  padding: 32rpx 32rpx 0;
+  padding: 36rpx 32rpx 0;
 
   &__head {
     display: flex;
@@ -292,22 +296,21 @@ export default {
 
   &__title {
     display: block;
-    font-size: 32rpx;
+    font-size: 34rpx;
     font-weight: 700;
-    color: #0f172a;
-    margin-bottom: 24rpx;
+    color: $wm-text-1;
+    margin-bottom: 28rpx;
   }
 
   &__more {
-    font-size: 24rpx;
-    color: #6366f1;
-    font-weight: 500;
+    font-size: 26rpx;
+    color: $wm-primary;
+    font-weight: 600;
 
     &--muted {
-      color: #64748b;
+      color: $wm-text-2;
     }
   }
-
 }
 
 .categories {
@@ -318,105 +321,142 @@ export default {
 
 .category-card {
   background: #ffffff;
-  border-radius: 24rpx;
-  padding: 28rpx 16rpx;
+  border-radius: $wm-radius-lg;
+  padding: 28rpx 12rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12rpx;
   border: $wm-card-edge;
   box-shadow: $wm-shadow-md;
-  transition: transform 0.15s;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4rpx;
+    background: $wm-gradient-primary;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
 
   &:active {
-    transform: scale(0.96);
+    transform: scale(0.95);
+    box-shadow: $wm-shadow-sm;
+
+    &::before {
+      opacity: 1;
+    }
   }
 
   &__icon {
-    width: 88rpx;
-    height: 88rpx;
-    border-radius: 50%;
+    width: 96rpx;
+    height: 96rpx;
+    border-radius: 28rpx;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: inset 0 -4rpx 8rpx rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s;
   }
 
-  &__emoji {
-    font-size: 44rpx;
-    line-height: 1;
+  .category-card:active &__icon {
+    transform: scale(1.05);
   }
 
   &__label {
     font-size: 28rpx;
-    font-weight: 600;
-    color: #0f172a;
+    font-weight: 700;
+    color: $wm-text-1;
     margin-top: 4rpx;
   }
 
   &__count {
     font-size: 20rpx;
-    color: #94a3b8;
+    color: $wm-text-3;
+    font-weight: 500;
   }
 }
 
 .featured {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
-  padding-bottom: 32rpx;
+  gap: 24rpx;
+  padding-bottom: 36rpx;
 }
 
 .featured-card {
-  border-radius: 28rpx;
+  border-radius: $wm-radius-xl;
   overflow: hidden;
-  box-shadow: 0 12rpx 32rpx rgba(15, 23, 42, 0.12);
-  min-height: 240rpx;
+  box-shadow: 0 16rpx 44rpx rgba(255, 107, 107, 0.15);
+  min-height: 280rpx;
   display: flex;
   align-items: flex-end;
-  transition: transform 0.15s;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(0, 0, 0, 0.1) 100%);
+    pointer-events: none;
+  }
 
   &:active {
-    transform: scale(0.985);
+    transform: scale(0.98) translateY(-4rpx);
   }
 
   &__inner {
-    padding: 32rpx 32rpx 32rpx;
+    position: relative;
+    padding: 36rpx;
     width: 100%;
-    background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.18) 100%);
+    background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.35) 100%);
     color: #ffffff;
   }
 
   &__tag {
     display: inline-flex;
     align-items: center;
-    background: rgba(255, 255, 255, 0.24);
-    border: 1rpx solid rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.28);
+    backdrop-filter: blur(8rpx);
+    border: 1rpx solid rgba(255, 255, 255, 0.5);
     color: #ffffff;
-    font-size: 20rpx;
-    padding: 4rpx 16rpx;
+    font-size: 22rpx;
+    padding: 6rpx 18rpx;
     border-radius: 999rpx;
-    margin-bottom: 12rpx;
+    margin-bottom: 16rpx;
+    font-weight: 600;
   }
 
   &__title {
     display: block;
-    font-size: 40rpx;
-    font-weight: 700;
+    font-size: 44rpx;
+    font-weight: 800;
     color: #ffffff;
-    line-height: 1.2;
+    line-height: 1.25;
+    text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.2);
   }
 
   &__meta {
-    margin-top: 12rpx;
+    margin-top: 14rpx;
     display: flex;
-    gap: 8rpx;
-    font-size: 22rpx;
-    color: rgba(255, 255, 255, 0.9);
+    gap: 10rpx;
+    font-size: 24rpx;
+    color: rgba(255, 255, 255, 0.95);
+    font-weight: 500;
   }
 
   &__dot {
-    opacity: 0.6;
+    opacity: 0.7;
   }
 }
 
@@ -437,26 +477,26 @@ export default {
 .skeleton-section-title {
   width: 140rpx;
   height: 36rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  border-radius: $wm-radius-sm;
+  background: linear-gradient(90deg, #f8fafc 25%, #e2e8f0 50%, #f8fafc 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  margin-bottom: 24rpx;
+  margin-bottom: 28rpx;
 }
 
 .skeleton-section-more {
   width: 100rpx;
   height: 28rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  border-radius: $wm-radius-sm;
+  background: linear-gradient(90deg, #f8fafc 25%, #e2e8f0 50%, #f8fafc 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
 .skeleton-category-card {
   background: #ffffff;
-  border-radius: 24rpx;
-  padding: 28rpx 16rpx;
+  border-radius: $wm-radius-lg;
+  padding: 28rpx 12rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -464,10 +504,10 @@ export default {
 }
 
 .skeleton-category-icon {
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: 50%;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(90deg, #f8fafc 25%, #e2e8f0 50%, #f8fafc 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -475,8 +515,8 @@ export default {
 .skeleton-category-label {
   width: 100rpx;
   height: 32rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  border-radius: $wm-radius-sm;
+  background: linear-gradient(90deg, #f8fafc 25%, #e2e8f0 50%, #f8fafc 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -484,15 +524,15 @@ export default {
 .skeleton-category-count {
   width: 80rpx;
   height: 24rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  border-radius: $wm-radius-sm;
+  background: linear-gradient(90deg, #f8fafc 25%, #e2e8f0 50%, #f8fafc 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
 .skeleton-featured-card {
-  border-radius: 28rpx;
-  min-height: 240rpx;
+  border-radius: $wm-radius-xl;
+  min-height: 280rpx;
   background: linear-gradient(90deg, #e2e8f0 25%, #cbd5e0 50%, #e2e8f0 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;

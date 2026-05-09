@@ -65,7 +65,7 @@ export default {
 
 <style lang="scss" scoped>
 .wm-tabbar-placeholder {
-  height: calc(120rpx + env(safe-area-inset-bottom));
+  height: calc(140rpx + env(safe-area-inset-bottom));
 }
 
 .wm-tabbar {
@@ -77,30 +77,34 @@ export default {
   display: flex;
   justify-content: space-around;
   align-items: flex-start;
-  padding: 12rpx 8rpx calc(12rpx + env(safe-area-inset-bottom));
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: saturate(1.15) blur(20rpx);
-  border-top: 1rpx solid rgba(226, 232, 240, 0.95);
-  box-shadow: 0 -6rpx 28rpx rgba(15, 23, 42, 0.07);
+  padding: 16rpx 16rpx calc(16rpx + env(safe-area-inset-bottom));
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: saturate(1.2) blur(24rpx);
+  border-top: 1rpx solid rgba(255, 107, 107, 0.08);
+  box-shadow: 0 -8rpx 40rpx rgba(255, 107, 107, 0.08);
 
   &__item {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4rpx;
-    padding-top: 10rpx;
-    transition: transform 0.15s;
+    gap: 8rpx;
+    padding: 12rpx 0;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
 
     &--hover {
       transform: scale(0.95);
     }
 
     &--center {
-      margin-top: -36rpx;
+      margin-top: -44rpx;
+      position: relative;
+      z-index: 10;
 
       &.wm-tabbar__item--hover .wm-tabbar__fab {
         transform: scale(0.95);
+        box-shadow: 0 8rpx 20rpx rgba(255, 107, 107, 0.3);
       }
     }
   }
@@ -109,36 +113,51 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 12rpx;
+    border-radius: 20rpx;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    .wm-tabbar__item--active & {
+      background: linear-gradient(135deg, rgba(255, 107, 107, 0.12), rgba(139, 92, 246, 0.12));
+      transform: translateY(-4rpx);
+    }
   }
 
   &__fab {
-    width: 88rpx;
-    height: 88rpx;
+    width: 96rpx;
+    height: 96rpx;
     border-radius: 50%;
-    background: linear-gradient(135deg, #818cf8 0%, #6366f1 60%, #4f46e5 100%);
+    background: $wm-gradient-primary;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 12rpx 28rpx rgba(99, 102, 241, 0.45);
+    box-shadow: 0 16rpx 36rpx rgba(255, 107, 107, 0.45);
     border: 6rpx solid #ffffff;
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s, background 0.2s;
+
+    &:active {
+      transform: scale(0.95);
+    }
   }
 
   &__label {
-    font-size: 20rpx;
-    color: #94a3b8;
+    font-size: 22rpx;
+    color: #9ca3af;
     line-height: 1;
-    transition: color 0.2s, font-weight 0.2s;
+    transition: color 0.2s, font-weight 0.2s, transform 0.2s;
+    font-weight: 500;
 
     &--active {
-      color: #6366f1;
-      font-weight: 600;
+      color: $wm-primary;
+      font-weight: 700;
+      transform: scale(1.05);
     }
 
     &--center {
-      margin-top: 8rpx;
-      color: #6366f1;
-      font-weight: 600;
+      margin-top: 12rpx;
+      color: $wm-primary;
+      font-weight: 700;
+      transform: scale(1.05);
     }
   }
 }

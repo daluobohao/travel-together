@@ -220,13 +220,13 @@ export default {
     position: sticky;
     top: 0;
     z-index: 10;
-    padding: calc(28rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 28rpx 24rpx;
+    padding: calc(32rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 28rpx;
     background: $wm-sticky-header-gradient;
     border-bottom: none;
-    box-shadow: 0 8rpx 32rpx rgba(99, 102, 241, 0.07);
+    box-shadow: 0 12rpx 40rpx rgba(255, 107, 107, 0.06);
     display: flex;
     flex-direction: column;
-    gap: 24rpx;
+    gap: 28rpx;
   }
 
   &__header-main {
@@ -238,156 +238,165 @@ export default {
   &__brand {
     display: flex;
     flex-direction: column;
-    gap: 6rpx;
+    gap: 8rpx;
     min-width: 0;
   }
 
   &__logo {
-    font-size: 44rpx;
+    font-size: 48rpx;
     font-weight: 800;
-    color: #312e81;
+    background: linear-gradient(135deg, #ff6b6b 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     letter-spacing: 2rpx;
-    line-height: 60rpx;
+    line-height: 64rpx;
   }
 
   &__subtitle {
-    font-size: 24rpx;
-    color: #64748b;
-    line-height: 34rpx;
+    font-size: 26rpx;
+    color: $wm-text-3;
+    line-height: 36rpx;
+    font-weight: 500;
   }
 
   &__chips {
     display: flex;
     align-items: center;
-    gap: 14rpx;
+    gap: 16rpx;
+    overflow-x: auto;
+    padding-bottom: 4rpx;
   }
 
   &__empty {
-    padding: 120rpx 32rpx;
+    padding: 140rpx 32rpx;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 24rpx;
+    gap: 28rpx;
   }
 
   &__list {
-    padding: 24rpx 32rpx 40rpx;
+    padding: 28rpx 32rpx 48rpx;
     display: flex;
     flex-direction: column;
-    gap: 24rpx;
+    gap: 28rpx;
   }
 }
 
 .empty-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #374151;
+  font-size: 34rpx;
+  font-weight: 700;
+  color: $wm-text-1;
 }
 
 .empty-desc {
-  font-size: 24rpx;
-  color: #94a3b8;
+  font-size: 26rpx;
+  color: $wm-text-3;
 }
 
 .chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 54rpx;
-  padding: 0 22rpx;
+  height: 60rpx;
+  padding: 0 28rpx;
   border-radius: 999rpx;
-  background: #eef2f7;
-  color: #334155;
-  font-size: 24rpx;
+  background: #fafafa;
+  color: $wm-text-2;
+  font-size: 26rpx;
   font-weight: 500;
   line-height: 1;
-  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.1s;
+  border: 2rpx solid transparent;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  flex-shrink: 0;
 
   &:active {
     transform: scale(0.95);
   }
 
   &--active {
-    background: #6366f1;
+    background: $wm-gradient-primary;
     color: #ffffff;
-    box-shadow: 0 4rpx 12rpx rgba(99, 102, 241, 0.3);
+    box-shadow: $wm-shadow-glow;
+    border-color: rgba(255, 255, 255, 0.3);
   }
 }
 
 .skeleton-card {
   background: #ffffff;
-  border-radius: 24rpx;
-  padding: 28rpx 28rpx 24rpx;
+  border-radius: $wm-radius-lg;
+  padding: 32rpx 32rpx 28rpx;
   border: $wm-card-edge;
-  box-shadow: $wm-card-elevated-shadow;
+  box-shadow: $wm-shadow-md;
 }
 
 .skeleton-tag-row {
   display: flex;
   gap: 12rpx;
-  margin-bottom: 16rpx;
+  margin-bottom: 20rpx;
 }
 
 .skeleton-tag {
-  height: 36rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  height: 40rpx;
+  border-radius: $wm-radius-sm;
+  background: linear-gradient(90deg, #f8fafc 25%, #e2e8f0 50%, #f8fafc 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
 .skeleton-tag--small {
-  width: 100rpx;
+  width: 120rpx;
 }
 
 .skeleton-title {
-  height: 40rpx;
-  width: 80%;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  height: 44rpx;
+  width: 85%;
+  border-radius: $wm-radius-sm;
+  background: linear-gradient(90deg, #f8fafc 25%, #e2e8f0 50%, #f8fafc 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  margin-bottom: 18rpx;
+  margin-bottom: 20rpx;
 }
 
 .skeleton-meta {
   display: flex;
   flex-direction: column;
-  gap: 10rpx;
-  margin-bottom: 22rpx;
+  gap: 12rpx;
+  margin-bottom: 24rpx;
 }
 
 .skeleton-meta-row {
-  height: 28rpx;
-  width: 60%;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  height: 32rpx;
+  width: 65%;
+  border-radius: $wm-radius-sm;
+  background: linear-gradient(90deg, #f8fafc 25%, #e2e8f0 50%, #f8fafc 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
 .skeleton-footer {
-  padding-top: 20rpx;
-  border-top: 1rpx dashed #e2e8f0;
+  padding-top: 24rpx;
+  border-top: 2rpx dashed #f1f5f9;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .skeleton-quota {
-  height: 26rpx;
-  width: 120rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  height: 28rpx;
+  width: 140rpx;
+  border-radius: $wm-radius-sm;
+  background: linear-gradient(90deg, #f8fafc 25%, #e2e8f0 50%, #f8fafc 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
 .skeleton-organizer {
-  height: 22rpx;
-  width: 160rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  height: 24rpx;
+  width: 180rpx;
+  border-radius: $wm-radius-sm;
+  background: linear-gradient(90deg, #f8fafc 25%, #e2e8f0 50%, #f8fafc 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -403,16 +412,34 @@ export default {
 
 .card {
   background: #ffffff;
-  border-radius: 24rpx;
-  padding: 28rpx 28rpx 24rpx;
+  border-radius: $wm-radius-lg;
+  padding: 32rpx 32rpx 28rpx;
   border: $wm-card-edge;
   box-shadow: $wm-shadow-md;
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+  animation: fadeInUp 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6rpx;
+    background: $wm-gradient-primary;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
 
   &--hover {
-    transform: scale(0.98);
+    transform: translateY(-4rpx) scale(0.995);
     box-shadow: $wm-card-elevated-shadow;
+
+    &::before {
+      opacity: 1;
+    }
   }
 
   &__top {
@@ -425,28 +452,29 @@ export default {
     display: flex;
     gap: 12rpx;
     align-items: center;
+    flex-wrap: wrap;
   }
 
   &__title {
     display: block;
-    margin-top: 16rpx;
-    font-size: 34rpx;
-    font-weight: 600;
-    color: #0f172a;
-    line-height: 1.3;
+    margin-top: 20rpx;
+    font-size: 36rpx;
+    font-weight: 700;
+    color: $wm-text-1;
+    line-height: 1.35;
   }
 
   &__meta {
-    margin-top: 18rpx;
+    margin-top: 20rpx;
     display: flex;
     flex-direction: column;
-    gap: 10rpx;
+    gap: 12rpx;
   }
 
   &__footer {
-    margin-top: 22rpx;
-    padding-top: 20rpx;
-    border-top: 1rpx dashed #e2e8f0;
+    margin-top: 24rpx;
+    padding-top: 24rpx;
+    border-top: 2rpx dashed #f1f5f9;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -455,25 +483,25 @@ export default {
   &__quota {
     display: flex;
     align-items: center;
-    gap: 8rpx;
+    gap: 10rpx;
   }
 
   &__quota-text {
     font-size: 26rpx;
-    color: #475569;
-    font-weight: 500;
+    color: $wm-text-2;
+    font-weight: 600;
   }
 
   &__organizer {
     font-size: 22rpx;
-    color: #94a3b8;
+    color: $wm-text-3;
   }
 }
 
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(20rpx);
+    transform: translateY(24rpx);
   }
   to {
     opacity: 1;
@@ -484,11 +512,11 @@ export default {
 .tag {
   display: inline-flex;
   align-items: center;
-  gap: 4rpx;
-  height: 36rpx;
-  padding: 0 14rpx;
-  border-radius: 8rpx;
-  font-size: 20rpx;
+  gap: 6rpx;
+  height: 40rpx;
+  padding: 0 16rpx;
+  border-radius: $wm-radius-sm;
+  font-size: 22rpx;
   font-weight: 600;
 
   &--verified {
@@ -497,24 +525,26 @@ export default {
   }
 
   &--enrolled {
-    background: #eef2ff;
-    color: #4f46e5;
+    background: $wm-primary-soft;
+    color: $wm-primary;
   }
 }
 
 .meta-row {
   display: flex;
   align-items: center;
-  gap: 10rpx;
+  gap: 12rpx;
 
   &__text {
-    font-size: 24rpx;
-    color: #475569;
+    font-size: 26rpx;
+    color: $wm-text-2;
+    font-weight: 500;
   }
 
   &__dist {
     font-size: 22rpx;
-    color: #94a3b8;
+    color: $wm-text-3;
+    font-weight: 500;
   }
 }
 </style>

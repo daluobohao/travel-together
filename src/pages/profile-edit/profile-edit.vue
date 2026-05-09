@@ -197,7 +197,7 @@ export default {
     padding: calc(var(--status-bar-height, 0px) + env(safe-area-inset-top)) 24rpx 0;
     background: $wm-sticky-header-gradient;
     border-bottom: none;
-    box-shadow: 0 8rpx 28rpx rgba(99, 102, 241, 0.07);
+    box-shadow: 0 12rpx 40rpx rgba(255, 107, 107, 0.06);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -212,158 +212,206 @@ export default {
   }
 
   &__title {
-    font-size: 32rpx;
-    font-weight: 600;
-    color: #0f172a;
+    font-size: 34rpx;
+    font-weight: 700;
+    color: $wm-text-1;
   }
 
   &__save {
     min-width: 72rpx;
     text-align: right;
-    font-size: 28rpx;
-    color: #6366f1;
-    font-weight: 600;
+    font-size: 30rpx;
+    color: $wm-primary;
+    font-weight: 700;
   }
 
   &__content {
-    padding: 24rpx;
+    padding: 28rpx 24rpx;
     display: flex;
     flex-direction: column;
-    gap: 16rpx;
+    gap: 20rpx;
   }
 }
 
 .first-hint {
-  background: #eef2ff;
-  border-radius: 16rpx;
-  padding: 20rpx 22rpx;
-  font-size: 24rpx;
-  color: #4338ca;
+  background: $wm-primary-soft;
+  border-radius: $wm-radius-md;
+  padding: 24rpx 28rpx;
+  font-size: 26rpx;
+  color: $wm-primary;
   line-height: 1.5;
+  font-weight: 500;
 }
 
 .gender-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 16rpx;
+  gap: 18rpx;
 }
 
 .gender-chip {
-  padding: 14rpx 28rpx;
+  padding: 16rpx 32rpx;
   border-radius: 999rpx;
-  background: #f1f5f9;
+  background: #fafafa;
   border: 2rpx solid transparent;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 
   text {
-    font-size: 26rpx;
-    color: #64748b;
-    font-weight: 500;
+    font-size: 28rpx;
+    color: $wm-text-2;
+    font-weight: 600;
+  }
+
+  &:active {
+    transform: scale(0.96);
   }
 
   &--active {
-    background: #eef2ff;
-    border-color: #6366f1;
+    background: $wm-primary-soft;
+    border-color: $wm-primary;
+    box-shadow: 0 4rpx 16rpx rgba(255, 107, 107, 0.15);
 
     text {
-      color: #4338ca;
-      font-weight: 600;
+      color: $wm-primary;
+      font-weight: 700;
     }
   }
 }
 
 .avatar-card {
   background: #ffffff;
-  border-radius: 20rpx;
-  padding: 28rpx;
+  border-radius: $wm-radius-lg;
+  padding: 32rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12rpx;
+  gap: 14rpx;
   border: $wm-card-edge;
   box-shadow: $wm-shadow-md;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  &:active {
+    transform: scale(0.98);
+  }
 
   &__avatar {
-    width: 120rpx;
-    height: 120rpx;
+    width: 132rpx;
+    height: 132rpx;
     border-radius: 50%;
-    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    background: $wm-gradient-primary;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 8rpx 24rpx rgba(255, 107, 107, 0.3);
 
     text {
       color: #ffffff;
-      font-size: 50rpx;
-      font-weight: 700;
+      font-size: 56rpx;
+      font-weight: 800;
     }
   }
 
   &__tip {
-    font-size: 22rpx;
-    color: #94a3b8;
+    font-size: 24rpx;
+    color: $wm-text-3;
+    font-weight: 500;
   }
 }
 
 .field-card {
   background: #ffffff;
-  border-radius: 20rpx;
-  padding: 24rpx;
+  border-radius: $wm-radius-lg;
+  padding: 28rpx;
   border: $wm-card-edge;
   box-shadow: $wm-shadow-md;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 6rpx;
+    bottom: 0;
+    background: $wm-gradient-primary;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  &:focus-within::before {
+    opacity: 0.4;
+  }
 
   &__label {
     display: block;
-    font-size: 26rpx;
-    color: #475569;
-    margin-bottom: 14rpx;
-    font-weight: 600;
+    font-size: 28rpx;
+    color: $wm-text-2;
+    margin-bottom: 16rpx;
+    font-weight: 700;
   }
 
   &__input {
-    height: 76rpx;
-    border-radius: 14rpx;
-    padding: 0 16rpx;
-    background: #f8fafc;
-    font-size: 28rpx;
-    color: #0f172a;
+    height: 84rpx;
+    border-radius: $wm-radius-md;
+    padding: 0 20rpx;
+    background: #fafafa;
+    font-size: 30rpx;
+    color: $wm-text-1;
+    font-weight: 500;
+    transition: background 0.2s, box-shadow 0.2s;
+
+    &:focus-within {
+      background: $wm-primary-soft;
+      box-shadow: 0 0 0 4rpx rgba(255, 107, 107, 0.1);
+    }
   }
 
   &__textarea {
     width: 100%;
-    min-height: 140rpx;
-    border-radius: 14rpx;
-    padding: 16rpx;
-    background: #f8fafc;
-    font-size: 26rpx;
-    color: #0f172a;
-    line-height: 1.55;
+    min-height: 160rpx;
+    border-radius: $wm-radius-md;
+    padding: 20rpx;
+    background: #fafafa;
+    font-size: 28rpx;
+    color: $wm-text-1;
+    line-height: 1.6;
     box-sizing: border-box;
+    font-weight: 500;
+    transition: background 0.2s, box-shadow 0.2s;
+
+    &:focus-within {
+      background: $wm-primary-soft;
+      box-shadow: 0 0 0 4rpx rgba(255, 107, 107, 0.1);
+    }
   }
 
   &__placeholder {
-    color: #94a3b8;
+    color: $wm-text-3;
   }
 
   &__count {
     display: block;
     text-align: right;
-    margin-top: 8rpx;
-    font-size: 22rpx;
-    color: #94a3b8;
+    margin-top: 10rpx;
+    font-size: 24rpx;
+    color: $wm-text-3;
+    font-weight: 500;
   }
 
   &__readonly {
-    font-size: 28rpx;
-    color: #0f172a;
-    font-weight: 500;
+    font-size: 30rpx;
+    color: $wm-text-1;
+    font-weight: 600;
   }
 
   &__hint {
     display: block;
-    margin-top: 10rpx;
-    font-size: 22rpx;
-    color: #94a3b8;
+    margin-top: 12rpx;
+    font-size: 24rpx;
+    color: $wm-text-3;
     line-height: 1.4;
+    font-weight: 500;
   }
 }
 </style>

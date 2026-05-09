@@ -362,18 +362,22 @@ export default {
   background: transparent;
 
   &__header {
-    padding: calc(40rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 24rpx;
+    padding: calc(44rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 28rpx;
     background: $wm-sticky-header-gradient;
     border-bottom: none;
-    box-shadow: 0 8rpx 32rpx rgba(99, 102, 241, 0.07);
+    box-shadow: 0 12rpx 40rpx rgba(255, 107, 107, 0.06);
   }
 
   &__title {
     display: block;
-    font-size: 52rpx;
-    font-weight: 700;
-    color: #0f172a;
-    margin-bottom: 28rpx;
+    font-size: 56rpx;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ff6b6b 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 32rpx;
+    line-height: 1.1;
   }
 
   &__dm-entry {
@@ -385,9 +389,9 @@ export default {
   }
 
   &__dm-entry-text {
-    font-size: 26rpx;
-    color: #6366f1;
-    font-weight: 600;
+    font-size: 28rpx;
+    color: $wm-primary;
+    font-weight: 700;
   }
 
   &__tabs {
@@ -396,34 +400,35 @@ export default {
   }
 
   &__list {
-    padding: 24rpx 32rpx 0;
+    padding: 28rpx 32rpx 0;
     display: flex;
     flex-direction: column;
     gap: 20rpx;
 
     &--tight {
-      padding-top: 16rpx;
+      padding-top: 20rpx;
       gap: 16rpx;
     }
   }
 
   &__section {
-    padding: 40rpx 32rpx 32rpx;
+    padding: 44rpx 32rpx 32rpx;
   }
 
   &__section-title {
     display: block;
-    font-size: 30rpx;
+    font-size: 32rpx;
     font-weight: 700;
-    color: #0f172a;
-    margin-bottom: 4rpx;
+    color: $wm-text-1;
+    margin-bottom: 8rpx;
   }
 
   &__empty {
-    padding: 60rpx 32rpx;
+    padding: 80rpx 32rpx;
     text-align: center;
-    color: #94a3b8;
-    font-size: 24rpx;
+    color: $wm-text-3;
+    font-size: 26rpx;
+    font-weight: 500;
   }
 
   &__actions {
@@ -433,11 +438,11 @@ export default {
   }
 
   &__read-all {
-    padding: 8rpx 20rpx;
+    padding: 10rpx 24rpx;
     border-radius: 999rpx;
-    background: #eef2ff;
-    color: #6366f1;
-    font-size: 22rpx;
+    background: $wm-primary-soft;
+    color: $wm-primary;
+    font-size: 24rpx;
     font-weight: 600;
   }
 
@@ -445,70 +450,75 @@ export default {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 4rpx;
+    margin-bottom: 8rpx;
   }
 
   &__section-more {
-    font-size: 22rpx;
-    color: #6366f1;
-    font-weight: 500;
+    font-size: 24rpx;
+    color: $wm-primary;
+    font-weight: 600;
   }
 }
 
 .tab {
   position: relative;
-  padding: 14rpx 28rpx;
+  padding: 16rpx 32rpx;
   border-radius: 999rpx;
-  background: #f1f5f9;
-  color: #475569;
-  font-size: 24rpx;
+  background: #fafafa;
+  color: $wm-text-2;
+  font-size: 26rpx;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 
   &--active {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: $wm-gradient-primary;
     color: #ffffff;
-    font-weight: 600;
+    font-weight: 700;
+    box-shadow: $wm-shadow-glow;
   }
 
   &__dot {
     position: absolute;
-    top: 8rpx;
-    right: 10rpx;
-    width: 14rpx;
-    height: 14rpx;
+    top: 10rpx;
+    right: 12rpx;
+    width: 16rpx;
+    height: 16rpx;
     border-radius: 50%;
-    background: #ef4444;
+    background: $wm-danger;
     box-shadow: 0 0 0 4rpx #ffffff;
   }
 }
 
 .chat {
   background: #ffffff;
-  border-radius: 24rpx;
-  padding: 24rpx;
+  border-radius: $wm-radius-lg;
+  padding: 28rpx;
   display: flex;
-  gap: 20rpx;
+  gap: 24rpx;
   align-items: center;
   border: $wm-card-edge;
   box-shadow: $wm-shadow-md;
-  transition: transform 0.15s;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
 
   &--hover {
-    transform: scale(0.985);
+    transform: scale(0.98) translateY(-2rpx);
+    box-shadow: $wm-shadow-lg;
   }
 
   &__avatar {
-    width: 88rpx;
-    height: 88rpx;
+    width: 96rpx;
+    height: 96rpx;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
 
     &--dm {
-      background: linear-gradient(135deg, #a78bfa, #6366f1);
+      background: $wm-gradient-primary;
       color: #ffffff;
-      font-size: 32rpx;
+      font-size: 34rpx;
       font-weight: 700;
     }
   }
@@ -516,6 +526,117 @@ export default {
   &__body {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10rpx;
+  }
+
+  &__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__name {
+    font-size: 32rpx;
+    font-weight: 700;
+    color: $wm-text-1;
+  }
+
+  &__time {
+    font-size: 22rpx;
+    color: $wm-text-3;
+    flex-shrink: 0;
+    font-weight: 500;
+  }
+
+  &__bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16rpx;
+  }
+
+  &__msg {
+    font-size: 26rpx;
+    color: $wm-text-2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    font-weight: 500;
+  }
+
+  &__sender {
+    color: $wm-text-1;
+    font-weight: 600;
+  }
+
+  &__badge {
+    min-width: 40rpx;
+    height: 40rpx;
+    padding: 0 12rpx;
+    border-radius: 999rpx;
+    background: $wm-gradient-primary;
+    color: #ffffff;
+    font-size: 22rpx;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4rpx 12rpx rgba(255, 107, 107, 0.3);
+  }
+}
+
+.system {
+  position: relative;
+  background: #ffffff;
+  border-radius: $wm-radius-lg;
+  padding: 28rpx;
+  display: flex;
+  gap: 20rpx;
+  align-items: flex-start;
+  box-shadow: $wm-shadow-md;
+  transition: transform 0.15s, box-shadow 0.15s;
+  border: $wm-card-edge;
+
+  &--compact {
+    padding: 24rpx;
+  }
+
+  &--unread {
+    background: $wm-primary-soft;
+    border-color: rgba(255, 107, 107, 0.2);
+    box-shadow: 0 8rpx 28rpx rgba(255, 107, 107, 0.12);
+  }
+
+  &__dot {
+    position: absolute;
+    top: 24rpx;
+    right: 24rpx;
+    width: 16rpx;
+    height: 16rpx;
+    border-radius: 50%;
+    background: $wm-danger;
+    box-shadow: 0 0 8rpx rgba(239, 68, 68, 0.5);
+  }
+
+  &__icon {
+    width: 72rpx;
+    height: 72rpx;
+    border-radius: 20rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: $wm-gradient-primary;
+    box-shadow: 0 4rpx 12rpx rgba(255, 107, 107, 0.2);
+  }
+
+  &__body {
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: 8rpx;
@@ -527,124 +648,24 @@ export default {
     align-items: center;
   }
 
-  &__name {
+  &__title {
     font-size: 30rpx;
-    font-weight: 600;
-    color: #0f172a;
+    font-weight: 700;
+    color: $wm-text-1;
   }
 
   &__time {
     font-size: 22rpx;
-    color: #94a3b8;
+    color: $wm-text-3;
     flex-shrink: 0;
-  }
-
-  &__bottom {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16rpx;
-  }
-
-  &__msg {
-    font-size: 24rpx;
-    color: #64748b;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    flex: 1;
-    min-width: 0;
-  }
-
-  &__sender {
-    color: #0f172a;
     font-weight: 500;
   }
 
-  &__badge {
-    min-width: 36rpx;
-    height: 36rpx;
-    padding: 0 10rpx;
-    border-radius: 999rpx;
-    background: #ef4444;
-    color: #ffffff;
-    font-size: 20rpx;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-}
-
-.system {
-  position: relative;
-  background: #ffffff;
-  border-radius: 24rpx;
-  padding: 24rpx;
-  display: flex;
-  gap: 18rpx;
-  align-items: flex-start;
-  box-shadow: 0 2rpx 10rpx rgba(15, 23, 42, 0.03);
-
-  &--compact {
-    padding: 20rpx;
-  }
-
-  &--unread {
-    background: #f5f3ff;
-    box-shadow: 0 2rpx 10rpx rgba(99, 102, 241, 0.08);
-  }
-
-  &__dot {
-    position: absolute;
-    top: 20rpx;
-    right: 20rpx;
-    width: 14rpx;
-    height: 14rpx;
-    border-radius: 50%;
-    background: #ef4444;
-  }
-
-  &__icon {
-    width: 68rpx;
-    height: 68rpx;
-    border-radius: 18rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  &__body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 6rpx;
-  }
-
-  &__top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  &__title {
-    font-size: 28rpx;
-    font-weight: 600;
-    color: #0f172a;
-  }
-
-  &__time {
-    font-size: 20rpx;
-    color: #94a3b8;
-    flex-shrink: 0;
-  }
-
   &__desc {
-    font-size: 24rpx;
-    color: #64748b;
-    line-height: 1.5;
+    font-size: 26rpx;
+    color: $wm-text-2;
+    line-height: 1.6;
+    font-weight: 500;
   }
 }
 
@@ -664,18 +685,18 @@ export default {
 
 .skeleton-chat {
   background: #ffffff;
-  border-radius: 24rpx;
-  padding: 24rpx;
+  border-radius: $wm-radius-lg;
+  padding: 28rpx;
   display: flex;
-  gap: 20rpx;
+  gap: 24rpx;
   align-items: center;
 }
 
 .skeleton-chat-avatar {
-  width: 88rpx;
-  height: 88rpx;
+  width: 96rpx;
+  height: 96rpx;
   border-radius: 50%;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, #fafafa 25%, #e2e8f0 50%, #fafafa 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   flex-shrink: 0;
@@ -697,9 +718,9 @@ export default {
 
 .skeleton-chat-name {
   width: 160rpx;
-  height: 34rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  height: 36rpx;
+  border-radius: $wm-radius-sm;
+  background: linear-gradient(90deg, #fafafa 25%, #e2e8f0 50%, #fafafa 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -707,8 +728,8 @@ export default {
 .skeleton-chat-time {
   width: 80rpx;
   height: 26rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  border-radius: $wm-radius-sm;
+  background: linear-gradient(90deg, #fafafa 25%, #e2e8f0 50%, #fafafa 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -722,8 +743,8 @@ export default {
 .skeleton-chat-msg {
   width: 70%;
   height: 28rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  border-radius: $wm-radius-sm;
+  background: linear-gradient(90deg, #fafafa 25%, #e2e8f0 50%, #fafafa 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
