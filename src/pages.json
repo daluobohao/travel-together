@@ -112,6 +112,12 @@
 			}
 		},
 		{
+			"path": "pages/user-agreement/user-agreement",
+			"style": {
+				"navigationBarTitleText": "用户服务协议"
+			}
+		},
+		{
 			"path": "pages/profile-edit/profile-edit",
 			"style": {
 				"navigationBarTitleText": "编辑个人信息",

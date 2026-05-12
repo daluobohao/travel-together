@@ -40,6 +40,20 @@
       </view>
 
       <text v-if="hintSmsFirst" class="login__hint">请先点击「发送验证码」，成功后再登录</text>
+
+      <view class="login__agree">
+        <checkbox-group @change="onAgreeChange">
+          <label class="login__agree-label">
+            <checkbox value="agree" :checked="agreeTerms" color="#0d9488" />
+            <view class="login__agree-text">
+              <text class="login__agree-plain">我已阅读并同意</text>
+              <text class="login__agree-link" @click.stop.prevent="openUserAgreement">《用户服务协议》</text>
+              <text class="login__agree-plain">与</text>
+              <text class="login__agree-link" @click.stop.prevent="openPrivacyPolicy">《隐私政策》</text>
+            </view>
+          </label>
+        </checkbox-group>
+      </view>
     </view>
 
     <view class="login__action">
@@ -78,11 +92,18 @@ export default {
       lastLoginTapAt: 0,
       phoneError: '',
       codeError: '',
+      /** 微信审核：收集手机号前须明示同意协议与隐私政策 */
+      agreeTerms: false,
     }
   },
   computed: {
     smsDisabled() {
-      return this.countdown > 0 || !PHONE_REG.test(this.form.phone) || this.sendingSms
+      return (
+        this.countdown > 0 ||
+        !PHONE_REG.test(this.form.phone) ||
+        this.sendingSms ||
+        !this.agreeTerms
+      )
     },
     smsText() {
       if (this.sendingSms) return '发送中…'
@@ -93,7 +114,8 @@ export default {
         PHONE_REG.test(this.form.phone) &&
         /^\d{4,6}$/.test(this.form.code) &&
         !this.loading &&
-        this.smsSentOk
+        this.smsSentOk &&
+        this.agreeTerms
       )
     },
     hintSmsFirst() {
@@ -108,6 +130,16 @@ export default {
     this.clearTimer()
   },
   methods: {
+    onAgreeChange(e) {
+      const v = e?.detail?.value || []
+      this.agreeTerms = Array.isArray(v) && v.indexOf('agree') !== -1
+    },
+    openUserAgreement() {
+      uni.navigateTo({ url: '/pages/user-agreement/user-agreement' })
+    },
+    openPrivacyPolicy() {
+      uni.navigateTo({ url: '/pages/privacy-policy/privacy-policy' })
+    },
     clearTimer() {
       if (this.timer) {
         clearInterval(this.timer)
@@ -137,6 +169,10 @@ export default {
       }
     },
     async onSendSms() {
+      if (!this.agreeTerms) {
+        uni.showToast({ title: '请先阅读并勾选同意协议与隐私政策', icon: 'none' })
+        return
+      }
       if (this.smsDisabled) return
       this.sendingSms = true
       try {
@@ -152,6 +188,10 @@ export default {
       }
     },
     async onLogin() {
+      if (!this.agreeTerms) {
+        uni.showToast({ title: '请先阅读并勾选同意协议与隐私政策', icon: 'none' })
+        return
+      }
       if (this.loading || !this.canSubmit) return
       const now = Date.now()
       if (now - this.lastLoginTapAt < 800) return
@@ -240,6 +280,34 @@ export default {
     line-height: 1.5;
     padding: 0 8rpx;
     font-weight: 500;
+  }
+
+  &__agree {
+    margin-top: 8rpx;
+    padding: 0 8rpx;
+  }
+
+  &__agree-label {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12rpx;
+  }
+
+  &__agree-text {
+    flex: 1;
+    font-size: 24rpx;
+    line-height: 1.65;
+    color: $wm-text-2;
+  }
+
+  &__agree-plain {
+    color: $wm-text-2;
+  }
+
+  &__agree-link {
+    color: $wm-accent;
+    font-weight: 600;
   }
 
   &__action {

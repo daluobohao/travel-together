@@ -106,6 +106,7 @@ export default {
       menus: [
         { key: 'history', icon: 'history', color: '#0ea5e9', bg: '#e0f2fe', label: '历史活动' },
         { key: 'rules', icon: 'book', color: '#10b981', bg: '#ecfdf5', label: '社区规范' },
+        { key: 'terms', icon: 'doc', color: '#0284c7', bg: '#e0f2fe', label: '用户服务协议' },
         { key: 'privacy', icon: 'shield', color: '#6366f1', bg: '#eef2ff', label: '隐私政策' },
       ],
     }
@@ -145,6 +146,12 @@ export default {
       if (m.key === 'rules') {
         uni.navigateTo({
           url: '/pages/community-rules/community-rules',
+        })
+        return
+      }
+      if (m.key === 'terms') {
+        uni.navigateTo({
+          url: '/pages/user-agreement/user-agreement',
         })
         return
       }
