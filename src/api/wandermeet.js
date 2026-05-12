@@ -779,20 +779,20 @@ export const adminUnbanUser = (userId) =>
 
 // ===== Frontend-friendly aggregate helpers =====
 const categoryColorMap = {
-  coffee: { color: '#8b5cf6', bg: '#f5f3ff', label: '咖啡' },
+  coffee: { color: '#0f7669', bg: '#ecfdf5', label: '咖啡' },
   citywalk: { color: '#0ea5e9', bg: '#e0f2fe', label: 'Citywalk' },
   hiking: { color: '#10b981', bg: '#ecfdf5', label: '徒步' },
-  boardgame: { color: '#f59e0b', bg: '#fffbeb', label: '桌游' },
+  boardgame: { color: '#0d9488', bg: '#ecfdf5', label: '桌游' },
   coworking: { color: '#0284c7', bg: '#e0f2fe', label: '联合办公·共创' },
   indie: { color: '#ca8a04', bg: '#fef9c3', label: '副业·独立开发' },
   language: { color: '#2563eb', bg: '#dbeafe', label: '语言交换' },
-  dining: { color: '#ea580c', bg: '#ffedd5', label: '约饭·探店' },
+  dining: { color: '#0d9488', bg: '#ccfbf1', label: '约饭·探店' },
   photography: { color: '#7c3aed', bg: '#ede9fe', label: '摄影扫街' },
   exhibit: { color: '#ef4444', bg: '#fef2f2', label: '展览' },
   night_run: { color: '#ef4444', bg: '#fef2f2', label: '夜跑' },
   movie: { color: '#6366f1', bg: '#eef2ff', label: '电影' },
   badminton: { color: '#0ea5a4', bg: '#ccfbf1', label: '羽毛球' },
-  food: { color: '#f97316', bg: '#ffedd5', label: '美食' },
+  food: { color: '#0284c7', bg: '#e0f2fe', label: '美食' },
   mountaineering: { color: '#16a34a', bg: '#dcfce7', label: '登山' },
   cycling: { color: '#0284c7', bg: '#e0f2fe', label: '骑行' },
   camping: { color: '#a16207', bg: '#fef9c3', label: '露营' },
@@ -884,7 +884,7 @@ function metersToKm(meters) {
 const STATUS_LABEL_MAP = {
   pending_review: { key: 'pending', label: '审核中', color: '#0ea5e9', bg: '#e0f2fe' },
   published: { key: 'open', label: '报名中', color: '#10b981', bg: '#ecfdf5' },
-  full: { key: 'full', label: '已满员', color: '#f97316', bg: '#ffedd5' },
+  full: { key: 'full', label: '已满员', color: '#0d9488', bg: '#ecfeff' },
   ended: { key: 'ended', label: '已结束', color: '#64748b', bg: '#f1f5f9' },
   cancelled: { key: 'cancelled', label: '已取消', color: '#ef4444', bg: '#fef2f2' },
   rejected: { key: 'rejected', label: '未通过', color: '#ef4444', bg: '#fef2f2' },
@@ -1383,9 +1383,9 @@ export const markDirectChatRead = (threadId) =>
 export const getConversationList = (query = {}) =>
   getMyChats(query).then((data) => {
     const colors = [
-      'linear-gradient(135deg, #fbbf24, #f97316)',
+      'linear-gradient(135deg, #38bdf8, #0284c7)',
       'linear-gradient(135deg, #60a5fa, #6366f1)',
-      'linear-gradient(135deg, #f87171, #ec4899)',
+      'linear-gradient(135deg, #2dd4bf, #0d9488)',
     ]
     const list = (data?.list || []).map((item, idx) => ({
       id: String(item.activityId || idx + 1),

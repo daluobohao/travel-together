@@ -214,7 +214,7 @@ export default {
   &__title {
     font-size: 64rpx;
     font-weight: 800;
-    background: linear-gradient(135deg, #ff6b6b 0%, #8b5cf6 100%);
+    background: $wm-gradient-hero;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

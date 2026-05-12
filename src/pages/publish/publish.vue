@@ -352,7 +352,7 @@ export default {
     padding: calc(24rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 24rpx;
     background: $wm-sticky-header-gradient;
     border-bottom: none;
-    box-shadow: 0 12rpx 40rpx rgba(255, 107, 107, 0.06);
+    box-shadow: 0 12rpx 40rpx rgba(2, 132, 199, 0.06);
   }
 
   &__cancel {
@@ -571,7 +571,7 @@ export default {
     &--active {
       background: $wm-primary-soft;
       color: $wm-primary;
-      border-color: rgba(255, 107, 107, 0.3);
+      border-color: rgba(2, 132, 199, 0.3);
       font-weight: 700;
     }
   }

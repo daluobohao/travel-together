@@ -19,7 +19,7 @@
 
       <view class="quick-actions">
         <view class="quick-action" @click="onUseMyLocation">
-          <wm-icon name="locate" :size="32" color="#ff6b6b" />
+          <wm-icon name="locate" :size="32" color="#0284c7" />
           <text class="quick-action__text">使用我的位置</text>
         </view>
       </view>
@@ -539,7 +539,7 @@ export default {
 
     &:active {
       border-color: $wm-primary;
-      box-shadow: 0 0 0 4rpx rgba(255, 107, 107, 0.1);
+      box-shadow: 0 0 0 4rpx rgba(2, 132, 199, 0.1);
     }
   }
 
@@ -584,7 +584,7 @@ export default {
   padding: 12rpx 20rpx;
   background: #ffffff;
   border-radius: $wm-radius-md;
-  border: 2rpx solid rgba(255, 107, 107, 0.2);
+  border: 2rpx solid rgba(2, 132, 199, 0.2);
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 
   &:active {
@@ -624,7 +624,7 @@ export default {
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    box-shadow: 0 0 0 8rpx rgba(255, 107, 107, 0.25), 0 8rpx 20rpx rgba(255, 107, 107, 0.4);
+    box-shadow: 0 0 0 8rpx rgba(2, 132, 199, 0.25), 0 8rpx 20rpx rgba(2, 132, 199, 0.4);
     animation: map-dot-pulse 2s ease-in-out infinite;
   }
 
@@ -761,7 +761,7 @@ export default {
   }
 
   &--selected {
-    border-color: rgba(255, 107, 107, 0.5);
+    border-color: rgba(2, 132, 199, 0.5);
     box-shadow: $wm-shadow-md;
 
     &::before {
@@ -855,10 +855,10 @@ export default {
 @keyframes map-dot-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 8rpx rgba(255, 107, 107, 0.25), 0 8rpx 20rpx rgba(255, 107, 107, 0.4);
+    box-shadow: 0 0 0 8rpx rgba(2, 132, 199, 0.25), 0 8rpx 20rpx rgba(2, 132, 199, 0.4);
   }
   50% {
-    box-shadow: 0 0 0 16rpx rgba(255, 107, 107, 0.15), 0 8rpx 20rpx rgba(255, 107, 107, 0.4);
+    box-shadow: 0 0 0 16rpx rgba(2, 132, 199, 0.15), 0 8rpx 20rpx rgba(2, 132, 199, 0.4);
   }
 }
 

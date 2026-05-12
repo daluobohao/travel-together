@@ -184,11 +184,11 @@ export default {
           coffee: { icon: 'coffee', bg: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', color: '#b45309' },
           citywalk: { icon: 'walk', bg: 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)', color: '#4f46e5' },
           hiking: { icon: 'hike', bg: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)', color: '#047857' },
-          boardgame: { icon: 'dice', bg: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)', color: '#be185d' },
+          boardgame: { icon: 'dice', bg: 'linear-gradient(135deg, #e7e5e4 0%, #d6d3d1 100%)', color: '#44403c' },
           coworking: { icon: 'laptop', bg: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)', color: '#0284c7' },
           indie: { icon: 'rocket', bg: 'linear-gradient(135deg, #fef9c3 0%, #fde68a 100%)', color: '#b45309' },
           language: { icon: 'globe', bg: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)', color: '#1d4ed8' },
-          dining: { icon: 'utensil', bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', color: '#c2410c' },
+          dining: { icon: 'utensil', bg: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)', color: '#0369a1' },
           photography: { icon: 'camera', bg: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', color: '#7c3aed' },
           exhibit: { icon: 'palette', bg: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)', color: '#dc2626' },
           night_run: { icon: 'moon', bg: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', color: '#6d28d9' },
@@ -255,7 +255,7 @@ export default {
     padding: calc(40rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 28rpx;
     background: $wm-sticky-header-gradient;
     border-bottom: none;
-    box-shadow: 0 12rpx 40rpx rgba(255, 107, 107, 0.06);
+    box-shadow: 0 12rpx 40rpx rgba(2, 132, 199, 0.06);
     display: flex;
     flex-direction: column;
     gap: 12rpx;
@@ -264,7 +264,7 @@ export default {
   &__title {
     font-size: 56rpx;
     font-weight: 800;
-    background: linear-gradient(135deg, #ff6b6b 0%, #8b5cf6 100%);
+    background: $wm-gradient-hero;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -393,7 +393,7 @@ export default {
 .featured-card {
   border-radius: $wm-radius-xl;
   overflow: hidden;
-  box-shadow: 0 16rpx 44rpx rgba(255, 107, 107, 0.15);
+  box-shadow: 0 16rpx 44rpx rgba(2, 132, 199, 0.15);
   min-height: 280rpx;
   display: flex;
   align-items: flex-end;

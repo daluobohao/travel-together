@@ -208,7 +208,7 @@ export default {
   background: transparent;
 
   &__hero {
-    background: linear-gradient(180deg, rgba(255, 107, 107, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%);
+    background: linear-gradient(180deg, rgba(224, 242, 254, 0.95) 0%, rgba(204, 251, 241, 0.92) 100%);
     padding: calc(44rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 36rpx;
   }
 
@@ -246,7 +246,7 @@ export default {
     justify-content: center;
     color: #ffffff;
     flex-shrink: 0;
-    box-shadow: 0 8rpx 24rpx rgba(255, 107, 107, 0.3);
+    box-shadow: 0 8rpx 24rpx rgba(2, 132, 199, 0.3);
   }
 
   &__avatar-text {
@@ -344,7 +344,7 @@ export default {
   &__value {
     font-size: 44rpx;
     font-weight: 800;
-    background: linear-gradient(135deg, #ff6b6b 0%, #8b5cf6 100%);
+    background: $wm-gradient-hero;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -489,7 +489,7 @@ export default {
     align-items: center;
     justify-content: center;
     background: $wm-primary-soft;
-    box-shadow: 0 4rpx 12rpx rgba(255, 107, 107, 0.1);
+    box-shadow: 0 4rpx 12rpx rgba(2, 132, 199, 0.1);
   }
 
   &__label {

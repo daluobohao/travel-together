@@ -223,7 +223,7 @@ export default {
     padding: calc(32rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 28rpx;
     background: $wm-sticky-header-gradient;
     border-bottom: none;
-    box-shadow: 0 12rpx 40rpx rgba(255, 107, 107, 0.06);
+    box-shadow: 0 12rpx 40rpx rgba(2, 132, 199, 0.06);
     display: flex;
     flex-direction: column;
     gap: 28rpx;
@@ -245,7 +245,7 @@ export default {
   &__logo {
     font-size: 48rpx;
     font-weight: 800;
-    background: linear-gradient(135deg, #ff6b6b 0%, #8b5cf6 100%);
+    background: $wm-gradient-hero;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

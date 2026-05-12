@@ -197,7 +197,7 @@ export default {
     padding: calc(var(--status-bar-height, 0px) + env(safe-area-inset-top)) 24rpx 0;
     background: $wm-sticky-header-gradient;
     border-bottom: none;
-    box-shadow: 0 12rpx 40rpx rgba(255, 107, 107, 0.06);
+    box-shadow: 0 12rpx 40rpx rgba(2, 132, 199, 0.06);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -269,7 +269,7 @@ export default {
   &--active {
     background: $wm-primary-soft;
     border-color: $wm-primary;
-    box-shadow: 0 4rpx 16rpx rgba(255, 107, 107, 0.15);
+    box-shadow: 0 4rpx 16rpx rgba(2, 132, 199, 0.15);
 
     text {
       color: $wm-primary;
@@ -302,7 +302,7 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8rpx 24rpx rgba(255, 107, 107, 0.3);
+    box-shadow: 0 8rpx 24rpx rgba(2, 132, 199, 0.3);
 
     text {
       color: #ffffff;
@@ -363,7 +363,7 @@ export default {
 
     &:focus-within {
       background: $wm-primary-soft;
-      box-shadow: 0 0 0 4rpx rgba(255, 107, 107, 0.1);
+      box-shadow: 0 0 0 4rpx rgba(2, 132, 199, 0.1);
     }
   }
 
@@ -382,7 +382,7 @@ export default {
 
     &:focus-within {
       background: $wm-primary-soft;
-      box-shadow: 0 0 0 4rpx rgba(255, 107, 107, 0.1);
+      box-shadow: 0 0 0 4rpx rgba(2, 132, 199, 0.1);
     }
   }
 

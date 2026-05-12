@@ -332,7 +332,7 @@ export default {
     padding: calc(var(--status-bar-height, 0px) + env(safe-area-inset-top)) 24rpx 0;
     background: $wm-sticky-header-gradient;
     border-bottom: none;
-    box-shadow: 0 12rpx 40rpx rgba(255, 107, 107, 0.06);
+    box-shadow: 0 12rpx 40rpx rgba(2, 132, 199, 0.06);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -370,7 +370,7 @@ export default {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(20rpx);
     border-top: 1rpx solid rgba(0, 0, 0, 0.06);
-    box-shadow: 0 -12rpx 44rpx rgba(255, 107, 107, 0.08);
+    box-shadow: 0 -12rpx 44rpx rgba(2, 132, 199, 0.08);
     display: flex;
     gap: 20rpx;
   }
@@ -395,14 +395,14 @@ export default {
     }
 
     &--cancel {
-      background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
-      box-shadow: 0 12rpx 28rpx rgba(249, 115, 22, 0.35);
+      background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+      box-shadow: 0 12rpx 28rpx rgba(71, 85, 105, 0.28);
     }
 
     &--ghost {
       background: #ffffff;
       color: $wm-primary;
-      border: 2rpx solid rgba(255, 107, 107, 0.3);
+      border: 2rpx solid rgba(2, 132, 199, 0.3);
       box-shadow: none;
     }
 
@@ -599,7 +599,7 @@ export default {
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    box-shadow: 0 6rpx 20rpx rgba(255, 107, 107, 0.25);
+    box-shadow: 0 6rpx 20rpx rgba(2, 132, 199, 0.25);
 
     text {
       color: #ffffff;

@@ -393,7 +393,7 @@ export default {
 .ob__brand {
   font-size: 32rpx;
   font-weight: 800;
-  background: linear-gradient(135deg, #ff6b6b 0%, #8b5cf6 100%);
+  background: $wm-gradient-hero;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -485,7 +485,7 @@ export default {
   border-color: $wm-primary;
   background: $wm-primary-soft;
   color: $wm-primary;
-  box-shadow: 0 4rpx 16rpx rgba(255, 107, 107, 0.15);
+  box-shadow: 0 4rpx 16rpx rgba(2, 132, 199, 0.15);
   transform: scale(1.02);
 }
 /* 微信小程序 input：边框与 padding 放在外层；内层固定 height === line-height，避免文字贴顶或被裁切 */
@@ -501,7 +501,7 @@ export default {
 
   &:focus-within {
     border-color: $wm-primary;
-    box-shadow: 0 0 0 4rpx rgba(255, 107, 107, 0.1);
+    box-shadow: 0 0 0 4rpx rgba(2, 132, 199, 0.1);
   }
 }
 .ob__input-inner {
@@ -537,7 +537,7 @@ export default {
 
   &:focus-within {
     border-color: $wm-primary;
-    box-shadow: 0 0 0 4rpx rgba(255, 107, 107, 0.1);
+    box-shadow: 0 0 0 4rpx rgba(2, 132, 199, 0.1);
   }
 }
 .ob__count {
@@ -563,7 +563,7 @@ export default {
 .ob__card--on {
   border-color: $wm-primary;
   background: $wm-primary-soft;
-  box-shadow: 0 4rpx 16rpx rgba(255, 107, 107, 0.15);
+  box-shadow: 0 4rpx 16rpx rgba(2, 132, 199, 0.15);
   transform: scale(1.01);
 }
 .ob__card-title {
@@ -592,7 +592,7 @@ export default {
   margin-top: 28rpx;
   padding: 28rpx 32rpx;
   border-radius: $wm-radius-lg;
-  border: 2rpx dashed rgba(255, 107, 107, 0.4);
+  border: 2rpx dashed rgba(2, 132, 199, 0.4);
   color: $wm-primary;
   font-size: 30rpx;
   font-weight: 600;

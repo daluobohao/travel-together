@@ -197,7 +197,7 @@ function relativeTime(iso) {
 
 const NOTIF_ICON_MAP = {
   enrollment_ok: { icon: 'check', bg: '#ecfdf5', color: '#10b981' },
-  activity_full: { icon: 'users', bg: '#fff7ed', color: '#f97316' },
+  activity_full: { icon: 'users', bg: '#ecfeff', color: '#0d9488' },
   activity_changed: { icon: 'bell', bg: '#eef2ff', color: '#6366f1' },
   activity_cancelled: { icon: 'bell', bg: '#fef2f2', color: '#ef4444' },
   default: { icon: 'bell', bg: '#eef2ff', color: '#6366f1' },
@@ -219,9 +219,9 @@ function mapNotif(x) {
 
 function mapGroupChat(item, idx) {
   const colors = [
-    'linear-gradient(135deg, #fbbf24, #f97316)',
+    'linear-gradient(135deg, #38bdf8, #0284c7)',
     'linear-gradient(135deg, #60a5fa, #6366f1)',
-    'linear-gradient(135deg, #f87171, #ec4899)',
+    'linear-gradient(135deg, #14b8a6, #0f7669)',
   ]
   return {
     id: String(item.activityId),
@@ -365,14 +365,14 @@ export default {
     padding: calc(44rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 28rpx;
     background: $wm-sticky-header-gradient;
     border-bottom: none;
-    box-shadow: 0 12rpx 40rpx rgba(255, 107, 107, 0.06);
+    box-shadow: 0 12rpx 40rpx rgba(2, 132, 199, 0.06);
   }
 
   &__title {
     display: block;
     font-size: 56rpx;
     font-weight: 800;
-    background: linear-gradient(135deg, #ff6b6b 0%, #8b5cf6 100%);
+    background: $wm-gradient-hero;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -586,7 +586,7 @@ export default {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    box-shadow: 0 4rpx 12rpx rgba(255, 107, 107, 0.3);
+    box-shadow: 0 4rpx 12rpx rgba(2, 132, 199, 0.3);
   }
 }
 
@@ -608,8 +608,8 @@ export default {
 
   &--unread {
     background: $wm-primary-soft;
-    border-color: rgba(255, 107, 107, 0.2);
-    box-shadow: 0 8rpx 28rpx rgba(255, 107, 107, 0.12);
+    border-color: rgba(2, 132, 199, 0.2);
+    box-shadow: 0 8rpx 28rpx rgba(2, 132, 199, 0.12);
   }
 
   &__dot {
@@ -632,7 +632,7 @@ export default {
     justify-content: center;
     flex-shrink: 0;
     background: $wm-gradient-primary;
-    box-shadow: 0 4rpx 12rpx rgba(255, 107, 107, 0.2);
+    box-shadow: 0 4rpx 12rpx rgba(2, 132, 199, 0.2);
   }
 
   &__body {

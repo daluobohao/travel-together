@@ -80,8 +80,8 @@ export default {
   padding: 16rpx 16rpx calc(16rpx + env(safe-area-inset-bottom));
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: saturate(1.2) blur(24rpx);
-  border-top: 1rpx solid rgba(255, 107, 107, 0.08);
-  box-shadow: 0 -8rpx 40rpx rgba(255, 107, 107, 0.08);
+  border-top: 1rpx solid rgba(2, 132, 199, 0.08);
+  box-shadow: 0 -8rpx 40rpx rgba(2, 132, 199, 0.08);
 
   &__item {
     flex: 1;
@@ -104,7 +104,7 @@ export default {
 
       &.wm-tabbar__item--hover .wm-tabbar__fab {
         transform: scale(0.95);
-        box-shadow: 0 8rpx 20rpx rgba(255, 107, 107, 0.3);
+        box-shadow: 0 8rpx 20rpx rgba(2, 132, 199, 0.3);
       }
     }
   }
@@ -118,7 +118,7 @@ export default {
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 
     .wm-tabbar__item--active & {
-      background: linear-gradient(135deg, rgba(255, 107, 107, 0.12), rgba(139, 92, 246, 0.12));
+      background: linear-gradient(135deg, rgba(2, 132, 199, 0.12), rgba(16, 185, 129, 0.12));
       transform: translateY(-4rpx);
     }
   }
@@ -131,7 +131,7 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 16rpx 36rpx rgba(255, 107, 107, 0.45);
+    box-shadow: 0 16rpx 36rpx rgba(2, 132, 199, 0.45);
     border: 6rpx solid #ffffff;
     transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s, background 0.2s;
 

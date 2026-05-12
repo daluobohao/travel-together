@@ -28,7 +28,7 @@ export default {
 </script>
 
 <style lang="scss">
-/* 全局样式 - 活力青春社交风 */
+/* 全局样式 - 旅聚（米白天青 · 见 uni.scss） */
 page {
   background: $wm-page-bg-gradient;
   background-attachment: fixed;
@@ -78,7 +78,7 @@ text {
   &--ghost {
     background: #ffffff;
     color: $wm-primary;
-    border: 2rpx solid rgba(255, 107, 107, 0.2);
+    border: 2rpx solid rgba(2, 132, 199, 0.2);
   }
 
   &:active {

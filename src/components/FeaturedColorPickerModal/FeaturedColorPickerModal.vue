@@ -57,7 +57,7 @@
           min="0"
           max="100"
           step="1"
-          active-color="#fbbf24"
+          active-color="#0d9488"
           background-color="#334155"
           block-size="20"
           @change="onVal"
