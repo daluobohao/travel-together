@@ -108,6 +108,7 @@ export default {
       activities: [],
       menus: [
         { key: 'history', icon: 'history', color: '#0ea5e9', bg: '#e0f2fe', label: '历史活动' },
+        { key: 'feedback', icon: 'message', color: '#f59e0b', bg: '#fffbeb', label: '意见与建议' },
         { key: 'rules', icon: 'book', color: '#10b981', bg: '#ecfdf5', label: '社区规范' },
         { key: 'terms', icon: 'doc', color: '#0284c7', bg: '#e0f2fe', label: '用户服务协议' },
         { key: 'privacy', icon: 'shield', color: '#6366f1', bg: '#eef2ff', label: '隐私政策' },
@@ -143,6 +144,12 @@ export default {
       if (m.key === 'history') {
         uni.navigateTo({
           url: '/pages/history-activity-list/history-activity-list',
+        })
+        return
+      }
+      if (m.key === 'feedback') {
+        uni.navigateTo({
+          url: '/pages/feedback/feedback',
         })
         return
       }

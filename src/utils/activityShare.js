@@ -1,3 +1,13 @@
+/** 非活动详情页：分享统一落到首页，避免好友打开到登录/半完成引导页 */
+export const DEFAULT_MINI_PROGRAM_SHARE = {
+  title: '旅聚 · 发现身边的活动',
+  path: '/pages/home/home',
+}
+
+export function buildDefaultTimelineShare() {
+  return { title: DEFAULT_MINI_PROGRAM_SHARE.title }
+}
+
 /** 活动详情分享 / 复制（微信小程序 path + 说明文案） */
 
 export function buildActivityDetailPath(activityId) {

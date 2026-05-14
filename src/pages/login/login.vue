@@ -75,6 +75,7 @@
 
 <script>
 import { loginBySms, sendSmsCode, setAccessToken, setRefreshToken } from '@/api'
+import { buildDefaultTimelineShare, DEFAULT_MINI_PROGRAM_SHARE } from '@/utils/activityShare'
 
 const PHONE_REG = /^1\d{10}$/
 /** 与后端默认 ``sms_send_min_interval_seconds`` 一致：重发冷却（勿用验证码 TTL） */
@@ -135,6 +136,24 @@ export default {
   },
   onUnload() {
     this.clearTimer()
+  },
+  onShow() {
+    // #ifdef MP-WEIXIN
+    try {
+      uni.showShareMenu({
+        withShareTicket: true,
+        menus: ['shareAppMessage', 'shareTimeline'],
+      })
+    } catch (_) {
+      /* ignore */
+    }
+    // #endif
+  },
+  onShareAppMessage() {
+    return { ...DEFAULT_MINI_PROGRAM_SHARE }
+  },
+  onShareTimeline() {
+    return buildDefaultTimelineShare()
   },
   methods: {
     onAgreeChange(e) {

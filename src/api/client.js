@@ -103,6 +103,7 @@ function messageFromHttpErrorBody(data) {
     const parts = d.map((item) => {
       if (typeof item === 'string') return item
       if (item && typeof item.msg === 'string') return item.msg
+      if (item && typeof item.message === 'string') return item.message
       return ''
     })
     const joined = parts.filter(Boolean).join('；')
@@ -135,11 +136,29 @@ export async function wmRequest({
     if (token) headers.Authorization = `Bearer ${token}`
   }
 
+  /** 微信小程序等对 POST JSON 序列化不一致时，显式 stringify 避免 body 为空导致 422 */
+  let requestData = data
+  const m = (method || 'GET').toUpperCase()
+  if (
+    data != null &&
+    typeof data === 'object' &&
+    !Array.isArray(data) &&
+    !(typeof ArrayBuffer !== 'undefined' && data instanceof ArrayBuffer) &&
+    ['POST', 'PUT', 'PATCH', 'DELETE'].includes(m)
+  ) {
+    try {
+      requestData = JSON.stringify(data)
+    } catch {
+      requestData = data
+    }
+  }
+
   const res = await uni.request({
     url,
     method,
-    data,
+    data: requestData,
     header: headers,
+    dataType: 'json',
     timeout: REQUEST_TIMEOUT_MS,
   })
 
@@ -186,7 +205,9 @@ export async function wmRequest({
             ? '资源不存在'
             : response.statusCode === 429
               ? '操作过于频繁，请稍后再试'
-              : `请求失败（${response.statusCode}）`)
+              : response.statusCode === 422
+                ? fromBody || '提交内容不符合要求，请检查字数与选项'
+                : `请求失败（${response.statusCode}）`)
     const err = new Error(msg)
     err.statusCode = response.statusCode
     err.data = response.data

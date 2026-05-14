@@ -455,6 +455,15 @@ export const createPlaceActivityAlert = (data) =>
       }),
   })
 
+export const submitUserFeedback = (data) =>
+  wmRequest({
+    method: 'POST',
+    path: '/me/feedback',
+    data,
+    needAuth: true,
+    mockHandler: () => ok({ feedbackId: 'fb_mock_1' }),
+  })
+
 export const getNearbyActivities = (query = {}) =>
   wmRequest({
     method: 'GET',

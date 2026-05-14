@@ -4,14 +4,18 @@
 			"path": "pages/login/login",
 			"style": {
 				"navigationBarTitleText": "手机号登录",
-				"navigationStyle": "custom"
+				"navigationStyle": "custom",
+				"enableShareAppMessage": true,
+				"enableShareTimeline": true
 			}
 		},
 		{
 			"path": "pages/onboarding/onboarding",
 			"style": {
 				"navigationBarTitleText": "完善资料",
-				"navigationStyle": "custom"
+				"navigationStyle": "custom",
+				"enableShareAppMessage": true,
+				"enableShareTimeline": true
 			}
 		},
 		{
@@ -123,6 +127,13 @@
 			"path": "pages/profile-edit/profile-edit",
 			"style": {
 				"navigationBarTitleText": "编辑个人信息",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/feedback/feedback",
+			"style": {
+				"navigationBarTitleText": "意见与建议",
 				"navigationStyle": "custom"
 			}
 		},

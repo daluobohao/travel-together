@@ -214,6 +214,7 @@
 
 <script>
 import { getOnboardingMeta, updateMe } from '@/api'
+import { buildDefaultTimelineShare, DEFAULT_MINI_PROGRAM_SHARE } from '@/utils/activityShare'
 
 const MAX_TAGS = 10
 
@@ -278,6 +279,24 @@ export default {
     } catch (e) {
       uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
     }
+  },
+  onShow() {
+    // #ifdef MP-WEIXIN
+    try {
+      uni.showShareMenu({
+        withShareTicket: true,
+        menus: ['shareAppMessage', 'shareTimeline'],
+      })
+    } catch (_) {
+      /* ignore */
+    }
+    // #endif
+  },
+  onShareAppMessage() {
+    return { ...DEFAULT_MINI_PROGRAM_SHARE }
+  },
+  onShareTimeline() {
+    return buildDefaultTimelineShare()
   },
   methods: {
     toggleTraveler(id) {
