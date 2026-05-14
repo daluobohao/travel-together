@@ -37,6 +37,9 @@
           </view>
         </view>
         <text v-if="codeError" class="field__error">{{ codeError }}</text>
+        <text v-if="smsSentOk && smsCodeValidMinutes > 0" class="field__ttl-hint">
+          验证码 {{ smsCodeValidMinutes }} 分钟内有效
+        </text>
       </view>
 
       <text v-if="hintSmsFirst" class="login__hint">请先点击「发送验证码」，成功后再登录</text>
@@ -74,6 +77,8 @@
 import { loginBySms, sendSmsCode, setAccessToken, setRefreshToken } from '@/api'
 
 const PHONE_REG = /^1\d{10}$/
+/** 与后端默认 ``sms_send_min_interval_seconds`` 一致：重发冷却（勿用验证码 TTL） */
+const SMS_RESEND_COOLDOWN_SECONDS = 60
 
 export default {
   data() {
@@ -94,6 +99,8 @@ export default {
       codeError: '',
       /** 微信审核：收集手机号前须明示同意协议与隐私政策 */
       agreeTerms: false,
+      /** 服务端返回的验证码有效时长（展示为分钟，与 expireInSeconds 对齐） */
+      smsCodeValidMinutes: 0,
     }
   },
   computed: {
@@ -162,6 +169,7 @@ export default {
         this.phoneError = ''
       }
       this.smsSentOk = false
+      this.smsCodeValidMinutes = 0
     },
     onCodeInput() {
       if (this.codeError) {
@@ -178,10 +186,14 @@ export default {
       try {
         const data = await sendSmsCode({ phone: this.form.phone, scene: 'login' })
         this.smsSentOk = true
-        this.startCountdown(data?.expireInSeconds || 60)
+        const exp = Number(data?.expireInSeconds)
+        this.smsCodeValidMinutes =
+          Number.isFinite(exp) && exp > 0 ? Math.max(1, Math.ceil(exp / 60)) : 5
+        this.startCountdown(SMS_RESEND_COOLDOWN_SECONDS)
         uni.showToast({ title: '验证码已发送', icon: 'none' })
       } catch (e) {
         this.smsSentOk = false
+        this.smsCodeValidMinutes = 0
         uni.showToast({ title: e?.message || '发送失败', icon: 'none' })
       } finally {
         this.sendingSms = false
@@ -482,6 +494,14 @@ export default {
     margin-top: 6rpx;
     font-weight: 600;
   }
+}
+
+.field__ttl-hint {
+  font-size: 24rpx;
+  color: $wm-text-3;
+  margin-top: 10rpx;
+  padding: 0 4rpx;
+  line-height: 1.5;
 }
 
 @keyframes shake {

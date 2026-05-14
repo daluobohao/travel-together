@@ -132,6 +132,13 @@
 			}
 		},
 		{
+			"path": "pages/city-hall/city-hall",
+			"style": {
+				"navigationBarTitleText": "城市大群",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/publish/publish",
 			"style": {
 				"navigationBarTitleText": "发布活动",

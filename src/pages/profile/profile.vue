@@ -45,7 +45,10 @@
       <view class="activities">
         <view v-for="a in activities" :key="a.id" class="activity">
           <view class="activity__body">
-            <text class="activity__title">{{ a.title }}</text>
+            <view class="activity__title-row">
+              <text v-if="a.activityKind === 'city_hall'" class="activity__badge-mini">同城</text>
+              <text class="activity__title">{{ a.title }}</text>
+            </view>
             <text class="activity__time">{{ a.time }}</text>
           </view>
           <view class="activity__right">
@@ -190,6 +193,7 @@ export default {
         const card = mapActivityCard(item)
         return {
           id: String(card.activityId || ''),
+          activityKind: card.activityKind || 'event',
           title: card.title,
           time: card.time,
           joined: card.joined,
@@ -409,6 +413,28 @@ export default {
 
   &:active {
     background: $wm-primary-soft;
+  }
+
+  &__body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: 10rpx;
+    flex-wrap: wrap;
+  }
+
+  &__badge-mini {
+    flex-shrink: 0;
+    font-size: 18rpx;
+    font-weight: 700;
+    color: #4f46e5;
+    background: rgba(99, 102, 241, 0.12);
+    padding: 2rpx 10rpx;
+    border-radius: 999rpx;
   }
 
   &__title {

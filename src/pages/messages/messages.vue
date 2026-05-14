@@ -59,6 +59,9 @@
           <view class="chat__body">
             <view class="chat__top">
               <text class="chat__name">{{ chat.name }}</text>
+              <view v-if="chat.isCityHall" class="chat__tag-city">
+                <text>同城</text>
+              </view>
               <text class="chat__time">{{ chat.time }}</text>
             </view>
             <view class="chat__bottom">
@@ -226,6 +229,7 @@ function mapGroupChat(item, idx) {
   return {
     id: String(item.activityId),
     name: item.title || '活动群聊',
+    isCityHall: item.activityKind === 'city_hall',
     sender: item.memberCount ? `${item.memberCount}人` : '群聊',
     preview: item.lastMessage || '暂无消息',
     time: relativeTime(item.lastMessageAt) || '最近',
@@ -533,14 +537,28 @@ export default {
 
   &__top {
     display: flex;
-    justify-content: space-between;
+    flex-wrap: wrap;
     align-items: center;
+    gap: 12rpx 16rpx;
+    justify-content: flex-end;
   }
 
   &__name {
     font-size: 32rpx;
     font-weight: 700;
     color: $wm-text-1;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__tag-city {
+    padding: 4rpx 14rpx;
+    border-radius: 999rpx;
+    background: rgba(99, 102, 241, 0.12);
+    font-size: 20rpx;
+    color: #4f46e5;
+    font-weight: 600;
+    flex-shrink: 0;
   }
 
   &__time {
@@ -548,6 +566,7 @@ export default {
     color: $wm-text-3;
     flex-shrink: 0;
     font-weight: 500;
+    margin-left: auto;
   }
 
   &__bottom {

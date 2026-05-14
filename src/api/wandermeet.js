@@ -259,6 +259,105 @@ export const getActivityCategories = () =>
     mockHandler: () => ok({ categories: wmDB.categories }),
   })
 
+export const getCityGroupsMeta = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/meta/city-groups',
+    needAuth: false,
+    mockHandler: () =>
+      ok({
+        recommendTip:
+          '城市大群由系统在首个用户加入时自动创建，群主为系统管理员；目录按省份分组。加入后使用与活动相同的群聊能力。',
+        userCanCreate: false,
+      }),
+  })
+
+export const getCityHallCatalog = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/city-groups/catalog',
+    needAuth: false,
+    tokenIfPresent: true,
+    mockHandler: () =>
+      ok({
+        provinces: [
+          {
+            provinceCode: '110000',
+            provinceName: '北京市',
+            cities: [
+              {
+                cityCode: '110000',
+                cityName: '北京市',
+                displayName: '北京市 · 城市大群',
+                memberCount: 12,
+                activityId: 'act_mock_city_hall',
+                joined: false,
+              },
+            ],
+          },
+          {
+            provinceCode: '130000',
+            provinceName: '河北省',
+            cities: [
+              {
+                cityCode: '130100',
+                cityName: '石家庄市',
+                displayName: '石家庄市 · 城市大群',
+                memberCount: 0,
+                activityId: null,
+                joined: null,
+              },
+            ],
+          },
+        ],
+      }),
+  })
+
+export const getCityHallLookup = (cityCode) =>
+  wmRequest({
+    method: 'GET',
+    path: '/city-groups/lookup',
+    query: { cityCode },
+    needAuth: false,
+    tokenIfPresent: true,
+    mockHandler: ({ query: q }) => {
+      const cc = (q && q.cityCode) || '110000'
+      return ok({
+        exists: false,
+        cityCode: cc,
+        displayName: '',
+        memberCount: 0,
+        joined: false,
+        activityId: null,
+        activityKind: 'event',
+      })
+    },
+  })
+
+export const joinCityHall = (cityCode, cityLabel) => {
+  const payload = { cityCode }
+  const lbl = (cityLabel && String(cityLabel).trim()) || ''
+  if (lbl) payload.cityLabel = lbl
+  return wmRequest({
+    method: 'POST',
+    path: '/city-groups/join',
+    data: payload,
+    needAuth: true,
+    mockHandler: ({ data }) => {
+      const cc = (data && data.cityCode) || '110000'
+      const name = (data && data.cityLabel && String(data.cityLabel).trim()) || cc
+      return ok({
+        cityCode: cc,
+        displayName: `${name} · 城市大群`,
+        memberCount: 1,
+        joined: true,
+        activityId: 'act_mock_city_hall',
+        enrollmentId: 'enr_mock_1',
+      })
+    },
+  })
+}
+
 // 10
 export const getActivities = (query = {}) =>
   wmRequest({
@@ -931,6 +1030,8 @@ export function mapActivityCard(card) {
   return {
     id: safeActivityId,
     activityId: safeActivityId,
+    activityKind: card.activityKind || 'event',
+    isCityHall: (card.activityKind || 'event') === 'city_hall',
     category: tag.label,
     tagColor: tag.color,
     tagBg: tag.bg,

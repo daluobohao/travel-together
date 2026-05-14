@@ -117,6 +117,8 @@ export async function wmRequest({
   query,
   data,
   needAuth = true,
+  /** 未登录也可访问的接口：若本地有 accessToken 则附带，用于服务端 ``get_optional_user`` 等场景 */
+  tokenIfPresent = false,
   mockHandler,
   __didRefresh = false,
 }) {
@@ -128,7 +130,7 @@ export async function wmRequest({
   const url = `${API_BASE_URL}${path}${buildQuery(query)}`
   const headers = { 'Content-Type': 'application/json' }
 
-  if (needAuth) {
+  if (needAuth || tokenIfPresent) {
     const token = getAccessToken()
     if (token) headers.Authorization = `Bearer ${token}`
   }

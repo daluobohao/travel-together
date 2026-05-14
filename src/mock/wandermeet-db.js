@@ -289,5 +289,6 @@ export function toActivityCard(activity) {
     organizer: activity.organizer,
     activityStatus: activity.activityStatus,
     enrollmentStatus: activity.myEnrollment?.status || null,
+    activityKind: activity.activityKind || 'event',
   }
 }
