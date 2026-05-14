@@ -132,6 +132,13 @@
 			}
 		},
 		{
+			"path": "pages/place-activities/place-activities",
+			"style": {
+				"navigationBarTitleText": "搜地点找活动",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/city-hall/city-hall",
 			"style": {
 				"navigationBarTitleText": "城市大群",

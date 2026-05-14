@@ -34,6 +34,19 @@
 
     <!-- Actual Content -->
     <template v-else>
+      <view class="section place-search-entry" @click="onPlaceSearch">
+        <view class="place-search-entry__inner">
+          <view class="place-search-entry__icon">
+            <wm-icon name="mapPin" :size="40" color="#ffffff" />
+          </view>
+          <view class="place-search-entry__text">
+            <text class="place-search-entry__title">搜地点找活动</text>
+            <text class="place-search-entry__desc">先选城市或区县，再看该地可报名的活动</text>
+          </view>
+          <wm-icon name="chevronRight" :size="32" color="#94a3b8" />
+        </view>
+      </view>
+
       <view class="section city-hall-entry" @click="onCityHall">
         <view class="city-hall-entry__inner">
           <view class="city-hall-entry__icon">
@@ -41,7 +54,7 @@
           </view>
           <view class="city-hall-entry__text">
             <text class="city-hall-entry__title">城市大群</text>
-            <text class="city-hall-entry__desc">按省展开后选市/区县；加入前需确认，无群时首个加入将自动建群</text>
+            <text class="city-hall-entry__desc">按省展开后选市/区县，与同地址旅人交流</text>
           </view>
           <wm-icon name="chevronRight" :size="32" color="#94a3b8" />
         </view>
@@ -251,6 +264,9 @@ export default {
         url: '/pages/city-hall/city-hall',
       })
     },
+    onPlaceSearch() {
+      uni.navigateTo({ url: '/pages/place-activities/place-activities' })
+    },
     onFeaturedGradientSave(slots) {
       this.featuredGradientSlots = slots
       saveFeaturedGradientSlots(slots)
@@ -299,8 +315,12 @@ export default {
 .section {
   padding: 36rpx 32rpx 0;
 
-  &.city-hall-entry {
+  &.place-search-entry {
     padding-top: 24rpx;
+  }
+
+  &.city-hall-entry {
+    padding-top: 16rpx;
   }
 
   &__head {
@@ -367,6 +387,43 @@ export default {
   color: $wm-text-1;
 }
 .city-hall-entry__desc {
+  font-size: 24rpx;
+  color: $wm-text-3;
+  line-height: 1.4;
+}
+
+.place-search-entry__inner {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 24rpx 28rpx;
+  background: #ffffff;
+  border-radius: 20rpx;
+  box-shadow: 0 8rpx 28rpx rgba(15, 23, 42, 0.06);
+}
+.place-search-entry__icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 16rpx;
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.place-search-entry__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+.place-search-entry__title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: $wm-text-1;
+}
+.place-search-entry__desc {
   font-size: 24rpx;
   color: $wm-text-3;
   line-height: 1.4;

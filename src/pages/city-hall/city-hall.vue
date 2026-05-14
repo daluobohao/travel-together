@@ -45,7 +45,7 @@
         <text class="city-hall__card-title">{{ detailTitle }}</text>
         <text v-if="metaTip" class="city-hall__tip">{{ metaTip }}</text>
         <text v-if="exists" class="city-hall__meta">{{ lookup.memberCount }} 人已加入</text>
-        <text v-else class="city-hall__meta">点「加入」并在确认后进群；若该地址尚无大群，将在你确认后由系统自动创建（群主为系统管理员）。</text>
+        <text v-else class="city-hall__meta">点「加入」并在确认后进群，与同地址旅人交流。</text>
       </view>
 
       <view v-if="joined && activityId" class="city-hall__actions">

@@ -266,8 +266,7 @@ export const getCityGroupsMeta = () =>
     needAuth: false,
     mockHandler: () =>
       ok({
-        recommendTip:
-          '城市大群由系统在首个用户加入时自动创建，群主为系统管理员；目录按省份分组。加入后使用与活动相同的群聊能力。',
+        recommendTip: '',
         userCanCreate: false,
       }),
   })
@@ -366,10 +365,46 @@ export const getActivities = (query = {}) =>
     query,
     mockHandler: ({ query: q }) => {
       let list = wmDB.activities.slice()
+      if (q.cityCode) list = list.filter((x) => String(x.cityCode || '') === String(q.cityCode))
       if (q.categoryId) list = list.filter((x) => x.categoryId === q.categoryId)
       list = normalizeDateRange(list, q.dateRange)
       return ok(paginate(list.map(toActivityCard), q.page, q.pageSize))
     },
+  })
+
+export const getPlaceSuggestions = (q) =>
+  wmRequest({
+    method: 'GET',
+    path: '/meta/place-suggestions',
+    query: { q: q || '' },
+    needAuth: false,
+    mockHandler: ({ query: qq }) => {
+      const s = ((qq && qq.q) || '').toLowerCase()
+      const rows = [
+        { cityCode: '110000', cityName: '北京市', provinceCode: '110000', provinceName: '北京市' },
+        { cityCode: '310000', cityName: '上海市', provinceCode: '310000', provinceName: '上海市' },
+        { cityCode: '440100', cityName: '广州市', provinceCode: '440000', provinceName: '广东省' },
+        { cityCode: '530100', cityName: '昆明市', provinceCode: '530000', provinceName: '云南省' },
+      ].filter((r) => !s || r.cityName.includes(s) || r.cityCode.includes(s))
+      return ok({ list: rows })
+    },
+  })
+
+export const createPlaceActivityAlert = (data) =>
+  wmRequest({
+    method: 'POST',
+    path: '/me/place-activity-alerts',
+    data,
+    needAuth: true,
+    mockHandler: ({ data: d }) =>
+      ok({
+        alertId: 'pal_mock_1',
+        cityCode: d.cityCode || '110000',
+        placeLabel: d.placeLabel || '订阅地',
+        categoryId: d.categoryId || '',
+        dateRange: d.dateRange || 'all',
+        createdAt: new Date().toISOString(),
+      }),
   })
 
 export const getNearbyActivities = (query = {}) =>
