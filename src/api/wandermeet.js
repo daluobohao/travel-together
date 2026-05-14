@@ -92,7 +92,13 @@ function activityCityMatchesPlaceFilter(selectedCode, activityCityCode) {
     if (!skipProv) variants.add(prov)
     if (variants.has(a)) return true
     if (s.endsWith('0000')) return a.startsWith(s.slice(0, 2))
-    if (s.endsWith('00') && !s.endsWith('0000')) return a.startsWith(s.slice(0, 4))
+    if (
+      s.endsWith('00') &&
+      !s.endsWith('0000') &&
+      !_MUNICIPALITY_PREFIXES.has(s.slice(0, 2))
+    ) {
+      return a.startsWith(s.slice(0, 4))
+    }
   }
   return false
 }
