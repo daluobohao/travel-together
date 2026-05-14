@@ -28,6 +28,7 @@
       class="place-act__suggest"
       scroll-y
       :enable-flex="true"
+      :style="{ height: scrollAreaHeight + 'px' }"
     >
       <view
         v-for="(s, idx) in suggestions"
@@ -93,7 +94,7 @@
         </view>
       </view>
 
-      <scroll-view v-else-if="selectedCityCode" class="place-act__list" scroll-y :enable-flex="true">
+      <scroll-view v-else-if="selectedCityCode" class="place-act__list" scroll-y :enable-flex="true" :style="{ height: listHeight + 'px' }">
         <view class="place-act__summary">
           <text>共 {{ activities.length }} 场 · 点击卡片查看详情</text>
         </view>
@@ -145,7 +146,11 @@ const DEBOUNCE_MS = 320
 export default {
   components: { WmIcon },
   data() {
+    const sysInfo = uni.getSystemInfoSync()
     return {
+      windowHeight: sysInfo.windowHeight || 0,
+      scrollAreaHeight: 0,
+      listHeight: 0,
       searchInput: '',
       suggestions: [],
       suggestTimer: null,
@@ -165,6 +170,9 @@ export default {
       listLoading: false,
     }
   },
+  onReady() {
+    this.calcHeights()
+  },
   onLoad(query) {
     const q = query || {}
     const cc = (q.cityCode && String(q.cityCode).trim()) || ''
@@ -180,9 +188,38 @@ export default {
       this.searchInput = lb || cc
     }
     this.loadCategories()
-    if (cc) this.loadList()
+    if (cc) this.loadList().then(() => this.calcListHeight())
   },
   methods: {
+    calcHeights() {
+      const query = uni.createSelectorQuery().in(this)
+      query.select('.place-act__search').boundingClientRect((rect) => {
+        if (rect) {
+          this.scrollAreaHeight = this.windowHeight - rect.bottom
+        }
+      }).exec()
+    },
+    calcListHeight() {
+      this.$nextTick(() => {
+        const query = uni.createSelectorQuery().in(this)
+        query.select('.place-act__chips').boundingClientRect((chipsRect) => {
+          const query2 = uni.createSelectorQuery().in(this)
+          query2.select('.place-act__pill').boundingClientRect((pillRect) => {
+            let topEnd = 0
+            if (chipsRect) {
+              topEnd = chipsRect.bottom
+            } else if (pillRect) {
+              topEnd = pillRect.bottom
+            }
+            if (topEnd > 0) {
+              this.listHeight = this.windowHeight - topEnd - uni.upx2px(32)
+            } else {
+              this.listHeight = this.scrollAreaHeight
+            }
+          }).exec()
+        }).exec()
+      })
+    },
     goBack() {
       uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/discover/discover' }) })
     },
@@ -236,7 +273,7 @@ export default {
       this.searchInput = this.selectedLabel
       this.suggestions = []
       this.suggestEmpty = false
-      this.loadList()
+      this.loadList().then(() => this.calcListHeight())
     },
     clearPlace() {
       this.selectedCityCode = ''
@@ -248,11 +285,11 @@ export default {
     },
     setDateRange(v) {
       this.dateRange = v
-      if (this.selectedCityCode) this.loadList()
+      if (this.selectedCityCode) this.loadList().then(() => this.calcListHeight())
     },
     setCategory(id) {
       this.categoryId = id || ''
-      if (this.selectedCityCode) this.loadList()
+      if (this.selectedCityCode) this.loadList().then(() => this.calcListHeight())
     },
     async loadList() {
       if (!this.selectedCityCode) return
@@ -373,9 +410,7 @@ export default {
 }
 
 .place-act__suggest {
-  flex: 1;
-  height: 0;
-  min-height: 40vh;
+  min-height: 200rpx;
   padding: 0 24rpx 24rpx;
 }
 .place-act__no-suggest {
@@ -508,8 +543,7 @@ export default {
 }
 
 .place-act__list {
-  flex: 1;
-  height: 0;
+  min-height: 200rpx;
   padding: 0 24rpx 32rpx;
 }
 .place-act__summary {

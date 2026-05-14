@@ -1,6 +1,6 @@
 <template>
   <view class="page city-hall">
-    <view class="city-hall__header">
+    <view class="city-hall__header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="city-hall__back" @click="goBack">
         <text class="city-hall__back-text">返回</text>
       </view>
@@ -13,7 +13,7 @@
     </view>
 
     <!-- 目录：一级省份，展开后二级市/区县（直辖市为区县） -->
-    <scroll-view v-else-if="!isDetail" class="city-hall__scroll" scroll-y :enable-flex="true">
+    <scroll-view v-else-if="!isDetail" class="city-hall__scroll" scroll-y :enable-flex="true" :style="{ height: scrollHeight + 'px' }">
       <text v-if="metaTip" class="city-hall__tip city-hall__tip--top">{{ metaTip }}</text>
       <view v-for="block in catalogProvinces" :key="block.provinceCode" class="city-hall__province">
         <view class="city-hall__prov-head" @click="toggleProvince(block)">
@@ -67,7 +67,12 @@ import { getCityGroupsMeta, getCityHallCatalog, getCityHallLookup, joinCityHall 
 
 export default {
   data() {
+    const sysInfo = uni.getSystemInfoSync()
     return {
+      statusBarHeight: sysInfo.statusBarHeight || 0,
+      windowHeight: sysInfo.windowHeight || 0,
+      headerHeight: 0,
+      scrollHeight: 0,
       cityCode: '',
       cityLabel: '',
       loading: true,
@@ -108,7 +113,19 @@ export default {
     }
     this.bootstrap()
   },
+  onReady() {
+    this.calcScrollHeight()
+  },
   methods: {
+    calcScrollHeight() {
+      const query = uni.createSelectorQuery().in(this)
+      query.select('.city-hall__header').boundingClientRect((rect) => {
+        if (rect) {
+          const padding = uni.upx2px(48 + 24)
+          this.scrollHeight = this.windowHeight - rect.bottom - padding
+        }
+      }).exec()
+    },
     goBack() {
       uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/discover/discover' }) })
     },
@@ -138,6 +155,7 @@ export default {
         uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
       } finally {
         this.loading = false
+        this.$nextTick(() => this.calcScrollHeight())
       }
     },
     openCityDetail(c) {
@@ -204,6 +222,7 @@ export default {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 .city-hall__header {
   flex-shrink: 0;
@@ -234,9 +253,7 @@ export default {
   color: #94a3b8;
 }
 .city-hall__scroll {
-  flex: 1;
-  height: 0;
-  min-height: 45vh;
+  min-height: 200rpx;
 }
 .city-hall__tip--top {
   display: block;
