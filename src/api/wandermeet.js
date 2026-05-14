@@ -1,9 +1,86 @@
 import { wmRequest, paginate } from './client'
 import { clearWmAuthTokens, setAccessToken, setRefreshToken } from './config'
+import cityHallPrefectures from './city_hall_prefectures.json'
+import { provinceDisplayName } from './china_province_display.js'
 import { wmDB, toActivityCard } from '@/mock/wandermeet-db'
 import { contactTextBlockedReason } from '@/utils/contactContentFilter'
 
 const ok = (data) => ({ code: 0, message: 'ok', data })
+
+function buildMockCityHallCatalog() {
+  const provinces = cityHallPrefectures.map((blk) => ({
+    provinceCode: blk.provinceCode,
+    provinceName: provinceDisplayName(blk.provinceCode),
+    cities: (blk.cities || []).map((c) => ({
+      cityCode: c.cityCode,
+      cityName: c.cityName,
+      displayName: `${c.cityName} · 城市大群`,
+      memberCount: 0,
+      activityId: null,
+      joined: null,
+    })),
+  }))
+  return { provinces }
+}
+
+function placeSearchNeedles(raw) {
+  const q = String(raw || '')
+    .trim()
+    .toLowerCase()
+  if (!q || q.length > 32) return []
+  const needles = [q]
+  for (const sep of ['市', '自治州', '盟', '地区', '州']) {
+    const i = q.indexOf(sep)
+    if (i !== -1) {
+      const sub = q.slice(0, i + sep.length)
+      if (sub && sub !== q) needles.push(sub)
+    }
+  }
+  return [...new Set(needles)]
+}
+
+function mockPlaceSuggestionSearch(raw) {
+  const needles = placeSearchNeedles(raw)
+  if (!needles.length) return []
+  const out = []
+  for (const blk of cityHallPrefectures) {
+    const pcode = blk.provinceCode
+    const pname = provinceDisplayName(pcode)
+    for (const c of blk.cities || []) {
+      const code = c.cityCode
+      const name = c.cityName
+      const hay = `${name} ${code} ${pname}`.toLowerCase()
+      const hit =
+        needles.some((n) => hay.includes(n)) ||
+        needles.some((n) => String(code).toLowerCase().includes(n))
+      if (hit) {
+        out.push({
+          cityCode: code,
+          cityName: name,
+          provinceCode: pcode,
+          provinceName: pname,
+        })
+        if (out.length >= 30) return out
+      }
+    }
+  }
+  return out
+}
+
+/** 与后端 ``activity_city_code_matches`` 对齐，供 Mock 列表过滤。 */
+function activityCityMatchesPlaceFilter(selectedCode, activityCityCode) {
+  const a = String(activityCityCode || '').trim()
+  const s = String(selectedCode || '').trim()
+  if (!s) return true
+  if (a === s) return true
+  if (/^\d{6}$/.test(s) && s.slice(0, 2) !== '00') {
+    const variants = new Set([s, `${s.slice(0, 4)}00`, `${s.slice(0, 2)}0000`])
+    if (variants.has(a)) return true
+    if (s.endsWith('0000')) return a.startsWith(s.slice(0, 2))
+    if (s.endsWith('00') && !s.endsWith('0000')) return a.startsWith(s.slice(0, 4))
+  }
+  return false
+}
 
 function toRad(n) {
   return (Number(n) * Math.PI) / 180
@@ -277,39 +354,7 @@ export const getCityHallCatalog = () =>
     path: '/city-groups/catalog',
     needAuth: false,
     tokenIfPresent: true,
-    mockHandler: () =>
-      ok({
-        provinces: [
-          {
-            provinceCode: '110000',
-            provinceName: '北京市',
-            cities: [
-              {
-                cityCode: '110000',
-                cityName: '北京市',
-                displayName: '北京市 · 城市大群',
-                memberCount: 12,
-                activityId: 'act_mock_city_hall',
-                joined: false,
-              },
-            ],
-          },
-          {
-            provinceCode: '130000',
-            provinceName: '河北省',
-            cities: [
-              {
-                cityCode: '130100',
-                cityName: '石家庄市',
-                displayName: '石家庄市 · 城市大群',
-                memberCount: 0,
-                activityId: null,
-                joined: null,
-              },
-            ],
-          },
-        ],
-      }),
+    mockHandler: () => ok(buildMockCityHallCatalog()),
   })
 
 export const getCityHallLookup = (cityCode) =>
@@ -365,7 +410,9 @@ export const getActivities = (query = {}) =>
     query,
     mockHandler: ({ query: q }) => {
       let list = wmDB.activities.slice()
-      if (q.cityCode) list = list.filter((x) => String(x.cityCode || '') === String(q.cityCode))
+      if (q.cityCode) {
+        list = list.filter((x) => activityCityMatchesPlaceFilter(String(q.cityCode), x.cityCode))
+      }
       if (q.categoryId) list = list.filter((x) => x.categoryId === q.categoryId)
       list = normalizeDateRange(list, q.dateRange)
       return ok(paginate(list.map(toActivityCard), q.page, q.pageSize))
@@ -378,16 +425,7 @@ export const getPlaceSuggestions = (q) =>
     path: '/meta/place-suggestions',
     query: { q: q || '' },
     needAuth: false,
-    mockHandler: ({ query: qq }) => {
-      const s = ((qq && qq.q) || '').toLowerCase()
-      const rows = [
-        { cityCode: '110000', cityName: '北京市', provinceCode: '110000', provinceName: '北京市' },
-        { cityCode: '310000', cityName: '上海市', provinceCode: '310000', provinceName: '上海市' },
-        { cityCode: '440100', cityName: '广州市', provinceCode: '440000', provinceName: '广东省' },
-        { cityCode: '530100', cityName: '昆明市', provinceCode: '530000', provinceName: '云南省' },
-      ].filter((r) => !s || r.cityName.includes(s) || r.cityCode.includes(s))
-      return ok({ list: rows })
-    },
+    mockHandler: ({ query: qq }) => ok({ list: mockPlaceSuggestionSearch((qq && qq.q) || '') }),
   })
 
 export const createPlaceActivityAlert = (data) =>
@@ -421,7 +459,9 @@ export const getNearbyActivities = (query = {}) =>
       }
 
       let list = wmDB.activities.slice()
-      if (q.cityCode) list = list.filter((x) => String(x.cityCode || '') === String(q.cityCode))
+      if (q.cityCode) {
+        list = list.filter((x) => activityCityMatchesPlaceFilter(String(q.cityCode), x.cityCode))
+      }
       if (q.categoryId) list = list.filter((x) => x.categoryId === q.categoryId)
       list = normalizeDateRange(list, q.dateRange || 'all')
 
