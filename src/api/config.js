@@ -6,7 +6,8 @@ export const REFRESH_TOKEN_KEY = 'wm_refresh_token'
 
 export function getMockEnabled() {
   const v = uni.getStorageSync(MOCK_SWITCH_KEY)
-  if (v === '' || v === null || typeof v === 'undefined') return true
+  // 未写入时默认走真实接口，避免体验版/真机误以为「全国只有几个省」；需纯本地 Mock 时在开发者工具里打开 Mock 开关。
+  if (v === '' || v === null || typeof v === 'undefined') return false
   return !!v
 }
 

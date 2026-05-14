@@ -13,7 +13,7 @@
     </view>
 
     <!-- 目录：一级省份，展开后二级市/区县（直辖市为区县） -->
-    <scroll-view v-else-if="!isDetail" class="city-hall__scroll" scroll-y>
+    <scroll-view v-else-if="!isDetail" class="city-hall__scroll" scroll-y :enable-flex="true">
       <text v-if="metaTip" class="city-hall__tip city-hall__tip--top">{{ metaTip }}</text>
       <view v-for="block in catalogProvinces" :key="block.provinceCode" class="city-hall__province">
         <view class="city-hall__prov-head" @click="toggleProvince(block)">
@@ -236,7 +236,7 @@ export default {
 .city-hall__scroll {
   flex: 1;
   height: 0;
-  min-height: 400rpx;
+  min-height: 45vh;
 }
 .city-hall__tip--top {
   display: block;

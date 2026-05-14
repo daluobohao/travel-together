@@ -25,7 +25,9 @@
 			"path": "pages/activity-detail/activity-detail",
 			"style": {
 				"navigationBarTitleText": "活动详情",
-				"navigationStyle": "custom"
+				"navigationStyle": "custom",
+				"enableShareAppMessage": true,
+				"enableShareTimeline": true
 			}
 		},
 		{

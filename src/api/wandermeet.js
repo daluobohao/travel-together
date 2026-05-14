@@ -23,10 +23,20 @@ function buildMockCityHallCatalog() {
   return { provinces }
 }
 
-function placeSearchNeedles(raw) {
-  const q = String(raw || '')
+function normalizePlaceQuery(raw) {
+  let s = String(raw || '')
     .trim()
     .toLowerCase()
+  try {
+    s = s.normalize('NFKC')
+  } catch (_) {
+    /* ignore */
+  }
+  return s.replace(/\u3000/g, ' ').trim()
+}
+
+function placeSearchNeedles(raw) {
+  const q = normalizePlaceQuery(raw)
   if (!q || q.length > 32) return []
   const needles = [q]
   for (const sep of ['市', '自治州', '盟', '地区', '州']) {

@@ -5,7 +5,27 @@
         <wm-icon name="chevronLeft" :size="36" color="#0f172a" />
       </view>
       <text class="detail__header-title">活动详情</text>
-      <view class="detail__placeholder" />
+      <view class="detail__header-right">
+        <!-- #ifdef MP-WEIXIN -->
+        <button
+          v-if="activity"
+          class="detail__header-icon-btn detail__header-icon-btn--share"
+          type="default"
+          hover-class="detail__header-icon-btn--hover"
+          open-type="share"
+        >
+          <wm-icon name="shareForward" :size="34" color="#0f172a" />
+        </button>
+        <!-- #endif -->
+        <view
+          v-if="activity"
+          class="detail__header-icon-btn"
+          hover-class="detail__header-icon-btn--hover"
+          @click="onCopyActivityShare"
+        >
+          <wm-icon name="link2" :size="34" color="#0f172a" />
+        </view>
+      </view>
     </view>
 
     <view class="detail__content" v-if="activity">
@@ -113,6 +133,11 @@ import {
   getActivityDetail,
   getMe,
 } from '@/api'
+import {
+  buildActivityShareClipboardText,
+  buildActivityShareMessage,
+  buildActivityTimelineQuery,
+} from '@/utils/activityShare'
 
 export default {
   components: { WmIcon },
@@ -167,6 +192,31 @@ export default {
   onLoad(query) {
     const id = query?.id ? String(query.id) : '1'
     this.loadActivity(id)
+  },
+  onShow() {
+    // #ifdef MP-WEIXIN
+    try {
+      uni.showShareMenu({
+        withShareTicket: true,
+        menus: ['shareAppMessage', 'shareTimeline'],
+      })
+    } catch (_) {
+      /* ignore */
+    }
+    // #endif
+  },
+  onShareAppMessage() {
+    return buildActivityShareMessage(this.activity)
+  },
+  onShareTimeline() {
+    const a = this.activity
+    if (!a?.id) {
+      return { title: '旅聚 · 发现身边的活动' }
+    }
+    return {
+      title: (a.title && String(a.title).trim().slice(0, 64)) || '旅聚活动',
+      query: buildActivityTimelineQuery(a.id),
+    }
   },
   methods: {
     async loadActivity(id) {
@@ -314,6 +364,22 @@ export default {
         url: `/pages/chat-detail/chat-detail?id=${this.activity.id}`,
       })
     },
+    onCopyActivityShare() {
+      if (!this.activity?.id) {
+        uni.showToast({ title: '暂无可复制内容', icon: 'none' })
+        return
+      }
+      const text = buildActivityShareClipboardText(this.activity)
+      uni.setClipboardData({
+        data: text,
+        success: () => {
+          uni.showToast({ title: '已复制', icon: 'success' })
+        },
+        fail: () => {
+          uni.showToast({ title: '复制失败', icon: 'none' })
+        },
+      })
+    },
   },
 }
 </script>
@@ -338,13 +404,43 @@ export default {
     justify-content: space-between;
   }
 
-  &__back,
-  &__placeholder {
+  &__back {
     width: 72rpx;
     height: 72rpx;
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  &__header-right {
+    min-width: 72rpx;
+    height: 72rpx;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4rpx;
+  }
+
+  &__header-icon-btn {
+    width: 72rpx;
+    height: 72rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16rpx;
+    &--hover {
+      background: rgba(15, 23, 42, 0.06);
+    }
+    &--share {
+      padding: 0;
+      margin: 0;
+      background: transparent;
+      border: none;
+      line-height: 1;
+      &::after {
+        border: none;
+      }
+    }
   }
 
   &__header-title {

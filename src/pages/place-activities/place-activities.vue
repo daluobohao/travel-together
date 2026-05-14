@@ -23,7 +23,12 @@
       </view>
     </view>
 
-    <scroll-view v-if="suggestions.length && !selectedCityCode" class="place-act__suggest" scroll-y>
+    <scroll-view
+      v-if="suggestions.length && !selectedCityCode"
+      class="place-act__suggest"
+      scroll-y
+      :enable-flex="true"
+    >
       <view
         v-for="(s, idx) in suggestions"
         :key="s.cityCode + '-' + idx"
@@ -37,6 +42,10 @@
     </scroll-view>
 
     <view v-else class="place-act__main">
+      <view v-if="!selectedCityCode && suggestEmpty" class="place-act__no-suggest">
+        <text class="place-act__no-suggest-title">未找到与「{{ lastSuggestQuery }}」匹配的地点</text>
+        <text class="place-act__no-suggest-desc">可试「枣庄市」等完整市名；或先点「更换」再重新搜索。</text>
+      </view>
       <view v-if="selectedLabel" class="place-act__pill">
         <text class="place-act__pill-text">已选：{{ selectedLabel }}</text>
         <text class="place-act__pill-change" @click="clearPlace">更换</text>
@@ -84,7 +93,7 @@
         </view>
       </view>
 
-      <scroll-view v-else class="place-act__list" scroll-y>
+      <scroll-view v-else-if="selectedCityCode" class="place-act__list" scroll-y :enable-flex="true">
         <view class="place-act__summary">
           <text>共 {{ activities.length }} 场 · 点击卡片查看详情</text>
         </view>
@@ -140,6 +149,8 @@ export default {
       searchInput: '',
       suggestions: [],
       suggestTimer: null,
+      suggestEmpty: false,
+      lastSuggestQuery: '',
       selectedCityCode: '',
       selectedLabel: '',
       categories: [],
@@ -184,7 +195,13 @@ export default {
       }
     },
     onSearchInput() {
-      if (this.selectedCityCode) return
+      const raw = (this.searchInput || '').trim()
+      if (this.selectedCityCode && raw !== (this.selectedLabel || '').trim()) {
+        this.selectedCityCode = ''
+        this.selectedLabel = ''
+        this.activities = []
+        this.categoryId = ''
+      }
       if (this.suggestTimer) clearTimeout(this.suggestTimer)
       this.suggestTimer = setTimeout(() => this.fetchSuggestions(), DEBOUNCE_MS)
     },
@@ -192,13 +209,20 @@ export default {
       const q = (this.searchInput || '').trim()
       if (!q) {
         this.suggestions = []
+        this.suggestEmpty = false
+        this.lastSuggestQuery = ''
         return
       }
       try {
         const data = await getPlaceSuggestions(q)
-        this.suggestions = data?.list || []
+        const list = data?.list || []
+        this.suggestions = list
+        this.lastSuggestQuery = q
+        this.suggestEmpty = !this.selectedCityCode && list.length === 0
       } catch {
         this.suggestions = []
+        this.lastSuggestQuery = q
+        this.suggestEmpty = !this.selectedCityCode
       }
     },
     async runSearch() {
@@ -211,6 +235,7 @@ export default {
       this.selectedLabel = s.cityName || s.cityCode
       this.searchInput = this.selectedLabel
       this.suggestions = []
+      this.suggestEmpty = false
       this.loadList()
     },
     clearPlace() {
@@ -218,6 +243,8 @@ export default {
       this.selectedLabel = ''
       this.activities = []
       this.suggestions = []
+      this.suggestEmpty = false
+      this.lastSuggestQuery = ''
     },
     setDateRange(v) {
       this.dateRange = v
@@ -348,7 +375,28 @@ export default {
 .place-act__suggest {
   flex: 1;
   height: 0;
+  min-height: 40vh;
   padding: 0 24rpx 24rpx;
+}
+.place-act__no-suggest {
+  margin: 24rpx 24rpx 0;
+  padding: 28rpx 24rpx;
+  background: #fffbeb;
+  border: 1rpx solid #fde68a;
+  border-radius: 16rpx;
+}
+.place-act__no-suggest-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #92400e;
+  margin-bottom: 10rpx;
+}
+.place-act__no-suggest-desc {
+  display: block;
+  font-size: 24rpx;
+  color: #b45309;
+  line-height: 1.5;
 }
 .place-act__suggest-row {
   background: #fff;
