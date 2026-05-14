@@ -141,6 +141,13 @@ function formatDistance(meters) {
   return Math.round(meters) + 'm'
 }
 
+/** 高德 POI 的 adcode，六位国标行政区划码（多为区县；直辖市为区） */
+function normalizeAdcode(raw) {
+  const s = String(raw || '').trim()
+  if (/^\d{6}$/.test(s)) return s
+  return ''
+}
+
 function normalizeTel(tel) {
   if (!tel) return ''
   if (Array.isArray(tel)) {
@@ -406,6 +413,7 @@ export default {
                 id: p.id,
                 name: p.name,
                 address: p.address,
+                adcode: normalizeAdcode(p.adcode),
                 district: [p.cityname, p.adname].filter(Boolean).join(' '),
                 location: p.location,
                 typecode: p.typecode,
@@ -466,6 +474,7 @@ export default {
                 id: p.id,
                 name: p.name,
                 address: p.address,
+                adcode: normalizeAdcode(p.adcode),
                 district: [p.cityname, p.adname].filter(Boolean).join(' '),
                 location: p.location,
                 typecode: p.typecode,
@@ -495,6 +504,7 @@ export default {
         address: item.address || '',
         lng,
         lat,
+        cityCode: item.adcode || '',
       })
       uni.navigateBack()
     },

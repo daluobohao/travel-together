@@ -191,6 +191,7 @@ export default {
         endDate: '',
         endClock: '',
         location: '',
+        cityCode: '',
         lat: null,
         lng: null,
         capacity: '',
@@ -215,6 +216,8 @@ export default {
       this.form.location = displayAddress ? `${displayName}（${displayAddress}）` : displayName
       this.form.lat = Number(picked.lat) || null
       this.form.lng = Number(picked.lng) || null
+      const cc = String(picked.cityCode || '').trim()
+      this.form.cityCode = /^\d{6}$/.test(cc) ? cc : ''
       uni.removeStorageSync('PUBLISH_LOCATION_PICK_RESULT')
     },
     async loadCategories() {
@@ -294,6 +297,14 @@ export default {
       if (!this.form.category) return uni.showToast({ title: '请选择活动分类', icon: 'none' })
       if (!this.form.startTime) return uni.showToast({ title: '请选择开始时间', icon: 'none' })
       if (!this.form.location.trim()) return uni.showToast({ title: '请填写活动地点', icon: 'none' })
+      if (!/^\d{6}$/.test(this.form.cityCode || '')) {
+        return uni.showToast({ title: '请从地图选择地点，以便确定城市编码', icon: 'none' })
+      }
+      const lat = Number(this.form.lat)
+      const lng = Number(this.form.lng)
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return uni.showToast({ title: '请从地图选择地点，以便获取坐标', icon: 'none' })
+      }
       if ((this.form.endDate && !this.form.endClock) || (!this.form.endDate && this.form.endClock)) {
         return uni.showToast({ title: '请完整选择结束时间', icon: 'none' })
       }
@@ -316,10 +327,10 @@ export default {
           categoryId: this.categoryMap[this.form.category] || 'coffee',
           startAt,
           endAt,
-          cityCode: '110000',
+          cityCode: this.form.cityCode.trim(),
           locationName: this.form.location.trim(),
-          lat: this.form.lat || 39.9,
-          lng: this.form.lng || 116.4,
+          lat,
+          lng,
           maxMembers: Number(this.form.capacity) || 8,
           feeType: 'aa',
           feeAmount: null,

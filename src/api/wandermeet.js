@@ -77,6 +77,8 @@ function mockPlaceSuggestionSearch(raw) {
   return out
 }
 
+const _MUNICIPALITY_PREFIXES = new Set(['11', '12', '31', '50'])
+
 /** 与后端 ``activity_city_code_matches`` 对齐，供 Mock 列表过滤。 */
 function activityCityMatchesPlaceFilter(selectedCode, activityCityCode) {
   const a = String(activityCityCode || '').trim()
@@ -84,7 +86,10 @@ function activityCityMatchesPlaceFilter(selectedCode, activityCityCode) {
   if (!s) return true
   if (a === s) return true
   if (/^\d{6}$/.test(s) && s.slice(0, 2) !== '00') {
-    const variants = new Set([s, `${s.slice(0, 4)}00`, `${s.slice(0, 2)}0000`])
+    const prov = `${s.slice(0, 2)}0000`
+    const skipProv = _MUNICIPALITY_PREFIXES.has(s.slice(0, 2)) && s !== prov
+    const variants = new Set([s, `${s.slice(0, 4)}00`])
+    if (!skipProv) variants.add(prov)
     if (variants.has(a)) return true
     if (s.endsWith('0000')) return a.startsWith(s.slice(0, 2))
     if (s.endsWith('00') && !s.endsWith('0000')) return a.startsWith(s.slice(0, 4))
