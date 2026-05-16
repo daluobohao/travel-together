@@ -152,7 +152,7 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
-import { createActivity, getActivityCategories } from '@/api'
+import { createActivity, getActivityCategories, isLoggedIn } from '@/api'
 
 const FALLBACK_CATEGORIES = [
   { categoryId: 'coffee', name: '咖啡' },
@@ -201,6 +201,11 @@ export default {
     }
   },
   onShow() {
+    if (!isLoggedIn()) {
+      uni.setStorageSync('REDIRECT_URL', '/pages/publish/publish')
+      uni.redirectTo({ url: '/pages/login/login' })
+      return
+    }
     this.loadCategories()
     this.tryApplyPickedLocation()
   },

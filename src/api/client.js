@@ -112,6 +112,27 @@ function messageFromHttpErrorBody(data) {
   return ''
 }
 
+export function isLoggedIn() {
+  return !!getAccessToken()
+}
+
+let pendingLoginCallback = null
+
+export function setPendingLoginCallback(callback) {
+  pendingLoginCallback = callback
+}
+
+export function clearPendingLoginCallback() {
+  pendingLoginCallback = null
+}
+
+export async function goToLogin(retryPath = '') {
+  if (retryPath) {
+    uni.setStorageSync('PENDING_REQUEST_PATH', retryPath)
+  }
+  uni.navigateTo({ url: '/pages/login/login' })
+}
+
 export async function wmRequest({
   method = 'GET',
   path,
@@ -211,6 +232,7 @@ export async function wmRequest({
     const err = new Error(msg)
     err.statusCode = response.statusCode
     err.data = response.data
+    err.isAuthError = response.statusCode === 401
     throw err
   }
   return unwrap(response.data)

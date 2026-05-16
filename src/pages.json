@@ -1,24 +1,6 @@
 {
 	"pages": [
 		{
-			"path": "pages/login/login",
-			"style": {
-				"navigationBarTitleText": "手机号登录",
-				"navigationStyle": "custom",
-				"enableShareAppMessage": true,
-				"enableShareTimeline": true
-			}
-		},
-		{
-			"path": "pages/onboarding/onboarding",
-			"style": {
-				"navigationBarTitleText": "完善资料",
-				"navigationStyle": "custom",
-				"enableShareAppMessage": true,
-				"enableShareTimeline": true
-			}
-		},
-		{
 			"path": "pages/home/home",
 			"style": {
 				"navigationBarTitleText": "旅聚",
@@ -183,6 +165,24 @@
 			"style": {
 				"navigationBarTitleText": "我的",
 				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationBarTitleText": "手机号登录",
+				"navigationStyle": "custom",
+				"enableShareAppMessage": true,
+				"enableShareTimeline": true
+			}
+		},
+		{
+			"path": "pages/onboarding/onboarding",
+			"style": {
+				"navigationBarTitleText": "完善资料",
+				"navigationStyle": "custom",
+				"enableShareAppMessage": true,
+				"enableShareTimeline": true
 			}
 		}
 	],

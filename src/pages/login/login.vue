@@ -255,7 +255,18 @@ export default {
           } else if (needGender) {
             uni.reLaunch({ url: '/pages/profile-edit/profile-edit?first=1' })
           } else {
-            uni.reLaunch({ url: '/pages/home/home' })
+            const redirectUrl = uni.getStorageSync('REDIRECT_URL')
+            uni.removeStorageSync('REDIRECT_URL')
+            if (redirectUrl) {
+              uni.redirectTo({ url: redirectUrl })
+            } else {
+              uni.navigateBack({
+                delta: 1,
+                fail: () => {
+                  uni.reLaunch({ url: '/pages/home/home' })
+                },
+              })
+            }
           }
         }, 400)
       } catch (e) {

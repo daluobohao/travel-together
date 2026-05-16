@@ -132,6 +132,7 @@ import {
   formatActivityTimeRange,
   getActivityDetail,
   getMe,
+  isLoggedIn,
 } from '@/api'
 import {
   buildActivityShareClipboardText,
@@ -146,6 +147,7 @@ export default {
       activity: null,
       actionLoading: false,
       currentUserId: '',
+      activityId: '',
     }
   },
   computed: {
@@ -191,6 +193,7 @@ export default {
   },
   onLoad(query) {
     const id = query?.id ? String(query.id) : '1'
+    this.activityId = id
     this.loadActivity(id)
   },
   onShow() {
@@ -226,6 +229,10 @@ export default {
           const me = await getMe()
           meId = me?.userId ? String(me.userId) : ''
         } catch (e) {
+          if (e.isAuthError) {
+            this.handleAuthError()
+            return
+          }
           meId = ''
         }
         this.currentUserId = meId
@@ -261,8 +268,17 @@ export default {
           }
           return
         }
-      } catch (e) {}
+      } catch (e) {
+        if (e.isAuthError) {
+          this.handleAuthError()
+          return
+        }
+      }
       this.activity = null
+    },
+    handleAuthError() {
+      uni.setStorageSync('REDIRECT_URL', `/pages/activity-detail/activity-detail?id=${this.activityId}`)
+      uni.redirectTo({ url: '/pages/login/login' })
     },
     onOpenOrganizerProfile() {
       const uid = this.activity?.organizerId
@@ -334,6 +350,10 @@ export default {
         uni.showToast({ title: '发起人不能取消报名，如需结束请取消活动', icon: 'none' })
         return
       }
+      if (!isLoggedIn()) {
+        uni.navigateTo({ url: '/pages/login/login' })
+        return
+      }
       this.actionLoading = true
       const joined = this.isJoined
       try {
@@ -360,6 +380,10 @@ export default {
     },
     onEnterGroup() {
       if (!this.canEnterGroup) return
+      if (!isLoggedIn()) {
+        uni.navigateTo({ url: '/pages/login/login' })
+        return
+      }
       uni.navigateTo({
         url: `/pages/chat-detail/chat-detail?id=${this.activity.id}`,
       })

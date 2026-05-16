@@ -185,6 +185,7 @@ import {
   getNotifications,
   readAllNotifications,
   readNotification,
+  isLoggedIn,
 } from '@/api'
 
 function relativeTime(iso) {
@@ -280,6 +281,11 @@ export default {
     },
   },
   onShow() {
+    if (!isLoggedIn()) {
+      uni.setStorageSync('REDIRECT_URL', '/pages/messages/messages')
+      uni.redirectTo({ url: '/pages/login/login' })
+      return
+    }
     this.loadMessages()
   },
   methods: {
@@ -295,6 +301,11 @@ export default {
         this.privateChats = (dmData?.list || []).map(mapPrivateChat)
         this.systemNotifs = (notifData?.list || []).map(mapNotif)
       } catch (e) {
+        if (e.isAuthError) {
+          uni.setStorageSync('REDIRECT_URL', '/pages/messages/messages')
+          uni.redirectTo({ url: '/pages/login/login' })
+          return
+        }
         this.groupChats = []
         this.privateChats = []
         this.systemNotifs = []

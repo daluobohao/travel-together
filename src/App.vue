@@ -1,29 +1,13 @@
 <script>
-import { getAccessToken, setMockEnabled } from '@/api'
-
-const LOGIN_PATH = '/pages/login/login'
+import { setMockEnabled } from '@/api'
 
 export default {
   onLaunch() {
     setMockEnabled(false)
-    this.ensureLogin()
     console.log('WanderMeet App Launch')
   },
-  onShow() {
-    this.ensureLogin()
-  },
+  onShow() {},
   onHide() {},
-  methods: {
-    ensureLogin() {
-      const token = getAccessToken()
-      const pages = getCurrentPages()
-      const current = pages[pages.length - 1]
-      const currentPath = current ? `/${current.route}` : ''
-      if (!token && currentPath !== LOGIN_PATH) {
-        uni.reLaunch({ url: LOGIN_PATH })
-      }
-    },
-  },
 }
 </script>
 

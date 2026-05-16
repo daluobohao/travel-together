@@ -124,6 +124,7 @@ export default {
         { key: 'today', label: '今天' },
         { key: 'tomorrow', label: '明天' },
         { key: 'nearby', label: '距离优先' },
+        { key: 'all', label: '全部' },
       ],
       activities: [],
       userLocation: null,

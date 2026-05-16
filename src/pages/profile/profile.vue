@@ -1,7 +1,21 @@
 <template>
   <view class="page profile">
-    <!-- Hero -->
-    <view class="profile__hero">
+    <!-- Hero - Logged Out -->
+    <view v-if="!loggedIn" class="profile__hero profile__hero--guest">
+      <view class="profile__guest">
+        <view class="profile__guest-avatar">
+          <wm-icon name="user" :size="48" color="#94a3b8" />
+        </view>
+        <text class="profile__guest-title">欢迎来到旅聚</text>
+        <text class="profile__guest-desc">登录后可以报名活动、参与讨论</text>
+        <view class="profile__guest-btn" @click="onLogin">
+          <text>立即登录</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Hero - Logged In -->
+    <view v-else class="profile__hero">
       <view class="profile__user">
         <view class="profile__avatar">
           <text class="profile__avatar-text">{{ user.name.slice(0, 1) }}</text>
@@ -37,7 +51,7 @@
     </view>
 
     <!-- My activities -->
-    <view class="section">
+    <view v-if="loggedIn" class="section">
       <view class="section__head">
         <text class="section__title">我的活动</text>
         <text class="section__more" @click="onViewAllMyActivities">查看全部</text>
@@ -90,12 +104,13 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
-import { formatUserGenderLabel, getMe, getMyActivities, getMyStats, mapActivityCard } from '@/api'
+import { clearWmAuthTokens, formatUserGenderLabel, getMe, getMyActivities, getMyStats, isLoggedIn, mapActivityCard } from '@/api'
 
 export default {
   components: { WmIcon, WmTabBar },
   data() {
     return {
+      loggedIn: false,
       user: {
         name: '小林',
         bio: '数字游民 · 周末出行爱好者',
@@ -112,6 +127,7 @@ export default {
         { key: 'rules', icon: 'book', color: '#10b981', bg: '#ecfdf5', label: '社区规范' },
         { key: 'terms', icon: 'doc', color: '#0284c7', bg: '#e0f2fe', label: '用户服务协议' },
         { key: 'privacy', icon: 'shield', color: '#6366f1', bg: '#eef2ff', label: '隐私政策' },
+        { key: 'logout', icon: 'logOut', color: '#ef4444', bg: '#fef2f2', label: '退出登录' },
       ],
     }
   },
@@ -121,6 +137,9 @@ export default {
     },
   },
   methods: {
+    onLogin() {
+      uni.navigateTo({ url: '/pages/login/login' })
+    },
     onEdit() {
       uni.navigateTo({
         url: '/pages/profile-edit/profile-edit',
@@ -171,7 +190,31 @@ export default {
         })
         return
       }
+      if (m.key === 'logout') {
+        this.onLogout()
+        return
+      }
       uni.showToast({ title: m.label, icon: 'none' })
+    },
+    onLogout() {
+      uni.showModal({
+        title: '确认退出',
+        content: '确定要退出登录吗？',
+        confirmColor: '#ef4444',
+        success: (res) => {
+          if (res.confirm) {
+            this.doLogout()
+          }
+        },
+      })
+    },
+    doLogout() {
+      clearWmAuthTokens()
+      uni.removeStorageSync('user_profile')
+      uni.showToast({ title: '已退出登录', icon: 'success' })
+      setTimeout(() => {
+        uni.reLaunch({ url: '/pages/home/home' })
+      }, 800)
     },
     onViewAllMyActivities() {
       uni.navigateTo({
@@ -180,6 +223,10 @@ export default {
     },
   },
   async onShow() {
+    this.loggedIn = isLoggedIn()
+    if (!this.loggedIn) {
+      return
+    }
     try {
       const [me, stats, joined] = await Promise.all([
         getMe(),
@@ -228,6 +275,67 @@ export default {
   &__hero {
     background: linear-gradient(180deg, rgba(224, 242, 254, 0.95) 0%, rgba(204, 251, 241, 0.92) 100%);
     padding: calc(44rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 36rpx;
+
+    &--guest {
+      display: flex;
+      justify-content: center;
+      padding: calc(80rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 36rpx;
+    }
+  }
+
+  &__guest {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20rpx;
+    padding: 48rpx;
+    background: #ffffff;
+    border-radius: $wm-radius-xl;
+    border: $wm-card-edge;
+    box-shadow: $wm-shadow-lg;
+  }
+
+  &__guest-avatar {
+    width: 140rpx;
+    height: 140rpx;
+    border-radius: 50%;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
+  }
+
+  &__guest-title {
+    font-size: 36rpx;
+    font-weight: 800;
+    color: $wm-text-1;
+  }
+
+  &__guest-desc {
+    font-size: 26rpx;
+    color: $wm-text-3;
+    font-weight: 500;
+  }
+
+  &__guest-btn {
+    margin-top: 12rpx;
+    height: 92rpx;
+    padding: 0 64rpx;
+    border-radius: $wm-radius-xl;
+    background: $wm-gradient-primary;
+    color: #ffffff;
+    font-size: 30rpx;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: $wm-shadow-glow;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    &:active {
+      transform: scale(0.96);
+    }
   }
 
   &__user {
