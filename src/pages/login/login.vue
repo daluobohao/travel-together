@@ -28,7 +28,7 @@
           class="field__input"
           type="password"
           maxlength="64"
-          placeholder="至少 6 位"
+          placeholder="至少 8 位，需包含字母和数字"
           placeholder-class="field__placeholder"
           @input="onPasswordInput"
         />
@@ -127,7 +127,20 @@ import {
 } from '@/utils/wechatAuth'
 
 const EMAIL_REG = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const PASS_MIN_LEN = 6
+const PASS_MIN_LEN = 8
+
+function isValidPassword(value) {
+  const p = String(value || '')
+  if (p.length < PASS_MIN_LEN) return false
+  return /[a-zA-Z]/.test(p) && /\d/.test(p)
+}
+
+function passwordRuleHint(value) {
+  const p = String(value || '')
+  if (p.length < PASS_MIN_LEN) return `密码至少 ${PASS_MIN_LEN} 位`
+  if (!/[a-zA-Z]/.test(p) || !/\d/.test(p)) return '密码需同时包含字母和数字'
+  return ''
+}
 
 export default {
   data() {
@@ -155,7 +168,7 @@ export default {
     // #ifdef H5
     canSubmitEmail() {
       const emailOk = EMAIL_REG.test(String(this.form.email || '').trim())
-      const passOk = String(this.form.password || '').length >= PASS_MIN_LEN
+      const passOk = isValidPassword(this.form.password)
       const confirmOk =
         this.authMode !== 'register' ||
         String(this.form.confirmPassword || '') === String(this.form.password || '')
@@ -243,8 +256,9 @@ export default {
         this.emailError = '请输入正确的邮箱'
         return
       }
-      if (password.length < PASS_MIN_LEN) {
-        this.passwordError = `密码至少 ${PASS_MIN_LEN} 位`
+      const passHint = passwordRuleHint(password)
+      if (passHint) {
+        this.passwordError = passHint
         return
       }
       if (this.authMode === 'register' && password !== String(this.form.confirmPassword || '')) {
