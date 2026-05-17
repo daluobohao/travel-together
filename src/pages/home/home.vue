@@ -5,7 +5,7 @@
       <view class="home__header-main">
         <view class="home__brand">
           <text class="home__logo">旅聚</text>
-          <text class="home__subtitle">北京 · 今天就能找到人</text>
+          <text class="home__subtitle">{{ citySubtitle }}</text>
         </view>
       </view>
       <view class="home__chips">
@@ -112,8 +112,7 @@
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import { getActivities, getNearbyActivities, mapActivityCard } from '@/api'
-
-const BEIJING_FALLBACK_LOCATION = { lat: 39.90923, lng: 116.397428 }
+import { getCachedHomeCitySync, resolveHomeCityForActivities } from '@/utils/homeCity'
 
 export default {
   components: { WmIcon, WmTabBar },
@@ -124,56 +123,42 @@ export default {
         { key: 'today', label: '今天' },
         { key: 'tomorrow', label: '明天' },
         { key: 'nearby', label: '距离优先' },
-        { key: 'all', label: '全部' },
       ],
       activities: [],
-      userLocation: null,
+      homeCity: null,
       loading: false,
     }
   },
+  computed: {
+    citySubtitle() {
+      const name = (this.homeCity?.cityName && String(this.homeCity.cityName).trim()) || '定位中'
+      return `${name} · 今天就能找到人`
+    },
+  },
   onShow() {
+    const cached = getCachedHomeCitySync()
+    if (cached) this.homeCity = cached
     this.loadActivities()
   },
   methods: {
-    ensureCachedLocation() {
-      const fromStorage = uni.getStorageSync('HOME_USER_LOCATION')
-      if (fromStorage?.lat && fromStorage?.lng) {
-        this.userLocation = { lat: Number(fromStorage.lat), lng: Number(fromStorage.lng) }
-      }
-    },
-    getCurrentLocation() {
-      return new Promise((resolve, reject) => {
-        uni.getLocation({
-          type: 'wgs84',
-          success: (res) => {
-            resolve({
-              lat: Number(res.latitude),
-              lng: Number(res.longitude),
-            })
-          },
-          fail: reject,
-        })
-      })
+    async ensureHomeCity() {
+      if (this.homeCity?.cityCode) return this.homeCity
+      const ctx = await resolveHomeCityForActivities()
+      this.homeCity = ctx
+      return ctx
     },
     async loadActivities() {
       this.loading = true
       this.activities = []
       try {
+        const cityCtx = await this.ensureHomeCity()
+        const cityCode = cityCtx.cityCode
         if (this.activeChip === 'nearby') {
-          this.ensureCachedLocation()
-          if (!this.userLocation) {
-            try {
-              this.userLocation = await this.getCurrentLocation()
-              uni.setStorageSync('HOME_USER_LOCATION', this.userLocation)
-            } catch (e) {
-              this.userLocation = BEIJING_FALLBACK_LOCATION
-            }
-          }
           const data = await getNearbyActivities({
-            lat: this.userLocation.lat,
-            lng: this.userLocation.lng,
+            lat: cityCtx.lat,
+            lng: cityCtx.lng,
             radiusKm: 5,
-            cityCode: '110000',
+            cityCode,
             dateRange: 'all',
             sortBy: 'distance',
             page: 1,
@@ -185,7 +170,7 @@ export default {
         const dateRange =
           this.activeChip === 'today' ? 'today' : this.activeChip === 'tomorrow' ? 'tomorrow' : 'all'
         const data = await getActivities({
-          cityCode: '110000',
+          cityCode,
           dateRange,
           page: 1,
           pageSize: 20,
