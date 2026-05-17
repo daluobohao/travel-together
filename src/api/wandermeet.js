@@ -162,6 +162,49 @@ export const loginBySms = (payload) =>
     },
   })
 
+export const bindPhoneWechat = (payload) =>
+  wmRequest({
+    method: 'POST',
+    path: '/me/phone/bind-wechat',
+    data: payload,
+    needAuth: true,
+    mockHandler: ({ data }) => {
+      const phone = '13800138000'
+      wmDB.profile.phoneBound = true
+      wmDB.profile.phoneMasked = '138****8000'
+      const out = {
+        phoneMasked: wmDB.profile.phoneMasked,
+        phoneBound: true,
+        merged: false,
+      }
+      if (data?.phoneCode === 'merge') {
+        out.merged = true
+        out.accessToken = 'wm_at_mock_merged'
+        out.expiresIn = 7200
+        out.refreshToken = 'wm_rt_mock_merged'
+        out.user = { ...wmDB.profile }
+      }
+      return ok(out)
+    },
+  })
+
+export const bindPhoneSms = (payload) =>
+  wmRequest({
+    method: 'POST',
+    path: '/me/phone/bind-sms',
+    data: payload,
+    needAuth: true,
+    mockHandler: () => {
+      wmDB.profile.phoneBound = true
+      wmDB.profile.phoneMasked = '138****8000'
+      return ok({
+        phoneMasked: wmDB.profile.phoneMasked,
+        phoneBound: true,
+        merged: false,
+      })
+    },
+  })
+
 // 2.5 微信小程序登录（wx.login 的 code → 与短信登录相同 token 结构）
 export const loginByWechat = (payload) =>
   wmRequest({

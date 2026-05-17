@@ -4,6 +4,7 @@ export const wmDB = {
   profile: {
     userId: 'u_10001',
     phoneMasked: '138****8000',
+    phoneBound: true,
     nickname: '小林',
     avatarUrl: null,
     gender: null,

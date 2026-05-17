@@ -168,6 +168,13 @@
 			}
 		},
 		{
+			"path": "pages/bind-phone/bind-phone",
+			"style": {
+				"navigationBarTitleText": "绑定手机号",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/login/login",
 			"style": {
 				"navigationBarTitleText": "手机号登录",

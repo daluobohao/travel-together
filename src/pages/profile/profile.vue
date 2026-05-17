@@ -1,21 +1,7 @@
 <template>
   <view class="page profile">
-    <!-- Hero - Logged Out -->
-    <view v-if="!loggedIn" class="profile__hero profile__hero--guest">
-      <view class="profile__guest">
-        <view class="profile__guest-avatar">
-          <wm-icon name="user" :size="48" color="#94a3b8" />
-        </view>
-        <text class="profile__guest-title">欢迎来到旅聚</text>
-        <text class="profile__guest-desc">登录后可以报名活动、参与讨论</text>
-        <view class="profile__guest-btn" @click="onLogin">
-          <text>立即登录</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- Hero - Logged In -->
-    <view v-else class="profile__hero">
+    <!-- Hero -->
+    <view class="profile__hero">
       <view class="profile__user">
         <view class="profile__avatar">
           <text class="profile__avatar-text">{{ user.name.slice(0, 1) }}</text>
@@ -29,6 +15,7 @@
             </view>
           </view>
           <text class="profile__bio">{{ user.bio }}</text>
+          <text v-if="user.phoneBound && user.phoneMasked" class="profile__phone">{{ user.phoneMasked }}</text>
           <text v-if="genderDisplay" class="profile__gender">{{ genderDisplay }}</text>
         </view>
         <text class="profile__edit" @click="onEdit">编辑</text>
@@ -51,7 +38,7 @@
     </view>
 
     <!-- My activities -->
-    <view v-if="loggedIn" class="section">
+    <view class="section">
       <view class="section__head">
         <text class="section__title">我的活动</text>
         <text class="section__more" @click="onViewAllMyActivities">查看全部</text>
@@ -104,17 +91,18 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
-import { clearWmAuthTokens, formatUserGenderLabel, getMe, getMyActivities, getMyStats, isLoggedIn, mapActivityCard } from '@/api'
+import { formatUserGenderLabel, getMe, getMyActivities, getMyStats, mapActivityCard } from '@/api'
 
 export default {
   components: { WmIcon, WmTabBar },
   data() {
     return {
-      loggedIn: false,
       user: {
         name: '小林',
         bio: '数字游民 · 周末出行爱好者',
         gender: null,
+        phoneMasked: '',
+        phoneBound: false,
       },
       stats: [
         { value: 12, label: '参加活动' },
@@ -122,12 +110,12 @@ export default {
       ],
       activities: [],
       menus: [
+        { key: 'bindPhone', icon: 'bell', color: '#0284c7', bg: '#e0f2fe', label: '绑定手机号', hint: '' },
         { key: 'history', icon: 'history', color: '#0ea5e9', bg: '#e0f2fe', label: '历史活动' },
         { key: 'feedback', icon: 'message', color: '#f59e0b', bg: '#fffbeb', label: '意见与建议' },
         { key: 'rules', icon: 'book', color: '#10b981', bg: '#ecfdf5', label: '社区规范' },
         { key: 'terms', icon: 'doc', color: '#0284c7', bg: '#e0f2fe', label: '用户服务协议' },
         { key: 'privacy', icon: 'shield', color: '#6366f1', bg: '#eef2ff', label: '隐私政策' },
-        { key: 'logout', icon: 'logOut', color: '#ef4444', bg: '#fef2f2', label: '退出登录' },
       ],
     }
   },
@@ -137,9 +125,6 @@ export default {
     },
   },
   methods: {
-    onLogin() {
-      uni.navigateTo({ url: '/pages/login/login' })
-    },
     onEdit() {
       uni.navigateTo({
         url: '/pages/profile-edit/profile-edit',
@@ -160,6 +145,10 @@ export default {
       }
     },
     onMenu(m) {
+      if (m.key === 'bindPhone') {
+        uni.navigateTo({ url: '/pages/bind-phone/bind-phone' })
+        return
+      }
       if (m.key === 'history') {
         uni.navigateTo({
           url: '/pages/history-activity-list/history-activity-list',
@@ -190,31 +179,7 @@ export default {
         })
         return
       }
-      if (m.key === 'logout') {
-        this.onLogout()
-        return
-      }
       uni.showToast({ title: m.label, icon: 'none' })
-    },
-    onLogout() {
-      uni.showModal({
-        title: '确认退出',
-        content: '确定要退出登录吗？',
-        confirmColor: '#ef4444',
-        success: (res) => {
-          if (res.confirm) {
-            this.doLogout()
-          }
-        },
-      })
-    },
-    doLogout() {
-      clearWmAuthTokens()
-      uni.removeStorageSync('user_profile')
-      uni.showToast({ title: '已退出登录', icon: 'success' })
-      setTimeout(() => {
-        uni.reLaunch({ url: '/pages/home/home' })
-      }, 800)
     },
     onViewAllMyActivities() {
       uni.navigateTo({
@@ -223,10 +188,6 @@ export default {
     },
   },
   async onShow() {
-    this.loggedIn = isLoggedIn()
-    if (!this.loggedIn) {
-      return
-    }
     try {
       const [me, stats, joined] = await Promise.all([
         getMe(),
@@ -238,6 +199,13 @@ export default {
         name: me.nickname || this.user.name,
         bio: me.bio || this.user.bio,
         gender: me.gender != null ? me.gender : this.user.gender,
+        phoneMasked: me.phoneMasked || '',
+        phoneBound: !!me.phoneBound,
+      }
+      const bindMenu = this.menus.find((m) => m.key === 'bindPhone')
+      if (bindMenu) {
+        bindMenu.hint = me.phoneBound ? '已绑定' : '未绑定'
+        bindMenu.label = me.phoneBound ? '手机号' : '绑定手机号'
       }
       this.stats = [
         { value: stats?.joinedCount ?? 0, label: '参加活动' },
@@ -275,67 +243,6 @@ export default {
   &__hero {
     background: linear-gradient(180deg, rgba(224, 242, 254, 0.95) 0%, rgba(204, 251, 241, 0.92) 100%);
     padding: calc(44rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 36rpx;
-
-    &--guest {
-      display: flex;
-      justify-content: center;
-      padding: calc(80rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 32rpx 36rpx;
-    }
-  }
-
-  &__guest {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20rpx;
-    padding: 48rpx;
-    background: #ffffff;
-    border-radius: $wm-radius-xl;
-    border: $wm-card-edge;
-    box-shadow: $wm-shadow-lg;
-  }
-
-  &__guest-avatar {
-    width: 140rpx;
-    height: 140rpx;
-    border-radius: 50%;
-    background: #f1f5f9;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
-  }
-
-  &__guest-title {
-    font-size: 36rpx;
-    font-weight: 800;
-    color: $wm-text-1;
-  }
-
-  &__guest-desc {
-    font-size: 26rpx;
-    color: $wm-text-3;
-    font-weight: 500;
-  }
-
-  &__guest-btn {
-    margin-top: 12rpx;
-    height: 92rpx;
-    padding: 0 64rpx;
-    border-radius: $wm-radius-xl;
-    background: $wm-gradient-primary;
-    color: #ffffff;
-    font-size: 30rpx;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: $wm-shadow-glow;
-    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-
-    &:active {
-      transform: scale(0.96);
-    }
   }
 
   &__user {
@@ -416,6 +323,12 @@ export default {
   &__bio {
     font-size: 26rpx;
     color: $wm-text-2;
+    font-weight: 500;
+  }
+
+  &__phone {
+    font-size: 24rpx;
+    color: $wm-text-3;
     font-weight: 500;
   }
 
