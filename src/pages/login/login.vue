@@ -1,10 +1,28 @@
 <template>
   <view class="page login">
+    <view class="login__nav">
+      <view class="login__close" @click="onClose">
+        <text class="login__close-icon">×</text>
+      </view>
+    </view>
     <view class="login__header">
-      <text class="login__title">手机号登录</text>
+      <text class="login__title">{{ isWechatMiniProgram ? '微信登录' : '手机号登录' }}</text>
       <text class="login__subtitle">登录后即可查看活动并发布组局</text>
     </view>
 
+    <!-- #ifdef MP-WEIXIN -->
+    <view class="login__wechat">
+      <button class="login__wechat-btn" @click="onWechatLogin" :disabled="wechatLoginLoading">
+        <view v-if="wechatLoginLoading" class="btn-spinner btn-spinner--white"></view>
+        <text v-else>微信一键登录</text>
+      </button>
+      <view class="login__cancel" @click="onClose">
+        <text class="login__cancel-text">取消</text>
+      </view>
+    </view>
+    <!-- #endif -->
+
+    <!-- #ifndef MP-WEIXIN -->
     <view class="login__form">
       <view class="field" :class="{ 'field--error': phoneError }">
         <text class="field__label">手机号</text>
@@ -44,37 +62,38 @@
 
       <text v-if="hintSmsFirst" class="login__hint">请先点击「发送验证码」，成功后再登录</text>
 
-      <view class="login__agree">
-        <checkbox-group @change="onAgreeChange">
-          <label class="login__agree-label">
-            <checkbox value="agree" :checked="agreeTerms" color="#0d9488" />
-            <view class="login__agree-text">
-              <text class="login__agree-plain">我已阅读并同意</text>
-              <text class="login__agree-link" @click.stop.prevent="openUserAgreement">《用户服务协议》</text>
-              <text class="login__agree-plain">与</text>
-              <text class="login__agree-link" @click.stop.prevent="openPrivacyPolicy">《隐私政策》</text>
-            </view>
-          </label>
-        </checkbox-group>
+      <view class="login__action">
+        <view 
+          class="login__btn" 
+          :class="{ 'login__btn--loading': loading, 'login__btn--disabled': !canSubmit }" 
+          :hover-class="canSubmit && !loading ? 'login__btn--hover' : ''"
+          @click="onLogin"
+        >
+          <view v-if="loading" class="btn-spinner"></view>
+          <text v-else>{{ loading ? '登录中...' : '登录' }}</text>
+        </view>
       </view>
     </view>
+    <!-- #endif -->
 
-    <view class="login__action">
-      <view 
-        class="login__btn" 
-        :class="{ 'login__btn--loading': loading, 'login__btn--disabled': !canSubmit }" 
-        :hover-class="canSubmit && !loading ? 'login__btn--hover' : ''"
-        @click="onLogin"
-      >
-        <view v-if="loading" class="btn-spinner"></view>
-        <text v-else>{{ loading ? '登录中...' : '登录' }}</text>
-      </view>
+    <view class="login__agree">
+      <checkbox-group @change="onAgreeChange">
+        <label class="login__agree-label">
+          <checkbox value="agree" :checked="agreeTerms" color="#0d9488" />
+          <view class="login__agree-text">
+            <text class="login__agree-plain">我已阅读并同意</text>
+            <text class="login__agree-link" @click.stop.prevent="openUserAgreement">《用户服务协议》</text>
+            <text class="login__agree-plain">与</text>
+            <text class="login__agree-link" @click.stop.prevent="openPrivacyPolicy">《隐私政策》</text>
+          </view>
+        </label>
+      </checkbox-group>
     </view>
   </view>
 </template>
 
 <script>
-import { loginBySms, sendSmsCode, setAccessToken, setRefreshToken } from '@/api'
+import { loginBySms, loginByWechat, sendSmsCode, setAccessToken, setRefreshToken } from '@/api'
 import { buildDefaultTimelineShare, DEFAULT_MINI_PROGRAM_SHARE } from '@/utils/activityShare'
 
 const PHONE_REG = /^1\d{10}$/
@@ -91,6 +110,7 @@ export default {
       countdown: 0,
       timer: null,
       loading: false,
+      wechatLoginLoading: false,
       /** 当前手机号是否已成功走通一次发码（避免未写入 Redis 就点登录导致 400） */
       smsSentOk: false,
       sendingSms: false,
@@ -105,6 +125,14 @@ export default {
     }
   },
   computed: {
+    isWechatMiniProgram() {
+      // #ifdef MP-WEIXIN
+      return true
+      // #endif
+      // #ifndef MP-WEIXIN
+      return false
+      // #endif
+    },
     smsDisabled() {
       return (
         this.countdown > 0 ||
@@ -159,6 +187,59 @@ export default {
     onAgreeChange(e) {
       const v = e?.detail?.value || []
       this.agreeTerms = Array.isArray(v) && v.indexOf('agree') !== -1
+    },
+    onClose() {
+      uni.reLaunch({ url: '/pages/home/home' })
+    },
+    async onWechatLogin() {
+      if (!this.agreeTerms) {
+        uni.showToast({ title: '请先阅读并勾选同意协议与隐私政策', icon: 'none' })
+        return
+      }
+      if (this.wechatLoginLoading) return
+      this.wechatLoginLoading = true
+      try {
+        // #ifdef MP-WEIXIN
+        const [loginErr, loginRes] = await uni.login()
+        if (loginErr || !loginRes?.code) {
+          throw new Error('获取微信登录凭证失败')
+        }
+        const code = loginRes.code
+        // #endif
+        // #ifndef MP-WEIXIN
+        const code = 'mock_h5_code'
+        // #endif
+        
+        const data = await loginByWechat({ code })
+        const oc = data?.user?.onboardingCompletedAt
+        const needGender =
+          data?.user != null && (data.user.gender === null || data.user.gender === undefined)
+        uni.showToast({ title: '登录成功', icon: 'success' })
+        setTimeout(() => {
+          if (!oc) {
+            uni.reLaunch({ url: '/pages/onboarding/onboarding' })
+          } else if (needGender) {
+            uni.reLaunch({ url: '/pages/profile-edit/profile-edit?first=1' })
+          } else {
+            const redirectUrl = uni.getStorageSync('REDIRECT_URL')
+            uni.removeStorageSync('REDIRECT_URL')
+            if (redirectUrl) {
+              uni.redirectTo({ url: redirectUrl })
+            } else {
+              uni.navigateBack({
+                delta: 1,
+                fail: () => {
+                  uni.reLaunch({ url: '/pages/home/home' })
+                },
+              })
+            }
+          }
+        }, 400)
+      } catch (e) {
+        uni.showToast({ title: e?.message || '登录失败', icon: 'none' })
+      } finally {
+        this.wechatLoginLoading = false
+      }
     },
     openUserAgreement() {
       uni.navigateTo({ url: '/pages/user-agreement/user-agreement' })
@@ -282,8 +363,35 @@ export default {
 <style lang="scss" scoped>
 .login {
   min-height: 100vh;
-  padding: calc(60rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 36rpx 40rpx;
+  padding: calc(20rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 36rpx 40rpx;
   background: transparent;
+
+  &__nav {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 20rpx;
+  }
+
+  &__close {
+    width: 60rpx;
+    height: 60rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.05);
+    transition: background 0.2s;
+
+    &:active {
+      background: rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  &__close-icon {
+    font-size: 40rpx;
+    color: #666;
+    line-height: 1;
+  }
 
   &__header {
     margin-bottom: 48rpx;
@@ -540,5 +648,54 @@ export default {
   40% { transform: translateX(10rpx); }
   60% { transform: translateX(-10rpx); }
   80% { transform: translateX(10rpx); }
+}
+
+.login__wechat {
+  margin-top: 40rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.login__wechat-btn {
+  height: 100rpx;
+  border-radius: $wm-radius-xl;
+  background: linear-gradient(135deg, #07c160 0%, #06ad56 100%);
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  box-shadow: 0 8rpx 24rpx rgba(7, 193, 96, 0.35);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s, opacity 0.2s;
+  border: none;
+
+  &:active {
+    transform: scale(0.98);
+    box-shadow: 0 4rpx 12rpx rgba(7, 193, 96, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+  }
+}
+
+.btn-spinner--white {
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+}
+
+.login__cancel {
+  display: flex;
+  justify-content: center;
+  padding: 20rpx 0;
+}
+
+.login__cancel-text {
+  font-size: 28rpx;
+  color: #666;
+  font-weight: 500;
 }
 </style>

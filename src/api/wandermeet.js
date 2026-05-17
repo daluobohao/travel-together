@@ -162,6 +162,48 @@ export const loginBySms = (payload) =>
     },
   })
 
+// 2.5 微信小程序登录
+export const loginByWechat = (payload) =>
+  wmRequest({
+    method: 'POST',
+    path: '/api/login/wechat',
+    data: payload,
+    needAuth: false,
+    mockHandler: ({ data }) => {
+      const openid = data?.code || `mock_openid_${Date.now()}`
+      let user = Object.values(wmDB.users).find((u) => u.openid === openid)
+      if (!user) {
+        const userId = `u_${Date.now()}`
+        user = {
+          userId,
+          openid,
+          nickname: '微信用户',
+          avatarUrl: null,
+          gender: null,
+          status: 'active',
+          onboardingCompletedAt: null,
+        }
+        wmDB.users[userId] = user
+      }
+      const result = {
+        accessToken: `wm_at_${openid}`,
+        expiresIn: 7200,
+        refreshToken: `wm_rt_${openid}`,
+        user: {
+          userId: user.userId,
+          nickname: user.nickname,
+          avatarUrl: user.avatarUrl,
+          gender: user.gender,
+          status: user.status,
+          onboardingCompletedAt: user.onboardingCompletedAt,
+        },
+      }
+      setAccessToken(result.accessToken)
+      setRefreshToken(result.refreshToken)
+      return ok(result)
+    },
+  })
+
 // 3
 export const refreshToken = (payload) =>
   wmRequest({
