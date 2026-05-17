@@ -15,6 +15,8 @@ dist
 # uni-app / HBuilderX 编译产物（小程序 dist、release/apk/*.apk 等，勿提交）
 src/unpackage/
 unpackage/
+# HBuilderX 本地运行配置（各开发者机器不同）
+src/.hbuilderx/
 *.apk
 *.aab
 *.ipa
