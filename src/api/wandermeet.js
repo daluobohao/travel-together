@@ -135,6 +135,25 @@ export const sendSmsCode = (payload) =>
     mockHandler: () => ok({ expireInSeconds: 300 }),
   })
 
+function mockAuthLoginData(tokenSuffix = 'mock') {
+  const data = {
+    accessToken: `wm_at_${tokenSuffix}`,
+    expiresIn: 7200,
+    refreshToken: `wm_rt_${tokenSuffix}`,
+    user: {
+      userId: wmDB.profile.userId,
+      nickname: wmDB.profile.nickname,
+      avatarUrl: wmDB.profile.avatarUrl,
+      gender: wmDB.profile.gender,
+      status: wmDB.profile.status,
+      onboardingCompletedAt: wmDB.profile.onboardingCompletedAt,
+    },
+  }
+  setAccessToken(data.accessToken)
+  setRefreshToken(data.refreshToken)
+  return ok(data)
+}
+
 // 2
 export const loginBySms = (payload) =>
   wmRequest({
@@ -142,24 +161,32 @@ export const loginBySms = (payload) =>
     path: '/auth/sms/login',
     data: payload,
     needAuth: false,
-    mockHandler: () => {
-      const data = {
-        accessToken: 'wm_at_mock',
-        expiresIn: 7200,
-        refreshToken: 'wm_rt_mock',
-        user: {
-          userId: wmDB.profile.userId,
-          nickname: wmDB.profile.nickname,
-          avatarUrl: wmDB.profile.avatarUrl,
-          gender: wmDB.profile.gender,
-          status: wmDB.profile.status,
-          onboardingCompletedAt: wmDB.profile.onboardingCompletedAt,
-        },
-      }
-      setAccessToken(data.accessToken)
-      setRefreshToken(data.refreshToken)
-      return ok(data)
+    mockHandler: () => mockAuthLoginData('mock'),
+  })
+
+// 2.1 H5 邮箱注册
+export const registerByEmail = (payload) =>
+  wmRequest({
+    method: 'POST',
+    path: '/auth/email/register',
+    data: payload,
+    needAuth: false,
+    mockHandler: ({ data }) => {
+      const email = (data && data.email) || 'user@example.com'
+      const local = String(email).split('@')[0] || '旅人'
+      wmDB.profile.nickname = wmDB.profile.nickname || local
+      return mockAuthLoginData(`email_reg_${Date.now()}`)
     },
+  })
+
+// 2.2 H5 邮箱登录
+export const loginByEmail = (payload) =>
+  wmRequest({
+    method: 'POST',
+    path: '/auth/email/login',
+    data: payload,
+    needAuth: false,
+    mockHandler: () => mockAuthLoginData('email_login'),
   })
 
 export const bindPhoneWechat = (payload) =>

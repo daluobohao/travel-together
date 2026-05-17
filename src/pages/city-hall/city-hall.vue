@@ -63,7 +63,13 @@
 </template>
 
 <script>
-import { getCityGroupsMeta, getCityHallCatalog, getCityHallLookup, joinCityHall } from '@/api'
+import {
+  getCityGroupsMeta,
+  getCityHallCatalog,
+  getCityHallLookup,
+  isLoggedIn,
+  joinCityHall,
+} from '@/api'
 
 export default {
   data() {
@@ -170,6 +176,14 @@ export default {
     },
     onJoin() {
       if (this.joined) return
+      if (!isLoggedIn()) {
+        const q = [`cityCode=${encodeURIComponent(this.cityCode)}`]
+        const label = (this.cityLabel && String(this.cityLabel).trim()) || ''
+        if (label) q.push(`cityLabel=${encodeURIComponent(label)}`)
+        uni.setStorageSync('REDIRECT_URL', `/pages/city-hall/city-hall?${q.join('&')}`)
+        uni.navigateTo({ url: '/pages/login/login' })
+        return
+      }
       const name = (this.cityLabel && String(this.cityLabel).trim()) || this.cityCode || '该城市'
       uni.showModal({
         title: '加入城市大群',

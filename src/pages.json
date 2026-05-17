@@ -177,7 +177,7 @@
 		{
 			"path": "pages/login/login",
 			"style": {
-				"navigationBarTitleText": "手机号登录",
+				"navigationBarTitleText": "登录",
 				"navigationStyle": "custom",
 				"enableShareAppMessage": true,
 				"enableShareTimeline": true
