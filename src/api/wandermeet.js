@@ -162,45 +162,32 @@ export const loginBySms = (payload) =>
     },
   })
 
-// 2.5 微信小程序登录
+// 2.5 微信小程序登录（wx.login 的 code → 与短信登录相同 token 结构）
 export const loginByWechat = (payload) =>
   wmRequest({
     method: 'POST',
-    path: '/api/login/wechat',
+    path: '/auth/wechat/login',
     data: payload,
     needAuth: false,
     mockHandler: ({ data }) => {
-      const openid = data?.code || `mock_openid_${Date.now()}`
-      let user = Object.values(wmDB.users).find((u) => u.openid === openid)
-      if (!user) {
-        const userId = `u_${Date.now()}`
-        user = {
-          userId,
-          openid,
-          nickname: '微信用户',
-          avatarUrl: null,
-          gender: null,
-          status: 'active',
-          onboardingCompletedAt: null,
-        }
-        wmDB.users[userId] = user
-      }
-      const result = {
-        accessToken: `wm_at_${openid}`,
+      const code = (data && data.code) || 'mock_wx_code'
+      const openidKey = `mock_${String(code).slice(0, 24)}`
+      const dataOut = {
+        accessToken: `wm_at_${openidKey}`,
         expiresIn: 7200,
-        refreshToken: `wm_rt_${openid}`,
+        refreshToken: `wm_rt_${openidKey}`,
         user: {
-          userId: user.userId,
-          nickname: user.nickname,
-          avatarUrl: user.avatarUrl,
-          gender: user.gender,
-          status: user.status,
-          onboardingCompletedAt: user.onboardingCompletedAt,
+          userId: wmDB.profile.userId,
+          nickname: wmDB.profile.nickname || '微信用户',
+          avatarUrl: wmDB.profile.avatarUrl,
+          gender: wmDB.profile.gender,
+          status: wmDB.profile.status || 'active',
+          onboardingCompletedAt: wmDB.profile.onboardingCompletedAt,
         },
       }
-      setAccessToken(result.accessToken)
-      setRefreshToken(result.refreshToken)
-      return ok(result)
+      setAccessToken(dataOut.accessToken)
+      setRefreshToken(dataOut.refreshToken)
+      return ok(dataOut)
     },
   })
 

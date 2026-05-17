@@ -1,10 +1,14 @@
 <script>
 import { setMockEnabled } from '@/api'
+import { trySilentWechatLogin } from '@/utils/wechatAuth'
 
 export default {
   onLaunch() {
     setMockEnabled(false)
     console.log('WanderMeet App Launch')
+    // #ifdef MP-WEIXIN
+    trySilentWechatLogin()
+    // #endif
   },
   onShow() {},
   onHide() {},
