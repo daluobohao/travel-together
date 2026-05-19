@@ -15,7 +15,8 @@
             </view>
           </view>
           <text class="profile__bio">{{ user.bio }}</text>
-          <text v-if="user.phoneBound && user.phoneMasked" class="profile__phone">{{ user.phoneMasked }}</text>
+          <text v-if="user.phoneBound && user.phoneMasked" class="profile__contact">{{ user.phoneMasked }}</text>
+          <text v-if="user.emailBound && user.emailMasked" class="profile__contact">{{ user.emailMasked }}</text>
           <text v-if="genderDisplay" class="profile__gender">{{ genderDisplay }}</text>
         </view>
         <text class="profile__edit" @click="onEdit">编辑</text>
@@ -84,16 +85,6 @@
       </view>
     </view>
 
-    <view v-if="loggedIn" class="profile__logout-wrap">
-      <view
-        class="profile__logout"
-        :class="{ 'profile__logout--loading': loggingOut }"
-        @click="onLogout"
-      >
-        <text>{{ loggingOut ? '退出中…' : '退出登录' }}</text>
-      </view>
-    </view>
-
     <wm-tab-bar active="profile" />
   </view>
 </template>
@@ -101,24 +92,7 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
-import {
-  formatUserGenderLabel,
-  getMe,
-  getMyActivities,
-  getMyStats,
-  isLoggedIn as checkLoggedIn,
-  logout,
-  mapActivityCard,
-} from '@/api'
-import { clearSkipSilentLogin, trySilentWechatLogin } from '@/utils/wechatAuth'
-
-const GUEST_USER = {
-  name: '游客',
-  bio: '登录后查看完整资料',
-  gender: null,
-  phoneMasked: '',
-  phoneBound: false,
-}
+import { formatUserGenderLabel, getMe, getMyActivities, getMyStats, mapActivityCard } from '@/api'
 
 export default {
   components: { WmIcon, WmTabBar },
@@ -130,13 +104,14 @@ export default {
         gender: null,
         phoneMasked: '',
         phoneBound: false,
+        emailMasked: '',
+        emailBound: false,
       },
       stats: [
         { value: 12, label: '参加活动' },
         { value: 5, label: '发起活动' },
       ],
       activities: [],
-      loggingOut: false,
       menus: [
         { key: 'bindPhone', icon: 'bell', color: '#0284c7', bg: '#e0f2fe', label: '绑定手机号', hint: '' },
         { key: 'history', icon: 'history', color: '#0ea5e9', bg: '#e0f2fe', label: '历史活动' },
@@ -148,27 +123,11 @@ export default {
     }
   },
   computed: {
-    loggedIn() {
-      return checkLoggedIn()
-    },
     genderDisplay() {
       return formatUserGenderLabel(this.user.gender)
     },
   },
   methods: {
-    resetGuestState() {
-      this.user = { ...GUEST_USER }
-      this.stats = [
-        { value: 0, label: '参加活动' },
-        { value: 0, label: '发起活动' },
-      ]
-      this.activities = []
-      const bindMenu = this.menus.find((m) => m.key === 'bindPhone')
-      if (bindMenu) {
-        bindMenu.hint = ''
-        bindMenu.label = '绑定手机号'
-      }
-    },
     onEdit() {
       uni.navigateTo({
         url: '/pages/profile-edit/profile-edit',
@@ -230,85 +189,53 @@ export default {
         url: '/pages/my-activity-list/my-activity-list',
       })
     },
-    onLogout() {
-      if (this.loggingOut) return
-      uni.showModal({
-        title: '退出登录',
-        content: '确定要退出当前账号吗？',
-        confirmText: '退出',
-        confirmColor: '#ef4444',
-        success: async (res) => {
-          if (!res.confirm) return
-          this.loggingOut = true
-          try {
-            await logout()
-            clearSkipSilentLogin()
-            uni.removeStorageSync('user_profile')
-            uni.reLaunch({ url: '/pages/login/login' })
-          } catch (e) {
-            uni.showToast({ title: e?.message || '退出失败', icon: 'none' })
-          } finally {
-            this.loggingOut = false
-          }
-        },
+  },
+  async onShow() {
+    try {
+      const [me, stats, joined] = await Promise.all([
+        getMe(),
+        getMyStats(),
+        getMyActivities({ role: 'joined', page: 1, pageSize: 2 }),
+      ])
+      this.user = {
+        ...this.user,
+        name: me.nickname || this.user.name,
+        bio: me.bio || this.user.bio,
+        gender: me.gender != null ? me.gender : this.user.gender,
+        phoneMasked: me.phoneMasked || '',
+        phoneBound: !!me.phoneBound,
+        emailMasked: me.emailMasked || '',
+        emailBound: !!me.emailBound,
+      }
+      const bindMenu = this.menus.find((m) => m.key === 'bindPhone')
+      if (bindMenu) {
+        bindMenu.hint = me.phoneBound ? '已绑定' : '未绑定'
+        bindMenu.label = me.phoneBound ? '手机号' : '绑定手机号'
+      }
+      this.stats = [
+        { value: stats?.joinedCount ?? 0, label: '参加活动' },
+        { value: stats?.organizedCount ?? 0, label: '发起活动' },
+      ]
+      this.activities = (joined?.list || []).slice(0, 2).map((item) => {
+        const card = mapActivityCard(item)
+        return {
+          id: String(card.activityId || ''),
+          activityKind: card.activityKind || 'event',
+          title: card.title,
+          time: card.time,
+          joined: card.joined,
+          status: { key: 'enrolled', label: '已报名' },
+        }
       })
-    },
-    async loadProfileData() {
-      try {
-        const [me, stats, joined] = await Promise.all([
-          getMe(),
-          getMyStats(),
-          getMyActivities({ role: 'joined', page: 1, pageSize: 2 }),
-        ])
+    } catch (e) {
+      const profile = uni.getStorageSync('user_profile')
+      if (profile && typeof profile === 'object') {
         this.user = {
           ...this.user,
-          name: me.nickname || this.user.name,
-          bio: me.bio || this.user.bio,
-          gender: me.gender != null ? me.gender : this.user.gender,
-          phoneMasked: me.phoneMasked || '',
-          phoneBound: !!me.phoneBound,
-        }
-        const bindMenu = this.menus.find((m) => m.key === 'bindPhone')
-        if (bindMenu) {
-          bindMenu.hint = me.phoneBound ? '已绑定' : '未绑定'
-          bindMenu.label = me.phoneBound ? '手机号' : '绑定手机号'
-        }
-        this.stats = [
-          { value: stats?.joinedCount ?? 0, label: '参加活动' },
-          { value: stats?.organizedCount ?? 0, label: '发起活动' },
-        ]
-        this.activities = (joined?.list || []).slice(0, 2).map((item) => {
-          const card = mapActivityCard(item)
-          return {
-            id: String(card.activityId || ''),
-            activityKind: card.activityKind || 'event',
-            title: card.title,
-            time: card.time,
-            joined: card.joined,
-            status: { key: 'enrolled', label: '已报名' },
-          }
-        })
-      } catch (e) {
-        const profile = uni.getStorageSync('user_profile')
-        if (profile && typeof profile === 'object') {
-          this.user = {
-            ...this.user,
-            ...profile,
-          }
+          ...profile,
         }
       }
-    },
-  },
-  onShow() {
-    if (checkLoggedIn()) {
-      this.loadProfileData()
-      return
     }
-    this.resetGuestState()
-    // 不阻塞页面：与 App.onLaunch 共用去重后的静默登录，成功后再刷新资料
-    trySilentWechatLogin().then((ok) => {
-      if (ok && checkLoggedIn()) this.loadProfileData()
-    })
   },
 }
 </script>
@@ -404,7 +331,7 @@ export default {
     font-weight: 500;
   }
 
-  &__phone {
+  &__contact {
     font-size: 24rpx;
     color: $wm-text-3;
     font-weight: 500;
@@ -647,36 +574,6 @@ export default {
     font-size: 24rpx;
     color: $wm-text-3;
     font-weight: 500;
-  }
-}
-
-.profile__logout-wrap {
-  margin: 28rpx 32rpx 0;
-  padding-bottom: 24rpx;
-}
-
-.profile__logout {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 96rpx;
-  background: #ffffff;
-  border-radius: $wm-radius-lg;
-  border: $wm-card-edge;
-  box-shadow: $wm-shadow-md;
-
-  text {
-    font-size: 30rpx;
-    font-weight: 600;
-    color: #ef4444;
-  }
-
-  &:active {
-    opacity: 0.85;
-  }
-
-  &--loading {
-    opacity: 0.6;
   }
 }
 </style>
