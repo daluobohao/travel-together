@@ -66,11 +66,11 @@
     <!-- Menu -->
     <view class="menu">
       <view
-        v-for="(m, i) in menus"
+        v-for="(m, i) in displayMenus"
         :key="m.key"
         class="menu__item"
         :class="{
-          'menu__item--last': i === menus.length - 1,
+          'menu__item--last': i === displayMenus.length - 1,
           'menu__item--danger': m.danger,
         }"
         @click="onMenu(m)"
@@ -103,8 +103,6 @@ import {
   logout,
   mapActivityCard,
 } from '@/api'
-import { setSkipSilentLogin } from '@/utils/wechatAuth'
-
 export default {
   components: { WmIcon, WmTabBar },
   data() {
@@ -130,6 +128,17 @@ export default {
         { key: 'rules', icon: 'book', color: '#10b981', bg: '#ecfdf5', label: '社区规范' },
         { key: 'terms', icon: 'doc', color: '#0284c7', bg: '#e0f2fe', label: '用户服务协议' },
         { key: 'privacy', icon: 'shield', color: '#6366f1', bg: '#eef2ff', label: '隐私政策' },
+      ],
+    }
+  },
+  computed: {
+    genderDisplay() {
+      return formatUserGenderLabel(this.user.gender)
+    },
+    displayMenus() {
+      // #ifdef H5
+      return [
+        ...this.menus,
         {
           key: 'logout',
           icon: 'close',
@@ -139,12 +148,11 @@ export default {
           hint: '',
           danger: true,
         },
-      ],
-    }
-  },
-  computed: {
-    genderDisplay() {
-      return formatUserGenderLabel(this.user.gender)
+      ]
+      // #endif
+      // #ifndef H5
+      return this.menus
+      // #endif
     },
   },
   methods: {
@@ -220,9 +228,6 @@ export default {
           } catch {
             /* logout 内部会清 token；此处兜底 */
           }
-          // #ifdef MP-WEIXIN
-          setSkipSilentLogin(true)
-          // #endif
           uni.reLaunch({ url: '/pages/login/login' })
         },
       })
