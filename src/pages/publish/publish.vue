@@ -148,14 +148,30 @@
         <wm-icon name="shield" :size="32" color="#6366f1" />
         <text>发布即表示同意《旅聚社区规范》，请确保活动信息真实有效。</text>
       </view>
+
+      <view class="publish__fee-tip">
+        <wm-icon name="yuan" :size="32" color="#d97706" />
+        <text>发布活动需支付 1 元服务费（H5 微信扫码），支付成功后将自动提交审核。</text>
+      </view>
     </view>
 
     <!-- Bottom Action -->
     <view class="publish__action">
-      <view class="publish__btn" @click="onPublish">
-        <text>发布活动</text>
+      <view class="publish__btn" :class="{ 'publish__btn--disabled': publishing }" @click="onPublish">
+        <text>{{ publishing ? '处理中…' : '发布活动（¥1）' }}</text>
       </view>
     </view>
+
+    <publish-pay-modal
+      :visible="payModal.visible"
+      :user-id="payModal.userId"
+      :qr-id="payModal.qrId"
+      :pay-code-url="payModal.payCodeUrl"
+      :mock-mode="payModal.mockMode"
+      @update:visible="payModal.visible = $event"
+      @success="onPayModalSuccess"
+      @cancel="onPayModalCancel"
+    />
 
     <wm-tab-bar active="publish" />
   </view>
@@ -164,7 +180,9 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
+import PublishPayModal from '@/components/PublishPayModal/PublishPayModal.vue'
 import { createActivity, getActivityCategories } from '@/api'
+import { payBeforePublishActivity } from '@/pay/publishPay'
 
 const FALLBACK_CATEGORIES = [
   { categoryId: 'coffee', name: '咖啡' },
@@ -180,7 +198,7 @@ const FALLBACK_CATEGORIES = [
 ]
 
 export default {
-  components: { WmIcon, WmTabBar },
+  components: { WmIcon, WmTabBar, PublishPayModal },
   data() {
     const initialCategories = FALLBACK_CATEGORIES.map((x) => x.name)
     const initialCategoryMap = FALLBACK_CATEGORIES.reduce((acc, item) => {
@@ -208,6 +226,14 @@ export default {
         capacity: '',
         cost: '',
         description: '',
+      },
+      publishing: false,
+      payModal: {
+        visible: false,
+        userId: '',
+        qrId: '',
+        payCodeUrl: '',
+        mockMode: false,
       },
     }
   },
@@ -310,67 +336,131 @@ export default {
       this.form.category = this.categories[idx] || ''
       if (!this.isOtherCategory) this.form.categoryTheme = ''
     },
-    async onPublish() {
-      if (!this.form.title.trim()) return uni.showToast({ title: '请填写活动标题', icon: 'none' })
-      if (!this.form.category) return uni.showToast({ title: '请选择活动分类', icon: 'none' })
+    validatePublishForm() {
+      if (!this.form.title.trim()) {
+        uni.showToast({ title: '请填写活动标题', icon: 'none' })
+        return false
+      }
+      if (!this.form.category) {
+        uni.showToast({ title: '请选择活动分类', icon: 'none' })
+        return false
+      }
       const categoryId = this.categoryMap[this.form.category] || ''
       const categoryTheme = String(this.form.categoryTheme || '').trim()
       if (categoryId === 'other') {
         if (categoryTheme.length < 2) {
-          return uni.showToast({ title: '请填写活动主题（2～16 字）', icon: 'none' })
+          uni.showToast({ title: '请填写活动主题（2～16 字）', icon: 'none' })
+          return false
         }
         if (categoryTheme.length > 16) {
-          return uni.showToast({ title: '活动主题不超过 16 字', icon: 'none' })
+          uni.showToast({ title: '活动主题不超过 16 字', icon: 'none' })
+          return false
         }
       }
-      if (!this.form.startTime) return uni.showToast({ title: '请选择开始时间', icon: 'none' })
-      if (!this.form.location.trim()) return uni.showToast({ title: '请填写活动地点', icon: 'none' })
+      if (!this.form.startTime) {
+        uni.showToast({ title: '请选择开始时间', icon: 'none' })
+        return false
+      }
+      if (!this.form.location.trim()) {
+        uni.showToast({ title: '请填写活动地点', icon: 'none' })
+        return false
+      }
       if (!/^\d{6}$/.test(this.form.cityCode || '')) {
-        return uni.showToast({ title: '请从地图选择地点，以便确定城市编码', icon: 'none' })
+        uni.showToast({ title: '请从地图选择地点，以便确定城市编码', icon: 'none' })
+        return false
       }
       const lat = Number(this.form.lat)
       const lng = Number(this.form.lng)
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-        return uni.showToast({ title: '请从地图选择地点，以便获取坐标', icon: 'none' })
+        uni.showToast({ title: '请从地图选择地点，以便获取坐标', icon: 'none' })
+        return false
       }
       if ((this.form.endDate && !this.form.endClock) || (!this.form.endDate && this.form.endClock)) {
-        return uni.showToast({ title: '请完整选择结束时间', icon: 'none' })
+        uni.showToast({ title: '请完整选择结束时间', icon: 'none' })
+        return false
       }
       const startAt = this.buildStartAt()
       const endAt = this.buildEndAt()
       if (endAt && new Date(endAt).getTime() <= new Date(startAt).getTime()) {
-        return uni.showToast({ title: '结束时间需晚于开始时间', icon: 'none' })
+        uni.showToast({ title: '结束时间需晚于开始时间', icon: 'none' })
+        return false
       }
       const TOLERANCE_MS = 5 * 60 * 1000
       if (new Date(startAt).getTime() < Date.now() - TOLERANCE_MS) {
-        return uni.showToast({
+        uni.showToast({
           title: '开始时间不能早于当前时间（可提前 5 分钟）',
           icon: 'none',
         })
+        return false
       }
-      try {
-        await createActivity({
-          title: this.form.title.trim(),
-          description: (this.form.description || '').trim() || '暂无说明',
-          categoryId: categoryId || 'coffee',
-          categoryLabel: categoryId === 'other' ? categoryTheme : null,
-          startAt,
-          endAt,
-          cityCode: this.form.cityCode.trim(),
-          locationName: this.form.location.trim(),
-          lat,
-          lng,
-          maxMembers: Number(this.form.capacity) || 8,
-          feeType: 'aa',
-          feeAmount: null,
-          rulesAccepted: { noHarassment: true, noPromotion: true, noInappropriate: true },
-        })
-      } catch (e) {
-        uni.showToast({ title: e?.message || '发布失败', icon: 'none' })
-        return
+      return true
+    },
+    buildActivityPayload() {
+      const lat = Number(this.form.lat)
+      const lng = Number(this.form.lng)
+      const categoryId = this.categoryMap[this.form.category] || 'coffee'
+      const categoryTheme = String(this.form.categoryTheme || '').trim()
+      return {
+        title: this.form.title.trim(),
+        description: (this.form.description || '').trim() || '暂无说明',
+        categoryId: categoryId || 'coffee',
+        categoryLabel: categoryId === 'other' ? categoryTheme : null,
+        startAt: this.buildStartAt(),
+        endAt: this.buildEndAt(),
+        cityCode: this.form.cityCode.trim(),
+        locationName: this.form.location.trim(),
+        lat,
+        lng,
+        maxMembers: Number(this.form.capacity) || 8,
+        feeType: 'aa',
+        feeAmount: null,
+        rulesAccepted: { noHarassment: true, noPromotion: true, noInappropriate: true },
       }
+    },
+    async submitActivity() {
+      await createActivity(this.buildActivityPayload())
       uni.showToast({ title: '发布成功！', icon: 'success' })
       setTimeout(() => uni.reLaunch({ url: '/pages/home/home' }), 800)
+    },
+    onPayModalSuccess() {
+      this.payModal.visible = false
+      this.publishing = true
+      this.submitActivity()
+        .catch((e) => {
+          uni.showToast({ title: e?.message || '发布失败', icon: 'none' })
+        })
+        .finally(() => {
+          this.publishing = false
+        })
+    },
+    onPayModalCancel() {
+      this.payModal.visible = false
+      this.publishing = false
+    },
+    async onPublish() {
+      if (this.publishing) return
+      if (!this.validatePublishForm()) return
+
+      this.publishing = true
+      try {
+        const payResult = await payBeforePublishActivity()
+        if (payResult?.needPayModal) {
+          this.payModal = {
+            visible: true,
+            userId: payResult.userId,
+            qrId: payResult.qrId,
+            payCodeUrl: payResult.payCodeUrl || '',
+            mockMode: !!payResult.mockMode,
+          }
+          return
+        }
+        await this.submitActivity()
+      } catch (e) {
+        if (e?.needLogin || e?.cancelled) return
+        uni.showToast({ title: e?.message || '发布失败', icon: 'none' })
+      } finally {
+        if (!this.payModal.visible) this.publishing = false
+      }
     },
   },
 }
@@ -435,6 +525,19 @@ export default {
     font-weight: 500;
   }
 
+  &__fee-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 12rpx;
+    padding: 24rpx 28rpx;
+    background: #fffbeb;
+    border-radius: $wm-radius-md;
+    font-size: 24rpx;
+    color: #b45309;
+    line-height: 1.5;
+    font-weight: 500;
+  }
+
   &__action {
     position: fixed;
     left: 0;
@@ -460,6 +563,11 @@ export default {
     &:active {
       transform: scale(0.98);
       box-shadow: $wm-shadow-lg;
+    }
+
+    &--disabled {
+      opacity: 0.72;
+      pointer-events: none;
     }
   }
 }

@@ -4,8 +4,9 @@ import { trySilentWechatLogin } from '@/utils/wechatAuth'
 
 export default {
   onLaunch() {
+    // 本地模拟支付：改为 true 后，H5 发布活动走 mock 三接口（见控制台 [mock] 日志）
     setMockEnabled(false)
-    console.log('WanderMeet App Launch')
+    console.log('WanderMeet App Launch', 'mock=', false)
     // #ifdef MP-WEIXIN
     trySilentWechatLogin()
     // #endif
