@@ -75,6 +75,9 @@
       <view class="login__switch" @click="toggleAuthMode">
         <text>{{ authMode === 'register' ? '已有账号？去登录' : '没有账号？去注册' }}</text>
       </view>
+      <view v-if="authMode === 'login'" class="login__switch" @click="goForgotPassword">
+        <text>忘记密码？</text>
+      </view>
       <view class="login__cancel" @click="onCancelBrowse">取消</view>
     </view>
     <!-- #endif -->
@@ -221,6 +224,11 @@ export default {
       this.passwordError = ''
       this.confirmError = ''
       this.form.confirmPassword = ''
+    },
+    goForgotPassword() {
+      const email = String(this.form.email || '').trim().toLowerCase()
+      const q = email ? `?email=${encodeURIComponent(email)}` : ''
+      uni.navigateTo({ url: `/pages/forgot-password/forgot-password${q}` })
     },
     onEmailInput() {
       if (this.emailError) this.emailError = ''

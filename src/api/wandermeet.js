@@ -189,6 +189,26 @@ export const loginByEmail = (payload) =>
     mockHandler: () => mockAuthLoginData('email_login'),
   })
 
+// 2.3.1 H5 忘记密码 — 发送验证码
+export const forgotPasswordByEmail = (payload) =>
+  wmRequest({
+    method: 'POST',
+    path: '/auth/email/forgot-password',
+    data: payload,
+    needAuth: false,
+    mockHandler: () => ok({ expireInSeconds: 900 }),
+  })
+
+// 2.3.2 H5 忘记密码 — 重置密码并登录
+export const resetPasswordByEmail = (payload) =>
+  wmRequest({
+    method: 'POST',
+    path: '/auth/email/reset-password',
+    data: payload,
+    needAuth: false,
+    mockHandler: () => mockAuthLoginData('email_reset'),
+  })
+
 export const bindPhoneWechat = (payload) =>
   wmRequest({
     method: 'POST',

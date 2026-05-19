@@ -184,6 +184,13 @@
 			}
 		},
 		{
+			"path": "pages/forgot-password/forgot-password",
+			"style": {
+				"navigationBarTitleText": "忘记密码",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/onboarding/onboarding",
 			"style": {
 				"navigationBarTitleText": "完善资料",
