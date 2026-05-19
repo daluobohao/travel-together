@@ -5,7 +5,7 @@ import {
   isPublishPayMockEnabled,
 } from '@/api/pay'
 import { getMe, isLoggedIn } from '@/api'
-import { getWxLoginCode } from '@/utils/wechatAuth'
+import { getWxLoginCode, setPostLoginRedirect } from '@/utils/wechatAuth'
 import { generatePayQrId } from '@/utils/payQrId'
 import { PUBLISH_FEE_YUAN } from '@/pay/constants'
 
@@ -18,7 +18,7 @@ function sleep(ms) {
 
 async function ensureLoggedInForPublish() {
   if (!isLoggedIn()) {
-    uni.setStorageSync('REDIRECT_URL', '/pages/publish/publish')
+    setPostLoginRedirect('/pages/publish/publish')
     uni.navigateTo({ url: '/pages/login/login' })
     const e = new Error('请先登录')
     e.needLogin = true
@@ -98,7 +98,7 @@ export async function prepareH5PublishPayment() {
   uni.showLoading({ title: '准备支付…', mask: true })
   let order
   try {
-    order = await createPublishQrcode({ qrId })
+    order = await createPublishQrcode({ userId, qrId })
   } finally {
     uni.hideLoading()
   }

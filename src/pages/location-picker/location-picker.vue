@@ -90,6 +90,7 @@
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
+import { getCurrentPositionGcj02, supportsWxLocationScopeApi } from '@/utils/geoLocation'
 
 const AMAP_WEB_KEY = '15fb84dbcfd7a884bbb4133135d0d05f'
 const DEFAULT_LOCATION = { lng: 116.397428, lat: 39.90923, name: '天安门' }
@@ -275,9 +276,16 @@ export default {
           errorMsg = '定位位置不在中国，已使用默认位置'
         }
       } catch (e) {
-        console.error('[Location] 定位失败:', e)
+        console.warn('[Location] 定位失败，使用默认区域:', e?.message || e)
         usedFallback = true
-        errorMsg = e?.message || '定位失败'
+        errorMsg =
+          e?.message ||
+          (supportsWxLocationScopeApi()
+            ? '定位失败'
+            : '无法获取当前位置，已显示默认区域，可搜索选点')
+        if (!supportsWxLocationScopeApi() && errorMsg.length > 20) {
+          errorMsg = '无法获取当前位置，已显示默认区域，可搜索选点'
+        }
         await this.useFallbackLocation()
       } finally {
         this.locating = false
@@ -292,49 +300,31 @@ export default {
       this.hasLocated = true
       await this.loadNearbyPois()
     },
-    requestLocationWithAuth() {
-      return new Promise(async (resolve, reject) => {
-        try {
-          const settings = await this.getAuthSettings()
-          const hasAuth = settings?.scope?.['scope.userLocation']
+    async requestLocationWithAuth() {
+      if (supportsWxLocationScopeApi()) {
+        const settings = await this.getAuthSettings()
+        const hasAuth = settings?.scope?.['scope.userLocation']
 
-          if (hasAuth === false) {
-            const confirmed = await this.showAuthConfirmDialog()
-            if (confirmed) {
-              await this.openAuthSetting()
-              const newSettings = await this.getAuthSettings()
-              if (!newSettings?.scope?.['scope.userLocation']) {
-                reject(new Error('您拒绝了位置权限授权'))
-                return
-              }
-            } else {
-              reject(new Error('需要位置权限才能定位'))
-              return
+        if (hasAuth === false) {
+          const confirmed = await this.showAuthConfirmDialog()
+          if (confirmed) {
+            await this.openAuthSetting()
+            const newSettings = await this.getAuthSettings()
+            if (!newSettings?.scope?.['scope.userLocation']) {
+              throw new Error('您拒绝了位置权限授权')
             }
+          } else {
+            throw new Error('需要位置权限才能定位')
           }
-
-          uni.getLocation({
-            type: 'gcj02',
-            isHighAccuracy: true,
-            highAccuracyExpireTime: 8000,
-            success: (res) => {
-              resolve({
-                lng: Number(res.longitude),
-                lat: Number(res.latitude),
-              })
-            },
-            fail: (err) => {
-              console.error('[Location] getLocation fail:', err)
-              const errMsg = this.parseLocationError(err)
-              reject(new Error(errMsg))
-            },
-          })
-        } catch (e) {
-          reject(e)
         }
-      })
+      }
+
+      return getCurrentPositionGcj02()
     },
     getAuthSettings() {
+      if (!supportsWxLocationScopeApi()) {
+        return Promise.resolve({})
+      }
       return new Promise((resolve) => {
         uni.getSetting({
           success: (res) => resolve(res),
@@ -343,6 +333,9 @@ export default {
       })
     },
     openAuthSetting() {
+      if (!supportsWxLocationScopeApi()) {
+        return Promise.resolve({})
+      }
       return new Promise((resolve) => {
         uni.openSetting({
           success: (res) => resolve(res),
@@ -361,24 +354,6 @@ export default {
           fail: () => resolve(false),
         })
       })
-    },
-    parseLocationError(err) {
-      const errMsg = String(err?.errMsg || '')
-      const errCode = err?.errCode || err?.code
-
-      if (errMsg.includes('auth deny') || errMsg.includes('authorize:fail') || errCode === 13) {
-        return '您拒绝了位置权限'
-      }
-      if (errMsg.includes('cancel')) {
-        return '已取消定位'
-      }
-      if (errMsg.includes('timeout') || errCode === 14) {
-        return '定位超时，请检查网络和GPS信号'
-      }
-      if (errMsg.includes('no valid location') || errCode === 12) {
-        return '无法获取有效位置，请确保GPS已开启'
-      }
-      return '定位失败，请稍后重试'
     },
     async loadNearbyPois() {
       try {

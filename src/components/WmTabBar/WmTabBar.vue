@@ -33,6 +33,10 @@
 
 <script>
 import WmIcon from '../WmIcon/WmIcon.vue'
+import { isLoggedIn } from '@/api'
+import { setPostLoginRedirect } from '@/utils/wechatAuth'
+
+const LOGIN_REQUIRED_KEYS = ['messages', 'publish']
 
 export default {
   name: 'WmTabBar',
@@ -57,6 +61,11 @@ export default {
   methods: {
     onSwitch(item) {
       if (item.key === this.active) return
+      if (LOGIN_REQUIRED_KEYS.includes(item.key) && !isLoggedIn()) {
+        setPostLoginRedirect(item.path)
+        uni.navigateTo({ url: '/pages/login/login' })
+        return
+      }
       uni.reLaunch({ url: item.path })
     },
   },

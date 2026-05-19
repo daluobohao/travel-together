@@ -131,7 +131,7 @@ export default {
       if (!this.qrId || !this.userId || this.loading) return
       this.loading = true
       try {
-        const order = await createPublishQrcode({ qrId: this.qrId })
+        const order = await createPublishQrcode({ userId: this.userId, qrId: this.qrId })
         this.payUrl = order?.payCodeUrl || ''
         this.qrImageUrl = buildWxPayQrImageUrl(this.payUrl)
         this.countdown = COUNTDOWN_START

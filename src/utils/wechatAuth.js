@@ -1,6 +1,21 @@
 import { getAccessToken, loginByWechat, setAccessToken, setRefreshToken } from '@/api'
 
 const SKIP_SILENT_LOGIN_KEY = 'wm_skip_silent_login'
+const REDIRECT_URL_KEY = 'REDIRECT_URL'
+
+/** 登录成功后要回到的页面（如消息 Tab） */
+export function setPostLoginRedirect(url) {
+  if (url) uni.setStorageSync(REDIRECT_URL_KEY, url)
+}
+
+export function consumePostLoginRedirect(fallback = '/pages/home/home') {
+  const url = uni.getStorageSync(REDIRECT_URL_KEY)
+  if (url) {
+    uni.removeStorageSync(REDIRECT_URL_KEY)
+    return url
+  }
+  return fallback
+}
 
 /** 用户在登录页主动取消后，本进程内不再静默 wx.login */
 export function setSkipSilentLogin(skip = true) {
@@ -75,7 +90,7 @@ export function navigateAfterLogin(user, { showToast = true } = {}) {
     } else if (needGender) {
       uni.reLaunch({ url: '/pages/profile-edit/profile-edit?first=1' })
     } else {
-      uni.reLaunch({ url: '/pages/home/home' })
+      uni.reLaunch({ url: consumePostLoginRedirect('/pages/home/home') })
     }
   }, delay)
 }

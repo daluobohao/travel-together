@@ -20,19 +20,18 @@ function isMockPaid(qrId) {
  * 客户端先生成 qrId，后端 attach 为 `${userId},${qrId},publish`。
  * @returns {{ qrId: string, outTradeNo?: string, payCodeUrl: string, mockSkip?: boolean }}
  */
-export const createPublishQrcode = ({ qrId }) =>
+export const createPublishQrcode = ({ userId, qrId }) =>
   wmRequest({
     method: 'POST',
     path: '/pay/publish/qrcode',
     data: {
-      qr_id: qrId,
-      fee: PUBLISH_FEE_YUAN,
-      name: PUBLISH_PAY_PRODUCT_NAME,
+      userId,
+      qrId,
       product: PUBLISH_PAY_PRODUCT,
     },
     needAuth: true,
     mockHandler: ({ data }) => {
-      const id = data?.qr_id || `mock_pub_${Date.now()}`
+      const id = data?.qrId || `mock_pub_${Date.now()}`
       console.info('[mock] POST /pay/publish/qrcode → pending', { qrId: id })
       return ok({
         qrId: id,
@@ -77,13 +76,13 @@ export const queryPublishPayState = ({ userId, qrId }) =>
     method: 'POST',
     path: '/pay/state',
     data: {
-      user_id: userId,
-      qr_id: qrId,
+      userId,
+      qrId,
       product: PUBLISH_PAY_PRODUCT,
     },
     needAuth: true,
     mockHandler: ({ data }) => {
-      const qid = data?.qr_id
+      const qid = data?.qrId
       const paid = isMockPaid(qid)
       console.info('[mock] POST /pay/state →', paid ? 'paid' : 'pending', { qr_id: qid })
       return ok({

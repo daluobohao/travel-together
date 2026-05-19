@@ -116,6 +116,7 @@
 import {
   clearWmAuthTokens,
   getAccessToken,
+  getMe,
   loginByEmail,
   loginByWechat,
   registerByEmail,
@@ -124,6 +125,7 @@ import { buildDefaultTimelineShare, DEFAULT_MINI_PROGRAM_SHARE } from '@/utils/a
 import {
   applyLoginTokens,
   clearSkipSilentLogin,
+  consumePostLoginRedirect,
   getWxLoginCode,
   navigateAfterLogin,
   setSkipSilentLogin,
@@ -179,10 +181,15 @@ export default {
     },
     // #endif
   },
-  onShow() {
+  async onShow() {
     if (getAccessToken()) {
-      uni.reLaunch({ url: '/pages/home/home' })
-      return
+      try {
+        await getMe()
+        uni.reLaunch({ url: consumePostLoginRedirect('/pages/home/home') })
+        return
+      } catch {
+        clearWmAuthTokens()
+      }
     }
     // #ifdef MP-WEIXIN
     try {

@@ -187,6 +187,7 @@ import {
   readNotification,
   isLoggedIn,
 } from '@/api'
+import { setPostLoginRedirect } from '@/utils/wechatAuth'
 
 function relativeTime(iso) {
   if (!iso) return ''
@@ -282,8 +283,8 @@ export default {
   },
   onShow() {
     if (!isLoggedIn()) {
-      uni.setStorageSync('REDIRECT_URL', '/pages/messages/messages')
-      uni.redirectTo({ url: '/pages/login/login' })
+      setPostLoginRedirect('/pages/messages/messages')
+      uni.navigateTo({ url: '/pages/login/login' })
       return
     }
     this.loadMessages()
@@ -302,8 +303,8 @@ export default {
         this.systemNotifs = (notifData?.list || []).map(mapNotif)
       } catch (e) {
         if (e.isAuthError) {
-          uni.setStorageSync('REDIRECT_URL', '/pages/messages/messages')
-          uni.redirectTo({ url: '/pages/login/login' })
+          setPostLoginRedirect('/pages/messages/messages')
+          uni.navigateTo({ url: '/pages/login/login' })
           return
         }
         this.groupChats = []
