@@ -69,18 +69,21 @@
         v-for="(m, i) in menus"
         :key="m.key"
         class="menu__item"
-        :class="{ 'menu__item--last': i === menus.length - 1 }"
+        :class="{
+          'menu__item--last': i === menus.length - 1,
+          'menu__item--danger': m.danger,
+        }"
         @click="onMenu(m)"
       >
         <view class="menu__left">
           <view class="menu__icon" :style="{ background: m.bg }">
             <wm-icon :name="m.icon" :size="32" :color="m.color" />
           </view>
-          <text class="menu__label">{{ m.label }}</text>
+          <text class="menu__label" :class="{ 'menu__label--danger': m.danger }">{{ m.label }}</text>
         </view>
         <view class="menu__right">
           <text v-if="m.hint" class="menu__hint">{{ m.hint }}</text>
-          <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
+          <wm-icon v-if="!m.danger" name="chevronRight" :size="28" color="#cbd5e1" />
         </view>
       </view>
     </view>
@@ -92,7 +95,15 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
-import { formatUserGenderLabel, getMe, getMyActivities, getMyStats, mapActivityCard } from '@/api'
+import {
+  formatUserGenderLabel,
+  getMe,
+  getMyActivities,
+  getMyStats,
+  logout,
+  mapActivityCard,
+} from '@/api'
+import { setSkipSilentLogin } from '@/utils/wechatAuth'
 
 export default {
   components: { WmIcon, WmTabBar },
@@ -119,6 +130,15 @@ export default {
         { key: 'rules', icon: 'book', color: '#10b981', bg: '#ecfdf5', label: '社区规范' },
         { key: 'terms', icon: 'doc', color: '#0284c7', bg: '#e0f2fe', label: '用户服务协议' },
         { key: 'privacy', icon: 'shield', color: '#6366f1', bg: '#eef2ff', label: '隐私政策' },
+        {
+          key: 'logout',
+          icon: 'close',
+          color: '#ef4444',
+          bg: '#fef2f2',
+          label: '退出登录',
+          hint: '',
+          danger: true,
+        },
       ],
     }
   },
@@ -148,6 +168,10 @@ export default {
       }
     },
     onMenu(m) {
+      if (m.key === 'logout') {
+        this.onLogout()
+        return
+      }
       if (m.key === 'bindPhone') {
         uni.navigateTo({ url: '/pages/bind-phone/bind-phone' })
         return
@@ -183,6 +207,25 @@ export default {
         return
       }
       uni.showToast({ title: m.label, icon: 'none' })
+    },
+    onLogout() {
+      uni.showModal({
+        title: '退出登录',
+        content: '确定要退出当前账号吗？',
+        confirmColor: '#ef4444',
+        success: async (res) => {
+          if (!res.confirm) return
+          try {
+            await logout()
+          } catch {
+            /* logout 内部会清 token；此处兜底 */
+          }
+          // #ifdef MP-WEIXIN
+          setSkipSilentLogin(true)
+          // #endif
+          uni.reLaunch({ url: '/pages/login/login' })
+        },
+      })
     },
     onViewAllMyActivities() {
       uni.navigateTo({
@@ -539,6 +582,10 @@ export default {
     &:active {
       background: $wm-primary-soft;
     }
+
+    &--danger:active {
+      background: #fef2f2;
+    }
   }
 
   &__left {
@@ -562,6 +609,10 @@ export default {
     font-size: 30rpx;
     color: $wm-text-1;
     font-weight: 600;
+
+    &--danger {
+      color: #ef4444;
+    }
   }
 
   &__right {
