@@ -709,6 +709,7 @@ export const createActivity = (payload) =>
         title: data.title,
         description: data.description,
         categoryId: data.categoryId,
+        categoryLabel: data.categoryLabel || '',
         startAt: data.startAt,
         endAt: data.endAt || null,
         cityCode: data.cityCode || '110000',
@@ -1113,6 +1114,7 @@ const categoryColorMap = {
   photography: { color: '#7c3aed', bg: '#ede9fe', label: '摄影扫街' },
   exhibit: { color: '#ef4444', bg: '#fef2f2', label: '展览' },
   night_run: { color: '#ef4444', bg: '#fef2f2', label: '夜跑' },
+  other: { color: '#64748b', bg: '#f1f5f9', label: '其他' },
   movie: { color: '#6366f1', bg: '#eef2ff', label: '电影' },
   badminton: { color: '#0ea5a4', bg: '#ccfbf1', label: '羽毛球' },
   food: { color: '#0284c7', bg: '#e0f2fe', label: '美食' },
@@ -1246,8 +1248,22 @@ export function computeActivityStatus(raw) {
   }
 }
 
+export function resolveActivityCategoryTag(card) {
+  const base =
+    categoryColorMap[card.categoryId] || {
+      color: '#64748b',
+      bg: '#f1f5f9',
+      label: card.categoryId || '活动',
+    }
+  const theme = String(card.categoryLabel || '').trim()
+  if (card.categoryId === 'other' && theme) {
+    return { ...base, label: `其他 · ${theme}` }
+  }
+  return base
+}
+
 export function mapActivityCard(card) {
-  const tag = categoryColorMap[card.categoryId] || { color: '#64748b', bg: '#f1f5f9', label: card.categoryId }
+  const tag = resolveActivityCategoryTag(card)
   const safeActivityId =
     typeof card.activityId === 'undefined' || card.activityId === null ? '' : String(card.activityId)
   const status = computeActivityStatus(card)

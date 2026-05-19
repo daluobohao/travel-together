@@ -76,6 +76,7 @@ export const wmDB = {
     { categoryId: 'language', name: '语言交换', icon: null },
     { categoryId: 'dining', name: '约饭·探店', icon: null },
     { categoryId: 'photography', name: '摄影扫街', icon: null },
+    { categoryId: 'other', name: '其他', icon: null },
     { categoryId: 'exhibit', name: '展览', icon: null },
     { categoryId: 'night_run', name: '夜跑', icon: null },
   ],

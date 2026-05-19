@@ -32,6 +32,18 @@
         </picker>
       </view>
 
+      <view v-if="isOtherCategory" class="field">
+        <text class="field__label">活动主题 <text class="field__req">*</text></text>
+        <input
+          v-model="form.categoryTheme"
+          class="field__input"
+          maxlength="16"
+          placeholder="如：羽毛球、看展、练口语（2～16 字）"
+          placeholder-class="field__placeholder"
+        />
+        <text class="field__hint">将展示为「其他 · 你的主题」</text>
+      </view>
+
       <view class="field">
         <text class="field__label">开始时间 <text class="field__req">*</text></text>
         <view class="field__datetime">
@@ -152,7 +164,7 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
-import { createActivity, getActivityCategories, isLoggedIn } from '@/api'
+import { createActivity, getActivityCategories } from '@/api'
 
 const FALLBACK_CATEGORIES = [
   { categoryId: 'coffee', name: '咖啡' },
@@ -164,10 +176,8 @@ const FALLBACK_CATEGORIES = [
   { categoryId: 'language', name: '语言交换' },
   { categoryId: 'dining', name: '约饭·探店' },
   { categoryId: 'photography', name: '摄影扫街' },
-  { categoryId: 'exhibit', name: '展览' },
-  { categoryId: 'night_run', name: '夜跑' },
+  { categoryId: 'other', name: '其他' },
 ]
-const ALLOWED_CATEGORY_IDS = FALLBACK_CATEGORIES.map((x) => x.categoryId)
 
 export default {
   components: { WmIcon, WmTabBar },
@@ -184,6 +194,7 @@ export default {
       form: {
         title: '',
         category: initialCategories[0] || '',
+        categoryTheme: '',
         startTime: '',
         startDate: '',
         startClock: '',
@@ -200,12 +211,13 @@ export default {
       },
     }
   },
+  computed: {
+    isOtherCategory() {
+      const cid = this.categoryMap[this.form.category] || ''
+      return cid === 'other'
+    },
+  },
   onShow() {
-    if (!isLoggedIn()) {
-      uni.setStorageSync('REDIRECT_URL', '/pages/publish/publish')
-      uni.redirectTo({ url: '/pages/login/login' })
-      return
-    }
     this.loadCategories()
     this.tryApplyPickedLocation()
   },
@@ -229,7 +241,7 @@ export default {
       let list = []
       try {
         const data = await getActivityCategories()
-        list = (data?.categories || []).filter((item) => ALLOWED_CATEGORY_IDS.includes(item.categoryId))
+        list = data?.categories || []
       } catch (e) {
         list = []
       }
@@ -296,10 +308,21 @@ export default {
       if (Number.isNaN(idx) || idx < 0) return
       this.categoryIndex = idx
       this.form.category = this.categories[idx] || ''
+      if (!this.isOtherCategory) this.form.categoryTheme = ''
     },
     async onPublish() {
       if (!this.form.title.trim()) return uni.showToast({ title: '请填写活动标题', icon: 'none' })
       if (!this.form.category) return uni.showToast({ title: '请选择活动分类', icon: 'none' })
+      const categoryId = this.categoryMap[this.form.category] || ''
+      const categoryTheme = String(this.form.categoryTheme || '').trim()
+      if (categoryId === 'other') {
+        if (categoryTheme.length < 2) {
+          return uni.showToast({ title: '请填写活动主题（2～16 字）', icon: 'none' })
+        }
+        if (categoryTheme.length > 16) {
+          return uni.showToast({ title: '活动主题不超过 16 字', icon: 'none' })
+        }
+      }
       if (!this.form.startTime) return uni.showToast({ title: '请选择开始时间', icon: 'none' })
       if (!this.form.location.trim()) return uni.showToast({ title: '请填写活动地点', icon: 'none' })
       if (!/^\d{6}$/.test(this.form.cityCode || '')) {
@@ -329,7 +352,8 @@ export default {
         await createActivity({
           title: this.form.title.trim(),
           description: (this.form.description || '').trim() || '暂无说明',
-          categoryId: this.categoryMap[this.form.category] || 'coffee',
+          categoryId: categoryId || 'coffee',
+          categoryLabel: categoryId === 'other' ? categoryTheme : null,
           startAt,
           endAt,
           cityCode: this.form.cityCode.trim(),
@@ -511,6 +535,12 @@ export default {
 
   &__placeholder {
     color: $wm-text-3;
+  }
+
+  &__hint {
+    font-size: 24rpx;
+    color: $wm-text-3;
+    margin-top: 8rpx;
   }
 
   &__select {

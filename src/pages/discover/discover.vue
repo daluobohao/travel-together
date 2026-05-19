@@ -218,6 +218,7 @@ export default {
           photography: { icon: 'camera', bg: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', color: '#7c3aed' },
           exhibit: { icon: 'palette', bg: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)', color: '#dc2626' },
           night_run: { icon: 'moon', bg: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', color: '#6d28d9' },
+          other: { icon: 'tag', bg: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)', color: '#475569' },
         }
         this.categories = (categoryData?.categories || []).map((c) => ({
           key: c.categoryId,
