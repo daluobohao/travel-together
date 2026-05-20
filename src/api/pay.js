@@ -37,6 +37,7 @@ export const createPublishQrcode = ({ userId, qrId }) =>
         qrId: id,
         outTradeNo: `wm_pub_${Date.now()}`,
         payCodeUrl: 'mock:publish',
+        feeYuan: '0.10',
       })
     },
   })
@@ -63,6 +64,7 @@ export const createPublishMinipay = ({ userId, qrId, code }) =>
         outTradeNo: `wm_pub_${Date.now()}`,
         mockSkip: true,
         paymentParams: null,
+        feeYuan: '0.10',
       })
     },
   })

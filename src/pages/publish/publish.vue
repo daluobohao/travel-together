@@ -146,14 +146,14 @@
 
       <view class="publish__tip">
         <wm-icon name="shield" :size="32" color="#6366f1" />
-        <text>发布即表示同意《旅聚社区规范》，请确保活动信息真实有效。</text>
+        <text>发布即表示同意《旅聚社区规范》，请确保活动信息真实有效。发布前需支付服务费 {{ publishFeeText }}。</text>
       </view>
     </view>
 
     <!-- Bottom Action -->
     <view class="publish__action">
       <view class="publish__btn" @click="onPublish">
-        <text>发布活动</text>
+        <text>{{ publishBtnText }}</text>
       </view>
     </view>
 
@@ -163,6 +163,7 @@
       :qr-id="payModal.qrId"
       :pay-code-url="payModal.payCodeUrl"
       :mock-mode="payModal.mockMode"
+      :fee-yuan="payModal.feeYuan"
       @update:visible="payModal.visible = $event"
       @success="onPaySuccess"
       @cancel="onPayCancel"
@@ -178,6 +179,7 @@ import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import PublishPayModal from '@/components/PublishPayModal/PublishPayModal.vue'
 import { createActivity, getActivityCategories } from '@/api'
 import { payBeforePublishActivity } from '@/pay/publishPay'
+import { PUBLISH_FEE_YUAN, publishFeeLabel } from '@/pay/constants'
 
 const FALLBACK_CATEGORIES = [
   { categoryId: 'coffee', name: '咖啡' },
@@ -229,10 +231,17 @@ export default {
         qrId: '',
         payCodeUrl: '',
         mockMode: false,
+        feeYuan: '',
       },
     }
   },
   computed: {
+    publishFeeText() {
+      return publishFeeLabel(PUBLISH_FEE_YUAN)
+    },
+    publishBtnText() {
+      return `发布活动（${this.publishFeeText}）`
+    },
     isOtherCategory() {
       const cid = this.categoryMap[this.form.category] || ''
       return cid === 'other'
@@ -452,6 +461,7 @@ export default {
             qrId: payResult.qrId,
             payCodeUrl: payResult.payCodeUrl || '',
             mockMode: !!payResult.mockMode,
+            feeYuan: payResult.feeYuan || String(PUBLISH_FEE_YUAN),
           }
           return
         }

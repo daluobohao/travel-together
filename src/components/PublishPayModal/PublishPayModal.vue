@@ -3,8 +3,9 @@
     <view class="ppm__mask" @click="onCancel" />
     <view class="ppm__panel">
       <text class="ppm__title">支付发布服务费</text>
-      <text class="ppm__amount">¥{{ fee }}</text>
-      <text class="ppm__desc">微信扫码支付，支付成功后将自动发布活动</text>
+      <text class="ppm__amount-label">需支付</text>
+      <text class="ppm__amount">{{ feeLabel }}</text>
+      <text class="ppm__desc">请使用微信扫一扫，扫码前请确认上方金额；支付成功后将自动发布活动</text>
 
       <view v-if="mockMode" class="ppm__mock">
         <text class="ppm__mock-tip">开发 Mock：点击下方按钮模拟支付成功</text>
@@ -44,7 +45,7 @@
 <script>
 import { createPublishQrcode, queryPublishPayState, confirmMockPublishPayment } from '@/api/pay'
 import { buildWxPayQrImageUrl } from '@/utils/payQrId'
-import { PUBLISH_FEE_YUAN } from '@/pay/constants'
+import { PUBLISH_FEE_YUAN, publishFeeLabel } from '@/pay/constants'
 
 const POLL_INTERVAL_MS = 1000
 const COUNTDOWN_START = 100
@@ -58,11 +59,16 @@ export default {
     /** 父级已下单时直接传入 */
     payCodeUrl: { type: String, default: '' },
     mockMode: { type: Boolean, default: false },
+    feeYuan: { type: [String, Number], default: '' },
   },
   emits: ['update:visible', 'success', 'cancel'],
+  computed: {
+    feeLabel() {
+      return publishFeeLabel(this.feeYuan || PUBLISH_FEE_YUAN)
+    },
+  },
   data() {
     return {
-      fee: PUBLISH_FEE_YUAN,
       payUrl: '',
       qrImageUrl: '',
       countdown: COUNTDOWN_START,
@@ -210,10 +216,17 @@ export default {
     color: $wm-text-1;
   }
 
+  &__amount-label {
+    font-size: 26rpx;
+    color: $wm-text-3;
+    margin-top: 4rpx;
+  }
+
   &__amount {
-    font-size: 48rpx;
+    font-size: 56rpx;
     font-weight: 800;
     color: $wm-primary;
+    line-height: 1.2;
   }
 
   &__desc {

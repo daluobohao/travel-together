@@ -8,7 +8,31 @@ import {
 import { getMe, isLoggedIn } from '@/api'
 import { getWxLoginCode, setPostLoginRedirect } from '@/utils/wechatAuth'
 import { generatePayQrId } from '@/utils/payQrId'
-import { PUBLISH_FEE_YUAN } from '@/pay/constants'
+import { PUBLISH_FEE_YUAN, formatPublishFeeYuan, publishFeeLabel } from '@/pay/constants'
+
+function resolveFeeYuan(order) {
+  const fromApi = order?.feeYuan
+  if (fromApi != null && String(fromApi).trim() !== '') return String(fromApi).trim()
+  return String(PUBLISH_FEE_YUAN)
+}
+
+async function confirmPayAmount(feeYuan) {
+  const label = publishFeeLabel(feeYuan)
+  const res = await new Promise((resolve) => {
+    uni.showModal({
+      title: '确认支付',
+      content: `发布活动需支付 ${label}，确认后将调起微信支付。`,
+      confirmText: '去支付',
+      cancelText: '取消',
+      success: (r) => resolve(!!r.confirm),
+    })
+  })
+  if (!res) {
+    const e = new Error('已取消支付')
+    e.cancelled = true
+    throw e
+  }
+}
 
 const POLL_INTERVAL_MS = 1000
 const POLL_MAX_TIMES = 100
@@ -35,7 +59,7 @@ async function confirmMockPay(qrId, userId) {
   const res = await new Promise((resolve) => {
     uni.showModal({
       title: '模拟支付',
-      content: `开发 Mock：确认支付 ${PUBLISH_FEE_YUAN} 元以继续发布？`,
+      content: `开发 Mock：确认支付 ${formatPublishFeeYuan(PUBLISH_FEE_YUAN)} 元以继续发布？`,
       confirmText: '确认支付',
       cancelText: '取消',
       success: (r) => resolve(!!r.confirm),
@@ -50,10 +74,21 @@ async function confirmMockPay(qrId, userId) {
 }
 
 async function pollPublishPaid({ userId, qrId }) {
+  let lastState = 'pending'
   for (let i = 0; i < POLL_MAX_TIMES; i++) {
     const state = await queryPublishPayState({ userId, qrId })
     if (state?.paid) return state
+    if (state?.state) lastState = state.state
+    if (state?.state === 'failed') {
+      throw new Error('支付未成功（订单校验失败），请重新发布或联系客服')
+    }
+    if (state?.state === 'expired') {
+      throw new Error('支付二维码已过期，请重新发布')
+    }
     await sleep(POLL_INTERVAL_MS)
+  }
+  if (lastState === 'pending') {
+    throw new Error('支付结果确认超时（可能回调延迟），请稍后重试发布或联系客服')
   }
   throw new Error('支付结果确认超时，请稍后在「我的活动」查看是否发布成功')
 }
@@ -115,6 +150,7 @@ export async function prepareH5PublishPayment() {
     qrId: order.qrId,
     payCodeUrl: payUrl,
     mockMode: isPublishPayMockEnabled() || backendMock,
+    feeYuan: resolveFeeYuan(order),
   }
 }
 
@@ -137,11 +173,14 @@ async function payByMiniprogram() {
   const orderQrId = order?.qrId || qrId
   if (!orderQrId) throw new Error('创建支付单失败')
 
+  const feeYuan = resolveFeeYuan(order)
+
   if (order?.mockSkip || isPublishPayMockEnabled()) {
     await confirmMockPay(orderQrId, userId)
-    return { userId, qrId: orderQrId }
+    return { userId, qrId: orderQrId, feeYuan }
   }
 
+  await confirmPayAmount(feeYuan)
   await requestWxPayment(order.paymentParams)
   uni.showLoading({ title: '确认支付结果…', mask: true })
   try {
@@ -149,7 +188,7 @@ async function payByMiniprogram() {
   } finally {
     uni.hideLoading()
   }
-  return { userId, qrId: orderQrId }
+  return { userId, qrId: orderQrId, feeYuan }
 }
 // #endif
 
