@@ -73,27 +73,39 @@ export const createPublishMinipay = ({ userId, qrId, code }) =>
  * 查询支付结果（参考 daydaylove `/api/pay/state` 轮询）。
  * @returns {{ paid: boolean, state?: string, member?: string }}
  */
-export const queryPublishPayState = ({ userId, qrId }) =>
-  wmRequest({
+function payStateMockHandler({ data }) {
+  const qid = data?.qrId
+  const paid = isMockPaid(qid)
+  console.info('[mock] pay state →', paid ? 'paid' : 'pending', { qr_id: qid })
+  return ok({
+    paid,
+    state: paid ? 'paid' : 'pending',
+    outTradeNo: paid ? `wm_pub_mock_${qid}` : undefined,
+    paidAt: paid ? new Date().toISOString() : undefined,
+  })
+}
+
+/** 查询支付结果；真实支付场景勿依赖本地 Mock 状态 */
+export const queryPublishPayState = ({ userId, qrId }) => {
+  const opts = {
     method: 'POST',
     path: '/pay/state',
-    data: {
-      userId,
-      qrId,
-      product: PUBLISH_PAY_PRODUCT,
-    },
+    data: { userId, qrId, product: PUBLISH_PAY_PRODUCT },
     needAuth: true,
-    mockHandler: ({ data }) => {
-      const qid = data?.qrId
-      const paid = isMockPaid(qid)
-      console.info('[mock] POST /pay/state →', paid ? 'paid' : 'pending', { qr_id: qid })
-      return ok({
-        paid,
-        state: paid ? 'paid' : 'pending',
-        outTradeNo: paid ? `wm_pub_mock_${qid}` : undefined,
-        paidAt: paid ? new Date().toISOString() : undefined,
-      })
-    },
+  }
+  if (getMockEnabled()) {
+    opts.mockHandler = payStateMockHandler
+  }
+  return wmRequest(opts)
+}
+
+/** 支付成功后立即查微信单（走真实接口，用于 minipay 真支付后） */
+export const syncPublishPayFromWechat = ({ userId, qrId }) =>
+  wmRequest({
+    method: 'POST',
+    path: '/pay/publish/sync',
+    data: { userId, qrId, product: PUBLISH_PAY_PRODUCT },
+    needAuth: true,
   })
 
 /**

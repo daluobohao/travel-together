@@ -2,6 +2,7 @@ import {
   createPublishQrcode,
   createPublishMinipay,
   queryPublishPayState,
+  syncPublishPayFromWechat,
   confirmMockPublishPayment,
   isPublishPayMockEnabled,
 } from '@/api/pay'
@@ -184,6 +185,12 @@ async function payByMiniprogram() {
   await requestWxPayment(order.paymentParams)
   uni.showLoading({ title: '确认支付结果…', mask: true })
   try {
+    // 真支付后先主动查微信单一次（不依赖异步 notify）
+    try {
+      await syncPublishPayFromWechat({ userId, qrId: orderQrId })
+    } catch (syncErr) {
+      console.warn('[pay] sync from wechat failed, will poll', syncErr?.message || syncErr)
+    }
     await pollPublishPaid({ userId, qrId: orderQrId })
   } finally {
     uni.hideLoading()
