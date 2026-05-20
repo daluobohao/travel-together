@@ -1010,10 +1010,33 @@ export const getMyActivities = (query = {}) =>
     query,
     mockHandler: ({ query: q }) => {
       const role = q.role || 'joined'
-      const list =
-        role === 'organized'
-          ? wmDB.activities.filter((x) => x.organizer.userId === wmDB.profile.userId)
-          : wmDB.activities.filter((x) => x.myEnrollment)
+      const timeScope = q.timeScope || 'all'
+      let list = wmDB.activities
+      if (role === 'organized') {
+        list = list.filter((x) => x.organizer?.userId === wmDB.profile.userId)
+      } else if (role === 'all') {
+        list = list.filter(
+          (x) =>
+            (x.activityKind || 'event') === 'event' &&
+            (x.organizer?.userId === wmDB.profile.userId || x.myEnrollment),
+        )
+      } else {
+        list = list.filter((x) => x.myEnrollment)
+      }
+      if (timeScope === 'past') {
+        list = list.filter((x) => {
+          const st = x.activityStatus
+          if (st === 'ended' || st === 'cancelled') return true
+          if (x.endAt && new Date(x.endAt).getTime() < Date.now()) return true
+          return false
+        })
+      } else if (timeScope === 'upcoming') {
+        list = list.filter((x) => {
+          if (x.activityStatus === 'cancelled' || x.activityStatus === 'ended') return false
+          if (x.endAt && new Date(x.endAt).getTime() <= Date.now()) return false
+          return x.activityStatus === 'published'
+        })
+      }
       return ok(paginate(list.map(toActivityCard), q.page, q.pageSize))
     },
   })

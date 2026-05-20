@@ -11,7 +11,9 @@
     <view class="history-page__content">
       <view class="history-page__summary">
         <text class="history-page__summary-title">已结束活动</text>
-        <text class="history-page__summary-sub">共 {{ activities.length }} 场，点击查看活动详情</text>
+        <text class="history-page__summary-sub">
+          我参加或发起过的已结束活动，共 {{ activities.length }} 场
+        </text>
       </view>
 
       <view class="history-page__list">
@@ -27,7 +29,9 @@
             <text class="activity__meta">{{ item.time }} · {{ item.location }}</text>
           </view>
           <view class="activity__right">
-            <view class="activity__status"><text>已结束</text></view>
+            <view class="activity__status" :class="`activity__status--${item.statusKey}`">
+              <text>{{ item.statusLabel }}</text>
+            </view>
             <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
           </view>
         </view>
@@ -38,7 +42,7 @@
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
-import { getActivities, mapActivityCard } from '@/api'
+import { getMyActivities, mapActivityCard } from '@/api'
 
 export default {
   components: { WmIcon },
@@ -52,18 +56,32 @@ export default {
   },
   methods: {
     async loadHistory() {
-      const data = await getActivities({ cityCode: '110000', page: 1, pageSize: 50 })
-      this.activities = (data?.list || [])
-        .filter((x) => x.activityStatus === 'ended' || x.activityStatus === 'cancelled')
-        .map((x) => {
-          const card = mapActivityCard(x)
+      try {
+        const data = await getMyActivities({
+          role: 'all',
+          timeScope: 'past',
+          page: 1,
+          pageSize: 50,
+        })
+        this.activities = (data?.list || []).map((item) => {
+          const card = mapActivityCard({
+            ...item,
+            enrolledCount: 0,
+            maxMembers: 1,
+          })
           return {
             id: String(card.activityId || ''),
             title: card.title,
             time: card.time,
             location: card.location,
+            statusKey: card.statusKey,
+            statusLabel: card.statusLabel,
           }
         })
+      } catch (e) {
+        this.activities = []
+        uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+      }
     },
     goBack() {
       uni.navigateBack()
@@ -189,6 +207,11 @@ export default {
     border-radius: 8rpx;
     background: #f1f5f9;
     color: #64748b;
+
+    &--cancelled {
+      background: #fef2f2;
+      color: #ef4444;
+    }
   }
 }
 </style>
