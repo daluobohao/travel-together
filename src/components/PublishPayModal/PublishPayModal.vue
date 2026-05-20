@@ -151,9 +151,13 @@ export default {
         // 轮询失败不打断用户扫码
       }
     },
-    onMockPay() {
-      confirmMockPublishPayment(this.qrId)
-      this.finishSuccess()
+    async onMockPay() {
+      try {
+        await confirmMockPublishPayment(this.qrId, this.userId)
+        this.finishSuccess()
+      } catch (e) {
+        uni.showToast({ title: e?.message || '模拟支付失败', icon: 'none' })
+      }
     },
     finishSuccess() {
       this.teardown()

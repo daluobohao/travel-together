@@ -2,6 +2,7 @@ import {
   createPublishQrcode,
   createPublishMinipay,
   queryPublishPayState,
+  confirmMockPublishPayment,
   isPublishPayMockEnabled,
 } from '@/api/pay'
 import { getMe, isLoggedIn } from '@/api'
@@ -30,7 +31,7 @@ async function ensureLoggedInForPublish() {
   return { userId }
 }
 
-async function confirmMockPay(qrId) {
+async function confirmMockPay(qrId, userId) {
   const res = await new Promise((resolve) => {
     uni.showModal({
       title: '模拟支付',
@@ -45,7 +46,7 @@ async function confirmMockPay(qrId) {
     e.cancelled = true
     throw e
   }
-  confirmMockPublishPayment(qrId)
+  await confirmMockPublishPayment(qrId, userId)
 }
 
 async function pollPublishPaid({ userId, qrId }) {
@@ -105,12 +106,15 @@ export async function prepareH5PublishPayment() {
 
   if (!order?.qrId) throw new Error('创建支付单失败')
 
+  const payUrl = order.payCodeUrl || ''
+  const backendMock = payUrl.includes('mock_') || payUrl.startsWith('mock:')
+
   return {
     needPayModal: true,
     userId,
     qrId: order.qrId,
-    payCodeUrl: order.payCodeUrl || '',
-    mockMode: isPublishPayMockEnabled(),
+    payCodeUrl: payUrl,
+    mockMode: isPublishPayMockEnabled() || backendMock,
   }
 }
 
@@ -120,31 +124,32 @@ export async function prepareH5PublishPayment() {
  */
 async function payByMiniprogram() {
   const { userId } = await ensureLoggedInForPublish()
+  const qrId = generatePayQrId()
   uni.showLoading({ title: '准备支付…', mask: true })
   let order
   try {
     const code = await getWxLoginCode()
-    order = await createPublishMinipay({ code })
+    order = await createPublishMinipay({ userId, qrId, code })
   } finally {
     uni.hideLoading()
   }
 
-  const qrId = order?.qrId
-  if (!qrId) throw new Error('创建支付单失败')
+  const orderQrId = order?.qrId || qrId
+  if (!orderQrId) throw new Error('创建支付单失败')
 
-  if (order?.mockSkip) {
-    await confirmMockPay(qrId)
-    return { userId, qrId }
+  if (order?.mockSkip || isPublishPayMockEnabled()) {
+    await confirmMockPay(orderQrId, userId)
+    return { userId, qrId: orderQrId }
   }
 
   await requestWxPayment(order.paymentParams)
   uni.showLoading({ title: '确认支付结果…', mask: true })
   try {
-    await pollPublishPaid({ userId, qrId })
+    await pollPublishPaid({ userId, qrId: orderQrId })
   } finally {
     uni.hideLoading()
   }
-  return { userId, qrId }
+  return { userId, qrId: orderQrId }
 }
 // #endif
 

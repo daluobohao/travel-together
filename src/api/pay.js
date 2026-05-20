@@ -45,21 +45,21 @@ export const createPublishQrcode = ({ userId, qrId }) =>
  * 创建发布活动小程序支付单（后端需用 code 换 openid 并调 YunGouOS minAppPay）。
  * @returns {{ qrId: string, outTradeNo?: string, paymentParams: object, mockSkip?: boolean }}
  */
-export const createPublishMinipay = (payload) =>
+export const createPublishMinipay = ({ userId, qrId, code }) =>
   wmRequest({
     method: 'POST',
     path: '/pay/publish/minipay',
     data: {
-      code: payload?.code,
-      fee: PUBLISH_FEE_YUAN,
-      name: PUBLISH_PAY_PRODUCT_NAME,
+      userId,
+      qrId,
+      code,
       product: PUBLISH_PAY_PRODUCT,
     },
     needAuth: true,
     mockHandler: () => {
-      const qrId = `mock_pub_${Date.now()}`
+      const id = qrId || `mock_pub_${Date.now()}`
       return ok({
-        qrId,
+        qrId: id,
         outTradeNo: `wm_pub_${Date.now()}`,
         mockSkip: true,
         paymentParams: null,
@@ -94,10 +94,22 @@ export const queryPublishPayState = ({ userId, qrId }) =>
     },
   })
 
-/** mock 模式下模拟 YunGouOS 回调成功，供 POST /pay/state 轮询到 paid */
-export function confirmMockPublishPayment(qrId) {
-  markMockPaid(qrId)
-  console.info('[mock] 支付回调已模拟（attach 第三段 publish）', { qr_id: qrId })
+/**
+ * 模拟支付成功：前端 Mock 写本地状态；否则调后端 POST /pay/mock/confirm（须服务端 WECHAT_PAY_USE_MOCK）。
+ */
+export async function confirmMockPublishPayment(qrId, userId) {
+  if (getMockEnabled()) {
+    markMockPaid(qrId)
+    console.info('[mock] 本地支付状态已标记 paid', { qr_id: qrId })
+    return
+  }
+  if (!userId || !qrId) return
+  await wmRequest({
+    method: 'POST',
+    path: '/pay/mock/confirm',
+    data: { userId, qrId, product: PUBLISH_PAY_PRODUCT },
+    needAuth: true,
+  })
 }
 
 /** 是否处于本地支付 Mock（未请求真实 /pay/*） */
