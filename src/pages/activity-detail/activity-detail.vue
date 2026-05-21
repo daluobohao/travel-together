@@ -28,7 +28,18 @@
       </view>
     </view>
 
-    <view class="detail__content" v-if="activity">
+    <view v-if="loadState === 'loading'" class="detail__state">
+      <text class="detail__state-text">加载中…</text>
+    </view>
+
+    <view v-else-if="loadState === 'error'" class="detail__state">
+      <text class="detail__state-text">{{ loadErrorMsg || '无法加载活动详情' }}</text>
+      <view class="detail__state-btn" @click="retryLoad">
+        <text>重试</text>
+      </view>
+    </view>
+
+    <view class="detail__content" v-else-if="activity">
       <view class="hero" :style="{ background: activity.cover }">
         <view class="hero__tag-row">
           <view class="hero__tag" :style="{ background: activity.tagBg, color: activity.tagColor }">
@@ -132,8 +143,10 @@ import {
   formatActivityTimeRange,
   getActivityDetail,
   getMe,
+  isLoggedIn,
   resolveActivityCategoryTag,
 } from '@/api'
+import { setPostLoginRedirect } from '@/utils/wechatAuth'
 import {
   buildActivityShareClipboardText,
   buildActivityShareMessage,
@@ -144,7 +157,10 @@ export default {
   components: { WmIcon },
   data() {
     return {
+      activityId: '',
       activity: null,
+      loadState: 'loading',
+      loadErrorMsg: '',
       actionLoading: false,
       currentUserId: '',
     }
@@ -169,6 +185,7 @@ export default {
       if (this.isOrganizer && this.isJoined) return '你是发起人'
       if (this.isJoined) return '取消报名'
       if (this.activity.isFull) return '已满员'
+      if (!isLoggedIn()) return '登录后报名'
       return '立即报名'
     },
     actionBtnClass() {
@@ -191,8 +208,8 @@ export default {
     },
   },
   onLoad(query) {
-    const id = query?.id ? String(query.id) : '1'
-    this.loadActivity(id)
+    this.activityId = query?.id ? String(query.id) : ''
+    this.loadActivity(this.activityId)
   },
   onShow() {
     // #ifdef MP-WEIXIN
@@ -221,50 +238,77 @@ export default {
   },
   methods: {
     async loadActivity(id) {
+      const actId = String(id || '').trim()
+      if (!actId) {
+        this.activity = null
+        this.loadState = 'error'
+        this.loadErrorMsg = '活动不存在或链接无效'
+        return
+      }
+
+      this.loadState = 'loading'
+      this.loadErrorMsg = ''
+      this.activity = null
+
       try {
         let meId = ''
-        try {
-          const me = await getMe()
-          meId = me?.userId ? String(me.userId) : ''
-        } catch (e) {
-          meId = ''
+        if (isLoggedIn()) {
+          try {
+            const me = await getMe()
+            meId = me?.userId ? String(me.userId) : ''
+          } catch (e) {
+            meId = ''
+          }
         }
         this.currentUserId = meId
 
-        const detail = await getActivityDetail(id)
-        if (detail) {
-          const org = detail.organizer || {}
-          const status = computeActivityStatus(detail)
-          const catTag = resolveActivityCategoryTag(detail)
-          this.activity = {
-            id: String(detail.activityId || ''),
-            category: catTag.label,
-            tagColor: catTag.color,
-            tagBg: catTag.bg,
-            title: detail.title,
-            cover: 'linear-gradient(135deg, #a78bfa 0%, #6366f1 100%)',
-            time: formatActivityTimeRange(detail.startAt, detail.endAt),
-            startAt: detail.startAt,
-            endAt: detail.endAt,
-            location: detail.locationName,
-            distance: detail.distanceMeters ? `${(detail.distanceMeters / 1000).toFixed(1)}km` : '',
-            joined: Number(detail.enrolledCount || 0),
-            total: Number(detail.maxMembers || 0),
-            organizer: org.nickname || '组织者',
-            organizerId: org.userId || '',
-            organizerAvatar: org.avatarUrl || '',
-            organizerBio: (org.bio && String(org.bio).trim()) || '',
-            organizerTags: Array.isArray(org.tags) ? org.tags : [],
-            organizerVerified: !!org.verificationBadge,
-            hostedCount: Number(detail.organizerHostedCount || 0),
-            description: detail.description || '暂无说明',
-            enrollmentStatus: detail.myEnrollment?.status || null,
-            ...status,
-          }
+        const detail = await getActivityDetail(actId)
+        if (!detail) {
+          this.loadState = 'error'
+          this.loadErrorMsg = '活动不存在或已下架'
           return
         }
-      } catch (e) {}
-      this.activity = null
+
+        const org = detail.organizer || {}
+        const status = computeActivityStatus(detail)
+        const catTag = resolveActivityCategoryTag(detail)
+        this.activity = {
+          id: String(detail.activityId || actId),
+          category: catTag.label,
+          tagColor: catTag.color,
+          tagBg: catTag.bg,
+          title: detail.title,
+          cover: 'linear-gradient(135deg, #a78bfa 0%, #6366f1 100%)',
+          time: formatActivityTimeRange(detail.startAt, detail.endAt),
+          startAt: detail.startAt,
+          endAt: detail.endAt,
+          location: detail.locationName,
+          distance: detail.distanceMeters ? `${(detail.distanceMeters / 1000).toFixed(1)}km` : '',
+          joined: Number(detail.enrolledCount || 0),
+          total: Number(detail.maxMembers || 0),
+          organizer: org.nickname || '组织者',
+          organizerId: org.userId || '',
+          organizerAvatar: org.avatarUrl || '',
+          organizerBio: (org.bio && String(org.bio).trim()) || '',
+          organizerTags: Array.isArray(org.tags) ? org.tags : [],
+          organizerVerified: !!org.verificationBadge,
+          hostedCount: Number(detail.organizerHostedCount || 0),
+          description: detail.description || '暂无说明',
+          enrollmentStatus: detail.myEnrollment?.status || null,
+          ...status,
+        }
+        this.loadState = 'ready'
+      } catch (e) {
+        this.activity = null
+        this.loadState = 'error'
+        const msg = e?.message || '加载失败'
+        this.loadErrorMsg =
+          e?.statusCode === 404 ? '活动不存在或已下架' : msg.includes('authenticated') ? '暂时无法加载，请稍后重试' : msg
+        uni.showToast({ title: this.loadErrorMsg, icon: 'none' })
+      }
+    },
+    retryLoad() {
+      if (this.activityId) this.loadActivity(this.activityId)
     },
     onOpenOrganizerProfile() {
       const uid = this.activity?.organizerId
@@ -328,6 +372,14 @@ export default {
         uni.showToast({ title: '发起人不能取消报名，如需结束请取消活动', icon: 'none' })
         return
       }
+      if (!isLoggedIn()) {
+        const id = this.activity.id || this.activityId
+        if (id) {
+          setPostLoginRedirect(`/pages/activity-detail/activity-detail?id=${encodeURIComponent(id)}`)
+        }
+        uni.navigateTo({ url: '/pages/login/login' })
+        return
+      }
       this.toggleEnroll()
     },
     async toggleEnroll() {
@@ -362,6 +414,14 @@ export default {
     },
     onEnterGroup() {
       if (!this.canEnterGroup) return
+      if (!isLoggedIn()) {
+        const id = this.activity.id || this.activityId
+        if (id) {
+          setPostLoginRedirect(`/pages/activity-detail/activity-detail?id=${encodeURIComponent(id)}`)
+        }
+        uni.navigateTo({ url: '/pages/login/login' })
+        return
+      }
       uni.navigateTo({
         url: `/pages/chat-detail/chat-detail?id=${this.activity.id}`,
       })
@@ -391,6 +451,34 @@ export default {
   min-height: 100vh;
   background: transparent;
   padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+
+  &__state {
+    padding: 120rpx 48rpx;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32rpx;
+  }
+
+  &__state-text {
+    font-size: 28rpx;
+    color: $wm-text-3;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  &__state-btn {
+    height: 72rpx;
+    padding: 0 40rpx;
+    border-radius: $wm-radius-xl;
+    background: $wm-gradient-primary;
+    color: #fff;
+    font-size: 28rpx;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
   &__header {
     position: sticky;
