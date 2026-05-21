@@ -16,31 +16,59 @@
         <view v-if="!messages.length" class="chat-detail__empty">
           <text>欢迎来到活动群聊</text>
         </view>
-        <view
-          v-for="msg in messages"
-          :key="msg.id"
-          class="msg-row"
-          :class="msg.mine ? 'msg-row--mine' : 'msg-row--other'"
-        >
-          <view
-            v-if="!msg.mine && msg.openProfile"
-            class="msg-row__avatar"
-            @click.stop="openUserPublic(msg)"
-          >
-            <text>{{ msg.avatarLetter }}</text>
+        <template v-for="item in displayItems" :key="item.id">
+          <view v-if="item.type === 'time'" class="chat-time">
+            <text class="chat-time__label">{{ item.label }}</text>
           </view>
-          <view class="msg" :class="msg.mine ? 'msg--mine' : 'msg--other'">
-          <view class="msg__bubble" :class="{ 'msg__bubble--failed': msg.failed }">
-            <text class="msg__sender" v-if="!msg.mine" @click.stop="openUserPublic(msg)">{{ msg.sender }}</text>
-            <text class="msg__text">{{ msg.text }}</text>
-            <view class="msg__meta">
-              <text v-if="msg.pending" class="msg__status">发送中…</text>
-              <text v-else-if="msg.failed" class="msg__status msg__status--failed">发送失败</text>
-              <text class="msg__time">{{ msg.time }}</text>
+          <view
+            v-else
+            class="msg-row"
+            :class="item.mine ? 'msg-row--mine' : 'msg-row--other'"
+          >
+            <view
+              v-if="!item.mine"
+              class="msg-row__avatar"
+              :class="{ 'msg-row__avatar--tap': item.openProfile }"
+              @click.stop="item.openProfile && openUserPublic(item)"
+            >
+              <image
+                v-if="item.avatarUrl"
+                class="msg-row__avatar-img"
+                :src="item.avatarUrl"
+                mode="aspectFill"
+              />
+              <text v-else>{{ item.avatarLetter }}</text>
+            </view>
+
+            <view class="msg-col" :class="item.mine ? 'msg-col--mine' : 'msg-col--other'">
+              <text
+                v-if="!item.mine && item.sender"
+                class="msg-col__name"
+                @click.stop="item.openProfile && openUserPublic(item)"
+              >
+                {{ item.sender }}
+              </text>
+              <view class="msg-bubble" :class="{ 'msg-bubble--mine': item.mine, 'msg-bubble--failed': item.failed }">
+                <text class="msg-bubble__text">{{ item.text }}</text>
+              </view>
+              <text v-if="item.pending" class="msg-col__hint">发送中…</text>
+              <text v-else-if="item.failed" class="msg-col__hint msg-col__hint--fail">发送失败，请重试</text>
+            </view>
+
+            <view
+              v-if="item.mine"
+              class="msg-row__avatar msg-row__avatar--mine"
+            >
+              <image
+                v-if="item.avatarUrl"
+                class="msg-row__avatar-img"
+                :src="item.avatarUrl"
+                mode="aspectFill"
+              />
+              <text v-else>{{ item.avatarLetter }}</text>
             </view>
           </view>
-          </view>
-        </view>
+        </template>
       </view>
     </scroll-view>
 
@@ -71,18 +99,38 @@ import {
   markMyChatRead,
   sendActivityMessage,
 } from '@/api'
+import {
+  getLastServerMessageId,
+  loadActivityChatCache,
+  mergeMessageLists,
+  saveActivityChatCache,
+} from '@/utils/activityChatCache'
 
 const POLL_INTERVAL_MS = 4000
 const DEFAULT_LIMIT = 50
 
-function formatTime(iso) {
+const TIME_GAP_MS = 5 * 60 * 1000
+
+function formatTimeDivider(iso, prevIso) {
+  if (!iso) return null
   try {
-    const d = iso ? new Date(iso) : new Date()
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return null
+    const prev = prevIso ? new Date(prevIso) : null
+    if (prev && !Number.isNaN(prev.getTime()) && d.getTime() - prev.getTime() < TIME_GAP_MS) {
+      return null
+    }
     const h = String(d.getHours()).padStart(2, '0')
     const m = String(d.getMinutes()).padStart(2, '0')
-    return `${h}:${m}`
+    const now = new Date()
+    const today = now.toDateString()
+    const yesterday = new Date(now.getTime() - 86400000).toDateString()
+    const ds = d.toDateString()
+    if (ds === today) return `${h}:${m}`
+    if (ds === yesterday) return `昨天 ${h}:${m}`
+    return `${d.getMonth() + 1}月${d.getDate()}日 ${h}:${m}`
   } catch (e) {
-    return '刚刚'
+    return null
   }
 }
 
@@ -112,8 +160,25 @@ export default {
       pollingPaused: false,
       socketTask: null,
       useWebSocket: false, // 切到 true 时优先走 WS，失败自动退回轮询
-      currentUserId: '', // 当前登录用户的ID
+      currentUserId: '',
+      currentUserNickname: '',
+      currentUserAvatar: '',
     }
+  },
+  computed: {
+    displayItems() {
+      const items = []
+      let prevCreatedAt = ''
+      for (const msg of this.messages) {
+        const label = formatTimeDivider(msg.createdAt, prevCreatedAt)
+        if (label) {
+          items.push({ type: 'time', id: `time_${msg.id}`, label })
+        }
+        items.push({ type: 'message', ...msg })
+        if (msg.createdAt) prevCreatedAt = msg.createdAt
+      }
+      return items
+    },
   },
   onLoad(query) {
     this.chatId = query?.id ? String(query.id) : '1'
@@ -128,6 +193,7 @@ export default {
     this.pollingPaused = true
   },
   onUnload() {
+    this.persistCache()
     this.stopPolling()
     this.closeSocket()
   },
@@ -159,11 +225,18 @@ export default {
       try {
         const user = await getMe()
         this.currentUserId = user?.userId || ''
+        this.currentUserNickname = user?.nickname || '我'
+        this.currentUserAvatar = user?.avatarUrl || ''
       } catch (e) {
         console.warn('获取当前用户信息失败', e)
       }
     },
     async loadGroup() {
+      const cached = loadActivityChatCache(this.chatId)
+      if (cached.length) {
+        this.applyMessagesList(cached)
+        this.scrollToBottom()
+      }
       try {
         const [detail, msgData] = await Promise.all([
           getActivityDetail(this.chatId),
@@ -174,35 +247,68 @@ export default {
           subtitle: `${Number(detail?.enrolledCount || 0)}/${Number(detail?.maxMembers || 0)} 成员`,
         }
         const rawList = msgData?.list || []
-        this.messageIds = {}
-        this.messages = rawList.map((m) => this.normalizeMessage(m)).filter(Boolean)
+        const incoming = rawList.map((m) => this.normalizeMessage(m, { skipDedup: true })).filter(Boolean)
+        if (this.mergeIncomingMessages(incoming)) {
+          this.scrollToBottom()
+        }
         this.updateLastCreatedAt(rawList)
+        this.persistCache()
         markMyChatRead(this.chatId).catch(() => {})
       } catch (e) {
-        uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+        if (!this.messages.length) {
+          uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+        }
       } finally {
-        this.scrollToBottom()
+        if (!cached.length) this.scrollToBottom()
       }
     },
-    normalizeMessage(raw) {
+    applyMessagesList(list) {
+      this.messages = list || []
+      this.rebuildMessageIds()
+    },
+    rebuildMessageIds() {
+      this.messageIds = {}
+      for (const m of this.messages) {
+        if (m?.id) this.messageIds[m.id] = true
+      }
+    },
+    persistCache() {
+      if (!this.chatId || !this.messages.length) return
+      saveActivityChatCache(this.chatId, this.messages)
+    },
+    mergeIncomingMessages(incoming) {
+      if (!incoming?.length) return false
+      const prevLen = this.messages.length
+      const merged = mergeMessageLists(this.messages, incoming)
+      const changed =
+        merged.length !== prevLen ||
+        merged.some((m, i) => m.id !== this.messages[i]?.id || m.text !== this.messages[i]?.text)
+      if (changed) {
+        this.messages = merged
+        this.rebuildMessageIds()
+      }
+      return changed
+    },
+    normalizeMessage(raw, { skipDedup = false } = {}) {
       if (!raw) return null
       const id = raw.messageId || `local_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
-      if (this.messageIds[id]) return null
-      this.messageIds[id] = true
+      if (!skipDedup && this.messageIds[id]) return null
+      if (!skipDedup) this.messageIds[id] = true
       const senderUserId = raw.sender?.userId
       const isMine = senderUserId === 'me' || (this.currentUserId && senderUserId === this.currentUserId)
       const openProfile =
         !isMine && senderUserId && senderUserId !== 'system'
+      const nickname = raw.sender?.nickname || '用户'
       return {
         id,
-        sender: raw.sender?.nickname || '用户',
+        sender: nickname,
         text: raw.text || '',
-        time: formatTime(raw.createdAt),
         mine: isMine,
-        createdAt: raw.createdAt,
+        createdAt: raw.createdAt || new Date().toISOString(),
         userId: senderUserId,
         openProfile,
-        avatarLetter: String(raw.sender?.nickname || '?').slice(0, 1),
+        avatarUrl: raw.sender?.avatarUrl || '',
+        avatarLetter: String(nickname || '?').slice(0, 1),
       }
     },
     openUserPublic(msg) {
@@ -242,14 +348,15 @@ export default {
       this.pollingBusy = true
       try {
         const query = { limit: DEFAULT_LIMIT }
-        if (this.lastCreatedAt) query.since = this.lastCreatedAt
+        const afterId = getLastServerMessageId(this.messages)
+        if (afterId) query.afterMessageId = afterId
         const msgData = await getActivityMessages(this.chatId, query)
         const rawList = msgData?.list || []
         if (!rawList.length) return
-        const incoming = rawList.map((m) => this.normalizeMessage(m)).filter(Boolean)
-        if (incoming.length) {
-          this.messages = [...this.messages, ...incoming]
+        const incoming = rawList.map((m) => this.normalizeMessage(m, { skipDedup: true })).filter(Boolean)
+        if (this.mergeIncomingMessages(incoming)) {
           this.updateLastCreatedAt(rawList)
+          this.persistCache()
           this.scrollToBottom()
         }
       } catch (e) {
@@ -277,10 +384,10 @@ export default {
           try {
             const payload = typeof res?.data === 'string' ? JSON.parse(res.data) : res?.data
             if (payload?.type === 'message' && payload.data) {
-              const norm = this.normalizeMessage(payload.data)
-              if (norm) {
-                this.messages.push(norm)
+              const norm = this.normalizeMessage(payload.data, { skipDedup: true })
+              if (norm && this.mergeIncomingMessages([norm])) {
                 this.updateLastCreatedAt([payload.data])
+                this.persistCache()
                 this.scrollToBottom()
               }
             }
@@ -324,13 +431,16 @@ export default {
       if (!text) return
       // 群聊：走真实接口，乐观渲染
       const tempId = `temp_${Date.now()}`
+      const nowIso = new Date().toISOString()
       this.messages.push({
         id: tempId,
-        sender: '你',
+        sender: this.currentUserNickname || '我',
         text,
-        time: formatTime(new Date().toISOString()),
         mine: true,
         pending: true,
+        createdAt: nowIso,
+        avatarUrl: this.currentUserAvatar,
+        avatarLetter: String(this.currentUserNickname || '我').slice(0, 1),
       })
       this.messageIds[tempId] = true
       this.draft = ''
@@ -344,17 +454,19 @@ export default {
             this.messageIds[realId] = true
             this.messages.splice(idx, 1, {
               id: realId,
-              sender: '你',
+              sender: this.currentUserNickname || '我',
               text,
-              time: formatTime(row?.createdAt),
               mine: true,
-              createdAt: row?.createdAt,
+              createdAt: row?.createdAt || nowIso,
+              avatarUrl: this.currentUserAvatar,
+              avatarLetter: String(this.currentUserNickname || '我').slice(0, 1),
             })
           } else {
             this.messages[idx].pending = false
           }
         }
         this.updateLastCreatedAt([{ createdAt: row?.createdAt }])
+        this.persistCache()
         try {
           await markMyChatRead(this.chatId)
         } catch (e) {
@@ -373,7 +485,8 @@ export default {
 <style lang="scss" scoped>
 .chat-detail {
   min-height: 100vh;
-  background: transparent;
+  height: 100vh;
+  background: #ededed;
   display: flex;
   flex-direction: column;
 
@@ -420,13 +533,16 @@ export default {
 
   &__messages {
     flex: 1;
-    padding: 20rpx 24rpx;
+    height: 0;
+    padding: 16rpx 0;
+    background: #ededed;
+    box-sizing: border-box;
   }
 
   &__messages-inner {
     width: 100%;
-    max-width: 760rpx;
-    margin: 0 auto;
+    padding: 0 24rpx 24rpx;
+    box-sizing: border-box;
   }
 
   &__empty {
@@ -473,13 +589,29 @@ export default {
   }
 }
 
+.chat-time {
+  display: flex;
+  justify-content: center;
+  padding: 20rpx 0 12rpx;
+
+  &__label {
+    font-size: 22rpx;
+    color: #b2b2b2;
+    background: rgba(0, 0, 0, 0.06);
+    padding: 6rpx 16rpx;
+    border-radius: 8rpx;
+    line-height: 1.2;
+  }
+}
+
 .msg-row {
   display: flex;
-  align-items: flex-end;
-  gap: 12rpx;
-  margin-bottom: 14rpx;
+  align-items: flex-start;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
 
   &--mine {
+    flex-direction: row;
     justify-content: flex-end;
   }
 
@@ -488,92 +620,93 @@ export default {
   }
 
   &__avatar {
-    width: 56rpx;
-    height: 56rpx;
-    border-radius: 12rpx;
-    background: linear-gradient(135deg, #a78bfa, #6366f1);
+    width: 80rpx;
+    height: 80rpx;
+    border-radius: 8rpx;
+    background: #c8c8c8;
     color: #ffffff;
-    font-size: 24rpx;
-    font-weight: 700;
+    font-size: 28rpx;
+    font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    overflow: hidden;
+
+    &--mine {
+      background: linear-gradient(135deg, #7dd3fc, #38bdf8);
+    }
+
+    &--tap:active {
+      opacity: 0.85;
+    }
+  }
+
+  &__avatar-img {
+    width: 100%;
+    height: 100%;
   }
 }
 
-.msg {
+.msg-col {
   display: flex;
-
-  &--other {
-    justify-content: flex-start;
-
-    .msg__bubble {
-      background: #ffffff;
-      border-top-left-radius: 8rpx;
-    }
-  }
+  flex-direction: column;
+  max-width: calc(100% - 112rpx);
+  min-width: 0;
 
   &--mine {
-    justify-content: flex-end;
-
-    .msg__bubble {
-      background: #e0e7ff;
-      border-top-right-radius: 8rpx;
-      padding-right: 28px;
-      margin-right: 24px;
-    }
+    align-items: flex-end;
   }
 
-  &__bubble {
-    max-width: 78%;
-    padding: 14rpx 18rpx;
-    border-radius: 16rpx;
-    box-shadow: 0 2rpx 8rpx rgba(15, 23, 42, 0.04);
-    box-sizing: border-box;
-    overflow: visible;
+  &--other {
+    align-items: flex-start;
   }
 
-  &__sender {
-    display: block;
+  &__name {
+    font-size: 22rpx;
+    color: #888888;
+    line-height: 1.3;
+    margin-bottom: 6rpx;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__hint {
     font-size: 20rpx;
-    color: #6366f1;
-    margin-bottom: 4rpx;
-  }
-
-  &__text {
-    display: block;
-    font-size: 26rpx;
-    color: #0f172a;
-    line-height: 1.45;
-    white-space: normal;
-    word-break: break-word;
-  }
-
-  &__time {
-    font-size: 20rpx;
-    color: #94a3b8;
-  }
-
-  &__meta {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8rpx;
+    color: #b2b2b2;
     margin-top: 6rpx;
-  }
 
-  &__status {
-    font-size: 20rpx;
-    color: #94a3b8;
-
-    &--failed {
+    &--fail {
       color: #ef4444;
     }
   }
+}
 
-  &__bubble--failed {
-    opacity: 0.75;
+.msg-bubble {
+  display: inline-block;
+  max-width: 520rpx;
+  padding: 18rpx 22rpx;
+  border-radius: 8rpx;
+  background: #ffffff;
+  position: relative;
+  box-sizing: border-box;
+
+  &--mine {
+    background: #95ec69;
+  }
+
+  &--failed {
+    opacity: 0.72;
+  }
+
+  &__text {
+    font-size: 32rpx;
+    color: #191919;
+    line-height: 1.5;
+    word-break: break-word;
+    white-space: pre-wrap;
   }
 }
 </style>

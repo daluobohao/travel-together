@@ -873,25 +873,39 @@ export const getActivityMembers = (activityId) =>
   })
 
 // 18 / 19
-// query: { limit?: number, since?: ISOString (增量拉取), cursor?: string }
+// query: { limit?, afterMessageId? (增量), cursor? (上拉历史) }
 export const getActivityMessages = (activityId, query = {}) =>
   wmRequest({
     method: 'GET',
     path: `/activities/${activityId}/messages`,
     query,
     mockHandler: ({ query: q }) => {
-      let list = wmDB.chats[String(activityId)] || []
-      if (q.since) {
-        const sinceTs = new Date(q.since).getTime()
-        if (!Number.isNaN(sinceTs)) {
-          list = list.filter((m) => new Date(m.createdAt).getTime() > sinceTs)
-        }
+      let list = (wmDB.chats[String(activityId)] || []).slice()
+      const parsePk = (id) => {
+        const n = Number(String(id || '').replace(/^msg_/, ''))
+        return Number.isFinite(n) ? n : 0
+      }
+      const afterKey = q.afterMessageId || q.after
+      if (afterKey) {
+        const afterPk = parsePk(afterKey)
+        list = list.filter((m) => parsePk(m.messageId) > afterPk)
+        list.sort((a, b) => parsePk(a.messageId) - parsePk(b.messageId))
       }
       const limit = Math.min(100, Math.max(1, Number(q.limit) || 50))
-      const sliced = list.slice(-limit)
+      let sliced
+      if (afterKey) {
+        sliced = list.slice(0, limit)
+      } else if (q.cursor) {
+        const cursorPk = parsePk(q.cursor)
+        list = list.filter((m) => parsePk(m.messageId) < cursorPk)
+        list.sort((a, b) => parsePk(a.messageId) - parsePk(b.messageId))
+        sliced = list.slice(-limit)
+      } else {
+        sliced = list.slice(-limit)
+      }
       return ok({
         list: sliced,
-        nextCursor: sliced.length ? sliced[0].messageId : null,
+        nextCursor: sliced.length ? sliced[sliced.length - 1].messageId : null,
       })
     },
   })

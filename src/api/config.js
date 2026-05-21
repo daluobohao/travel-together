@@ -31,8 +31,11 @@ export function setRefreshToken(token) {
   uni.setStorageSync(REFRESH_TOKEN_KEY, token || '')
 }
 
+import { clearAllActivityChatCaches } from '@/utils/activityChatCache'
+
 /** 清空本地 access / refresh（登出或刷新失败时） */
 export function clearWmAuthTokens() {
   uni.removeStorageSync(ACCESS_TOKEN_KEY)
   uni.removeStorageSync(REFRESH_TOKEN_KEY)
+  clearAllActivityChatCaches()
 }

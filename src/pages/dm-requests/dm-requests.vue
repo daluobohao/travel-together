@@ -84,12 +84,16 @@ export default {
         const data = await acceptDmRequest(it.requestId)
         uni.showToast({ title: '已同意', icon: 'success' })
         const nick = it.fromUser?.nickname || ''
+        const ava = it.fromUser?.avatarUrl
+          ? '&peerAvatarUrl=' + encodeURIComponent(it.fromUser.avatarUrl)
+          : ''
         uni.navigateTo({
           url:
             '/pages/direct-chat-detail/direct-chat-detail?threadId=' +
             encodeURIComponent(data.threadId) +
             '&peerNickname=' +
-            encodeURIComponent(nick),
+            encodeURIComponent(nick) +
+            ava,
         })
       } catch (e) {
         uni.showToast({ title: e?.message || '操作失败', icon: 'none' })

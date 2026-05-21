@@ -197,12 +197,14 @@ export default {
     },
     openDirectChat(threadId) {
       const nick = encodeURIComponent(this.profile?.nickname || '')
+      const ava = this.profile?.avatarUrl ? '&peerAvatarUrl=' + encodeURIComponent(this.profile.avatarUrl) : ''
       uni.navigateTo({
         url:
           '/pages/direct-chat-detail/direct-chat-detail?threadId=' +
           encodeURIComponent(threadId) +
           '&peerNickname=' +
-          nick,
+          nick +
+          ava,
       })
     },
     async submitDmRequest() {

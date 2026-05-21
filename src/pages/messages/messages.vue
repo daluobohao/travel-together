@@ -246,6 +246,7 @@ function mapPrivateChat(item) {
     id: String(item.threadId),
     threadId: item.threadId,
     peerNickname: name,
+    peerAvatarUrl: item.peerAvatarUrl || '',
     initial: String(name).slice(0, 1),
     name,
     preview: item.lastMessage || '暂无消息',
@@ -324,7 +325,8 @@ export default {
         'threadId=' +
         encodeURIComponent(chat.threadId) +
         '&peerNickname=' +
-        encodeURIComponent(chat.peerNickname || chat.name || '')
+        encodeURIComponent(chat.peerNickname || chat.name || '') +
+        (chat.peerAvatarUrl ? '&peerAvatarUrl=' + encodeURIComponent(chat.peerAvatarUrl) : '')
       uni.navigateTo({ url: '/pages/direct-chat-detail/direct-chat-detail?' + q })
     },
     async onOpenGroup(chat) {
