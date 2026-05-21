@@ -70,10 +70,13 @@ import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import {
   bindPhoneSms,
   bindPhoneWechat,
+  getAccessToken,
+  isLoggedIn,
   sendSmsCode,
   setAccessToken,
   setRefreshToken,
 } from '@/api'
+import { mapBindPhoneErrorMessage, parseGetPhoneNumberEvent } from '@/utils/wechatPhoneAuth'
 const PHONE_REG = /^1\d{10}$/
 
 export default {
@@ -97,6 +100,14 @@ export default {
       return this.countdown > 0 ? `${this.countdown}s` : '获取验证码'
     },
   },
+  onShow() {
+    if (!isLoggedIn()) {
+      uni.showToast({ title: '请先登录', icon: 'none' })
+      setTimeout(() => {
+        uni.navigateTo({ url: '/pages/login/login' })
+      }, 400)
+    }
+  },
   onUnload() {
     if (this.timer) clearInterval(this.timer)
   },
@@ -113,24 +124,31 @@ export default {
       setTimeout(() => uni.navigateBack(), 500)
     },
     async onGetPhoneNumber(e) {
-      const detail = e?.detail || {}
-      if (detail.errMsg && !String(detail.errMsg).includes('ok')) {
-        if (!String(detail.errMsg).includes('deny')) {
-          uni.showToast({ title: '需要授权手机号才能绑定', icon: 'none' })
+      if (this.wechatLoading) return
+      if (!getAccessToken()) {
+        uni.showToast({ title: '请先登录', icon: 'none' })
+        uni.navigateTo({ url: '/pages/login/login' })
+        return
+      }
+
+      const parsed = parseGetPhoneNumberEvent(e)
+      if (!parsed.ok) {
+        if (parsed.message) {
+          uni.showToast({ title: parsed.message, icon: 'none', duration: 2800 })
         }
         return
       }
-      const phoneCode = detail.code
-      if (!phoneCode) {
-        uni.showToast({ title: '未获取到手机号凭证', icon: 'none' })
-        return
-      }
+
       this.wechatLoading = true
       try {
-        const data = await bindPhoneWechat({ phoneCode })
+        const data = await bindPhoneWechat({ phoneCode: parsed.phoneCode })
         this.applyBindResult(data)
       } catch (err) {
-        uni.showToast({ title: err?.message || '绑定失败', icon: 'none' })
+        const tip = mapBindPhoneErrorMessage(err)
+        uni.showToast({ title: tip, icon: 'none', duration: 2800 })
+        if (err?.isAuthError || err?.statusCode === 401) {
+          setTimeout(() => uni.navigateTo({ url: '/pages/login/login' }), 800)
+        }
       } finally {
         this.wechatLoading = false
       }
