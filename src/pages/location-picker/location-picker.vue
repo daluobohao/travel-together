@@ -91,6 +91,15 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import { getCurrentPositionGcj02, supportsWxLocationScopeApi } from '@/utils/geoLocation'
+import {
+  adcodeToListCityCode,
+  clearHomeSearchAnchor,
+  HOME_CITY_CODE_KEY,
+  HOME_CITY_NAME_KEY,
+  HOME_LOCATION_KEY,
+  HOME_SEARCH_ANCHOR_KEY,
+  resolveHomeCityForActivities,
+} from '@/utils/homeCity'
 
 const AMAP_WEB_KEY = '15fb84dbcfd7a884bbb4133135d0d05f'
 const DEFAULT_LOCATION = { lng: 116.397428, lat: 39.90923, name: '天安门' }
@@ -172,6 +181,8 @@ export default {
       previewLat: DEFAULT_LOCATION.lat,
       currentCity: '',
       hasLocated: false,
+      /** `home`：首页搜地点；缺省为发布选点 */
+      pickerFrom: '',
     }
   },
   computed: {
@@ -212,7 +223,8 @@ export default {
       return this.hasLocated ? '附近暂无可显示的地点，试试搜索吧' : '点击上方按钮定位或搜索地点'
     },
   },
-  onLoad() {
+  onLoad(options) {
+    this.pickerFrom = String(options?.from || '').trim()
     this.locateAndLoadNearby()
   },
   methods: {
@@ -249,8 +261,24 @@ export default {
     selectCategory(type) {
       this.activeCategory = type
     },
-    onUseMyLocation() {
+    async onUseMyLocation() {
       if (this.locating) return
+      if (this.pickerFrom === 'home') {
+        clearHomeSearchAnchor()
+        uni.removeStorageSync(HOME_LOCATION_KEY)
+        uni.removeStorageSync(HOME_CITY_CODE_KEY)
+        uni.removeStorageSync(HOME_CITY_NAME_KEY)
+        uni.showLoading({ title: '定位中…', mask: true })
+        try {
+          await resolveHomeCityForActivities()
+        } catch (_) {
+          /* 首页 onShow 会再拉列表 */
+        } finally {
+          uni.hideLoading()
+        }
+        uni.navigateBack()
+        return
+      }
       this.locateAndLoadNearby()
     },
     async locateAndLoadNearby() {
@@ -474,13 +502,30 @@ export default {
       const [lngRaw, latRaw] = String(item.location || '').split(',')
       const lng = Number(lngRaw) || this.previewLng
       const lat = Number(latRaw) || this.previewLat
-      uni.setStorageSync('PUBLISH_LOCATION_PICK_RESULT', {
-        name: item.name || '',
-        address: item.address || '',
-        lng,
-        lat,
-        cityCode: item.adcode || '',
-      })
+      const listCityCode = adcodeToListCityCode(item.adcode) || String(item.adcode || '').trim()
+
+      if (this.pickerFrom === 'home') {
+        if (!listCityCode) {
+          uni.showToast({ title: '无法识别该地区，请换一条结果', icon: 'none' })
+          return
+        }
+        uni.setStorageSync(HOME_SEARCH_ANCHOR_KEY, {
+          lat,
+          lng,
+          cityCode: listCityCode,
+          displayName: (item.name || item.district || '').trim() || listCityCode,
+          address: item.address || '',
+          updatedAt: Date.now(),
+        })
+      } else {
+        uni.setStorageSync('PUBLISH_LOCATION_PICK_RESULT', {
+          name: item.name || '',
+          address: item.address || '',
+          lng,
+          lat,
+          cityCode: item.adcode || '',
+        })
+      }
       uni.navigateBack()
     },
     formatDistance,

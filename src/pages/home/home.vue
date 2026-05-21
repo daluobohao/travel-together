@@ -8,6 +8,19 @@
           <text class="home__subtitle">{{ citySubtitle }}</text>
         </view>
       </view>
+      <view class="home__search" @click="onTapSearch">
+        <view class="home__search-inner">
+          <wm-icon name="search" :size="32" color="#94a3b8" />
+          <text class="home__search-text">{{ searchBarText }}</text>
+        </view>
+        <view
+          v-if="hasSearchAnchor"
+          class="home__search-clear"
+          @click.stop="onClearSearch"
+        >
+          <wm-icon name="close" :size="28" color="#64748b" />
+        </view>
+      </view>
       <view class="home__chips">
         <view
           v-for="chip in chips"
@@ -90,7 +103,7 @@
           <view class="meta-row">
             <wm-icon name="mapPin" :size="28" color="#6366f1" />
             <text class="meta-row__text">{{ item.location }}</text>
-            <text class="meta-row__dist">· {{ item.distance }}</text>
+            <text v-if="item.distance" class="meta-row__dist">· {{ item.distance }}</text>
           </view>
         </view>
 
@@ -112,7 +125,11 @@
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import { getActivities, getNearbyActivities, mapActivityCard } from '@/api'
-import { getCachedHomeCitySync, resolveHomeCityForActivities } from '@/utils/homeCity'
+import {
+  clearHomeSearchAnchor,
+  getHomeActivityAnchor,
+  getHomeSearchAnchorSync,
+} from '@/utils/homeCity'
 
 export default {
   components: { WmIcon, WmTabBar },
@@ -126,38 +143,68 @@ export default {
         { key: 'all', label: '全部' },
       ],
       activities: [],
-      homeCity: null,
+      activityAnchor: null,
+      hasSearchAnchor: false,
       loading: false,
     }
   },
   computed: {
     citySubtitle() {
-      const name = (this.homeCity?.cityName && String(this.homeCity.cityName).trim()) || '定位中'
+      const name =
+        (this.activityAnchor?.displayName && String(this.activityAnchor.displayName).trim()) ||
+        '定位中'
       return `${name} · 今天就能找到人`
+    },
+    searchBarText() {
+      if (this.hasSearchAnchor && this.activityAnchor?.displayName) {
+        return this.activityAnchor.displayName
+      }
+      return '搜索地点，查看附近活动'
     },
   },
   onShow() {
-    const cached = getCachedHomeCitySync()
-    if (cached) this.homeCity = cached
+    this.syncSearchAnchorUi()
     this.loadActivities()
   },
   methods: {
-    async ensureHomeCity() {
-      if (this.homeCity?.cityCode) return this.homeCity
-      const ctx = await resolveHomeCityForActivities()
-      this.homeCity = ctx
-      return ctx
+    syncSearchAnchorUi() {
+      const search = getHomeSearchAnchorSync()
+      this.hasSearchAnchor = !!search
+      if (search) {
+        this.activityAnchor = {
+          source: 'search',
+          lat: search.lat,
+          lng: search.lng,
+          cityCode: search.cityCode,
+          displayName: search.displayName,
+          cityName: search.displayName,
+        }
+      }
+    },
+    async ensureActivityAnchor() {
+      const anchor = await getHomeActivityAnchor()
+      this.activityAnchor = anchor
+      this.hasSearchAnchor = anchor.source === 'search'
+      return anchor
+    },
+    onTapSearch() {
+      uni.navigateTo({ url: '/pages/location-picker/location-picker?from=home' })
+    },
+    async onClearSearch() {
+      clearHomeSearchAnchor()
+      this.hasSearchAnchor = false
+      await this.loadActivities()
     },
     async loadActivities() {
       this.loading = true
       this.activities = []
       try {
-        const cityCtx = await this.ensureHomeCity()
-        const cityCode = cityCtx.cityCode
+        const anchor = await this.ensureActivityAnchor()
+        const { lat, lng, cityCode } = anchor
         if (this.activeChip === 'nearby') {
           const data = await getNearbyActivities({
-            lat: cityCtx.lat,
-            lng: cityCtx.lng,
+            lat,
+            lng,
             radiusKm: 5,
             cityCode,
             dateRange: 'all',
@@ -249,6 +296,48 @@ export default {
     color: $wm-text-3;
     line-height: 36rpx;
     font-weight: 500;
+  }
+
+  &__search {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+  }
+
+  &__search-inner {
+    flex: 1;
+    min-width: 0;
+    height: 72rpx;
+    border-radius: $wm-radius-lg;
+    background: #ffffff;
+    border: $wm-card-edge;
+    box-shadow: $wm-shadow-sm;
+    padding: 0 24rpx;
+    display: flex;
+    align-items: center;
+    gap: 14rpx;
+  }
+
+  &__search-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 28rpx;
+    color: $wm-text-2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__search-clear {
+    flex-shrink: 0;
+    width: 64rpx;
+    height: 64rpx;
+    border-radius: 50%;
+    background: #ffffff;
+    border: $wm-card-edge;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   &__chips {

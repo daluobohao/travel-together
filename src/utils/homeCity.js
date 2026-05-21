@@ -6,6 +6,8 @@ const AMAP_WEB_KEY = '15fb84dbcfd7a884bbb4133135d0d05f'
 export const HOME_LOCATION_KEY = 'HOME_USER_LOCATION'
 export const HOME_CITY_CODE_KEY = 'HOME_CITY_CODE'
 export const HOME_CITY_NAME_KEY = 'HOME_CITY_NAME'
+/** 首页搜地点锚点（与 GPS 缓存独立，见 PRD 首页搜地点） */
+export const HOME_SEARCH_ANCHOR_KEY = 'HOME_SEARCH_ANCHOR'
 
 const MUNICIPALITY_PREFIXES = new Set(['11', '12', '31', '50'])
 
@@ -117,6 +119,53 @@ function cacheHomeCity({ lat, lng, cityCode, cityName }) {
 /**
  * 首页活动列表用：当前定位城市的 list cityCode（与搜地点目录地级市 / 直辖市整市一致）。
  */
+export function getHomeSearchAnchorSync() {
+  const raw = uni.getStorageSync(HOME_SEARCH_ANCHOR_KEY)
+  if (!raw || raw.lat == null || raw.lng == null) return null
+  const cityCode = String(raw.cityCode || '').trim()
+  if (!cityCode) return null
+  return {
+    lat: Number(raw.lat),
+    lng: Number(raw.lng),
+    cityCode,
+    displayName: String(raw.displayName || raw.cityName || cityCode).trim(),
+    address: String(raw.address || '').trim(),
+    updatedAt: raw.updatedAt,
+  }
+}
+
+export function clearHomeSearchAnchor() {
+  uni.removeStorageSync(HOME_SEARCH_ANCHOR_KEY)
+}
+
+/**
+ * 首页活动列表锚点：搜索地点优先，否则 GPS（resolveHomeCityForActivities）。
+ * @returns {Promise<{ source: 'search'|'gps', lat: number, lng: number, cityCode: string, displayName: string, cityName?: string }>}
+ */
+export async function getHomeActivityAnchor() {
+  const search = getHomeSearchAnchorSync()
+  if (search) {
+    return {
+      source: 'search',
+      lat: search.lat,
+      lng: search.lng,
+      cityCode: search.cityCode,
+      displayName: search.displayName,
+      cityName: search.displayName,
+    }
+  }
+  const gps = await resolveHomeCityForActivities()
+  const name = (gps.cityName && String(gps.cityName).trim()) || gps.cityCode
+  return {
+    source: 'gps',
+    lat: gps.lat,
+    lng: gps.lng,
+    cityCode: gps.cityCode,
+    displayName: name,
+    cityName: gps.cityName,
+  }
+}
+
 export async function resolveHomeCityForActivities() {
   if (getMockEnabled()) {
     const cached = readCachedHomeCity()
