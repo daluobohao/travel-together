@@ -59,7 +59,7 @@ npm run build:mp-weixin
 项目接口基础地址在 `src/api/config.js`：
 
 ```js
-export const API_BASE_URL = 'http://8.217.79.34:8001/api/v1/wm'
+export const API_BASE_URL = 'https://yikuaikaixin.cn/api/v1/wm'
 ```
 
 ### Mock 机制
