@@ -852,23 +852,53 @@ export const cancelEnrollment = (activityId) =>
   })
 
 // 17
-export const getActivityMembers = (activityId) =>
+export const getActivityMembers = (activityId, query = {}) =>
   wmRequest({
     method: 'GET',
     path: `/activities/${activityId}/members`,
-    mockHandler: () => {
+    query,
+    mockHandler: ({ query: q }) => {
       const activity = wmDB.activities.find((x) => x.activityId === String(activityId))
-      return ok({
-        list: [
-          {
-            userId: activity?.organizer.userId || 'u_10001',
-            nickname: activity?.organizer.nickname || '组织者',
-            avatarUrl: null,
-            role: 'organizer',
-            joinedAt: new Date().toISOString(),
-          },
-        ],
-      })
+      const page = Math.max(1, Number(q.page) || 1)
+      const pageSize = Math.min(100, Math.max(1, Number(q.pageSize) || 20))
+      const isCityHall = (activity?.activityKind || '') === 'city_hall'
+      const pool = [
+        ...(isCityHall
+          ? []
+          : [
+              {
+                userId: activity?.organizer?.userId || 'u_10001',
+                nickname: activity?.organizer?.nickname || '组织者',
+                avatarUrl: activity?.organizer?.avatarUrl || null,
+                role: 'organizer',
+                joinedAt: new Date().toISOString(),
+              },
+            ]),
+        {
+          userId: wmDB.profile.userId,
+          nickname: wmDB.profile.nickname,
+          avatarUrl: wmDB.profile.avatarUrl,
+          role: 'member',
+          joinedAt: new Date().toISOString(),
+        },
+        {
+          userId: 'u_10002',
+          nickname: '旅人小李',
+          avatarUrl: null,
+          role: 'member',
+          joinedAt: new Date(Date.now() - 86400000).toISOString(),
+        },
+        {
+          userId: 'u_10003',
+          nickname: '周末玩家',
+          avatarUrl: null,
+          role: 'member',
+          joinedAt: new Date(Date.now() - 172800000).toISOString(),
+        },
+      ]
+      const start = (page - 1) * pageSize
+      const list = pool.slice(start, start + pageSize)
+      return ok({ list })
     },
   })
 

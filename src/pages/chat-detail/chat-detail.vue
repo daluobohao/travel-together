@@ -8,7 +8,9 @@
         <text class="chat-detail__title">{{ chat.name }}</text>
         <text class="chat-detail__sub">{{ chat.subtitle }}</text>
       </view>
-      <view class="chat-detail__placeholder" />
+      <view class="chat-detail__members" @click="openMembers">
+        <wm-icon name="users" :size="32" color="#0f172a" />
+      </view>
     </view>
 
     <scroll-view class="chat-detail__messages" scroll-y :scroll-top="scrollTop" :scroll-with-animation="true">
@@ -150,6 +152,9 @@ export default {
     return {
       chatId: '',
       chat: { name: '聊天', subtitle: '' },
+      activityKind: 'event',
+      enrolledCount: 0,
+      maxMembers: 0,
       messages: [],
       messageIds: {}, // 去重用：{ [messageId]: true }
       lastCreatedAt: '',
@@ -242,9 +247,21 @@ export default {
           getActivityDetail(this.chatId),
           getActivityMessages(this.chatId, { limit: DEFAULT_LIMIT }),
         ])
+        const enrolled = Number(detail?.enrolledCount || 0)
+        const maxM = Number(detail?.maxMembers || 0)
+        this.activityKind = detail?.activityKind || 'event'
+        this.enrolledCount = enrolled
+        this.maxMembers = maxM
+        const isCityHall = this.activityKind === 'city_hall'
         this.chat = {
           name: detail?.title || '活动群聊',
-          subtitle: `${Number(detail?.enrolledCount || 0)}/${Number(detail?.maxMembers || 0)} 成员`,
+          subtitle: isCityHall
+            ? enrolled > 0
+              ? `${enrolled} 人 · 城市大群`
+              : '城市大群'
+            : maxM > 0
+              ? `${enrolled}/${maxM} 成员`
+              : `${enrolled} 成员`,
         }
         const rawList = msgData?.list || []
         const incoming = rawList.map((m) => this.normalizeMessage(m, { skipDedup: true })).filter(Boolean)
@@ -423,6 +440,17 @@ export default {
         this.scrollTop = 9999999 + Math.random()
       })
     },
+    openMembers() {
+      if (!this.chatId) return
+      const q = [
+        'id=' + encodeURIComponent(this.chatId),
+        'title=' + encodeURIComponent(this.chat.name || ''),
+        'activityKind=' + encodeURIComponent(this.activityKind || 'event'),
+        'memberTotal=' + encodeURIComponent(String(this.enrolledCount || 0)),
+        'maxMembers=' + encodeURIComponent(String(this.maxMembers || 0)),
+      ].join('&')
+      uni.navigateTo({ url: '/pages/chat-members/chat-members?' + q })
+    },
     goBack() {
       uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/messages/messages' }) })
     },
@@ -505,12 +533,16 @@ export default {
   }
 
   &__back,
-  &__placeholder {
+  &__members {
     width: 72rpx;
     height: 72rpx;
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  &__members:active {
+    opacity: 0.75;
   }
 
   &__title-wrap {

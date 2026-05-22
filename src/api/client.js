@@ -97,6 +97,7 @@ function unwrap(payload) {
 /** FastAPI HTTPException / 校验错误：body 常为 `{ detail: string | array }` */
 function messageFromHttpErrorBody(data) {
   if (!data || typeof data !== 'object') return ''
+  if (typeof data.message === 'string' && data.message.trim()) return data.message.trim()
   const d = data.detail
   if (typeof d === 'string' && d.trim()) return d.trim()
   if (Array.isArray(d)) {

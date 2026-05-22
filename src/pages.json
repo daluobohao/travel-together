@@ -45,6 +45,13 @@
 			}
 		},
 		{
+			"path": "pages/chat-members/chat-members",
+			"style": {
+				"navigationBarTitleText": "群成员",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/direct-chat-detail/direct-chat-detail",
 			"style": {
 				"navigationBarTitleText": "私聊",

@@ -176,8 +176,8 @@ export default {
             this.goToAfterSave()
           }, 350)
         })
-        .catch(() => {
-          uni.showToast({ title: '保存失败', icon: 'none' })
+        .catch((e) => {
+          uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
         })
     },
   },
