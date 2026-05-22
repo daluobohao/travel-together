@@ -1356,7 +1356,7 @@ export const getMyChats = (query = {}) =>
   wmRequest({
     method: 'GET',
     path: '/me/chats',
-    query: { page: query.page || 1, pageSize: query.pageSize || 20 },
+    query: { page: query.page || 1, pageSize: query.pageSize || 5 },
     mockHandler: ({ query: q }) => {
       const rows = wmDB.activities
         .filter(

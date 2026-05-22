@@ -74,6 +74,16 @@
             </view>
           </view>
         </view>
+        <view
+          v-if="groupChats.length"
+          class="messages__more"
+          :class="{ 'messages__more--disabled': groupLoadingMore || !groupHasMore }"
+          @click="loadMoreGroup"
+        >
+          <text v-if="groupLoadingMore">加载中…</text>
+          <text v-else-if="groupHasMore">加载更多（{{ groupChats.length }}/{{ groupTotal }}）</text>
+          <text v-else>没有更多了</text>
+        </view>
       </view>
 
       <!-- 私聊 -->
@@ -106,6 +116,16 @@
             </view>
           </view>
         </view>
+        <view
+          v-if="privateChats.length"
+          class="messages__more"
+          :class="{ 'messages__more--disabled': privateLoadingMore || !privateHasMore }"
+          @click="loadMorePrivate"
+        >
+          <text v-if="privateLoadingMore">加载中…</text>
+          <text v-else-if="privateHasMore">加载更多（{{ privateChats.length }}/{{ privateTotal }}）</text>
+          <text v-else>没有更多了</text>
+        </view>
       </view>
 
       <!-- System -->
@@ -136,6 +156,16 @@
             <text class="system__desc">{{ item.desc }}</text>
           </view>
           <view v-if="!item.read" class="system__dot"></view>
+        </view>
+        <view
+          v-if="systemNotifs.length"
+          class="messages__more"
+          :class="{ 'messages__more--disabled': notifLoadingMore || !notifHasMore }"
+          @click="loadMoreNotif"
+        >
+          <text v-if="notifLoadingMore">加载中…</text>
+          <text v-else-if="notifHasMore">加载更多（{{ systemNotifs.length }}/{{ notifTotal }}）</text>
+          <text v-else>没有更多了</text>
         </view>
       </view>
 
@@ -188,6 +218,9 @@ import {
   isLoggedIn,
 } from '@/api'
 import { setPostLoginRedirect } from '@/utils/wechatAuth'
+
+/** 消息列表每页条数（首屏轻量，靠加载更多翻页） */
+const LIST_PAGE_SIZE = 5
 
 function relativeTime(iso) {
   if (!iso) return ''
@@ -269,6 +302,18 @@ export default {
       privateChats: [],
       systemNotifs: [],
       loading: false,
+      groupPage: 1,
+      groupTotal: 0,
+      groupHasMore: false,
+      groupLoadingMore: false,
+      privatePage: 1,
+      privateTotal: 0,
+      privateHasMore: false,
+      privateLoadingMore: false,
+      notifPage: 1,
+      notifTotal: 0,
+      notifHasMore: false,
+      notifLoadingMore: false,
     }
   },
   computed: {
@@ -291,17 +336,28 @@ export default {
     this.loadMessages()
   },
   methods: {
+    _applyPaginationState(prefix, data, listLength) {
+      const total = Number(data?.total) || 0
+      this[`${prefix}Total`] = total
+      this[`${prefix}HasMore`] = listLength < total
+    },
     async loadMessages() {
       this.loading = true
+      this.groupPage = 1
+      this.privatePage = 1
+      this.notifPage = 1
       try {
         const [convData, dmData, notifData] = await Promise.all([
-          getMyChats({ page: 1, pageSize: 20 }),
-          getDirectChats({ page: 1, pageSize: 50 }),
-          getNotifications({ page: 1, pageSize: 20 }),
+          getMyChats({ page: 1, pageSize: LIST_PAGE_SIZE }),
+          getDirectChats({ page: 1, pageSize: LIST_PAGE_SIZE }),
+          getNotifications({ page: 1, pageSize: LIST_PAGE_SIZE }),
         ])
-        this.groupChats = (convData?.list || []).map(mapGroupChat)
+        this.groupChats = (convData?.list || []).map((item, idx) => mapGroupChat(item, idx))
         this.privateChats = (dmData?.list || []).map(mapPrivateChat)
         this.systemNotifs = (notifData?.list || []).map(mapNotif)
+        this._applyPaginationState('group', convData, this.groupChats.length)
+        this._applyPaginationState('private', dmData, this.privateChats.length)
+        this._applyPaginationState('notif', notifData, this.systemNotifs.length)
       } catch (e) {
         if (e.isAuthError) {
           setPostLoginRedirect('/pages/messages/messages')
@@ -311,9 +367,61 @@ export default {
         this.groupChats = []
         this.privateChats = []
         this.systemNotifs = []
+        this.groupHasMore = false
+        this.privateHasMore = false
+        this.notifHasMore = false
         uni.showToast({ title: e?.message || '消息加载失败', icon: 'none' })
       } finally {
         this.loading = false
+      }
+    },
+    async loadMoreGroup() {
+      if (!this.groupHasMore || this.groupLoadingMore || this.loading) return
+      this.groupLoadingMore = true
+      try {
+        const next = this.groupPage + 1
+        const data = await getMyChats({ page: next, pageSize: LIST_PAGE_SIZE })
+        const base = this.groupChats.length
+        const incoming = (data?.list || []).map((item, idx) => mapGroupChat(item, base + idx))
+        this.groupChats = [...this.groupChats, ...incoming]
+        this.groupPage = next
+        this._applyPaginationState('group', data, this.groupChats.length)
+      } catch (e) {
+        uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+      } finally {
+        this.groupLoadingMore = false
+      }
+    },
+    async loadMorePrivate() {
+      if (!this.privateHasMore || this.privateLoadingMore || this.loading) return
+      this.privateLoadingMore = true
+      try {
+        const next = this.privatePage + 1
+        const data = await getDirectChats({ page: next, pageSize: LIST_PAGE_SIZE })
+        const incoming = (data?.list || []).map(mapPrivateChat)
+        this.privateChats = [...this.privateChats, ...incoming]
+        this.privatePage = next
+        this._applyPaginationState('private', data, this.privateChats.length)
+      } catch (e) {
+        uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+      } finally {
+        this.privateLoadingMore = false
+      }
+    },
+    async loadMoreNotif() {
+      if (!this.notifHasMore || this.notifLoadingMore || this.loading) return
+      this.notifLoadingMore = true
+      try {
+        const next = this.notifPage + 1
+        const data = await getNotifications({ page: next, pageSize: LIST_PAGE_SIZE })
+        const incoming = (data?.list || []).map(mapNotif)
+        this.systemNotifs = [...this.systemNotifs, ...incoming]
+        this.notifPage = next
+        this._applyPaginationState('notif', data, this.systemNotifs.length)
+      } catch (e) {
+        uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+      } finally {
+        this.notifLoadingMore = false
       }
     },
     goDmRequests() {
@@ -447,6 +555,24 @@ export default {
     color: $wm-text-3;
     font-size: 26rpx;
     font-weight: 500;
+  }
+
+  &__more {
+    margin: 8rpx 24rpx 24rpx;
+    padding: 24rpx;
+    text-align: center;
+    font-size: 26rpx;
+    color: #6366f1;
+    background: #f8fafc;
+    border-radius: 12rpx;
+
+    &--disabled {
+      color: #94a3b8;
+    }
+
+    &:active:not(&--disabled) {
+      opacity: 0.85;
+    }
   }
 
   &__actions {
