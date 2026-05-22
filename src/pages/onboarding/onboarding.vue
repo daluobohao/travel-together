@@ -213,6 +213,10 @@
 </template>
 
 <script>
+/**
+ * 完整多步新手引导（约 13 步）。默认关闭：见 ONBOARDING_FULL_ENABLED /
+ * navigateAfterLogin → profile-edit?first=1。恢复多步引导时勿删本页。
+ */
 import { getOnboardingMeta, updateMe } from '@/api'
 import { buildDefaultTimelineShare, DEFAULT_MINI_PROGRAM_SHARE } from '@/utils/activityShare'
 

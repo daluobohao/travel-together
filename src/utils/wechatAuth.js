@@ -1,4 +1,5 @@
 import { getAccessToken, loginByWechat, setAccessToken, setRefreshToken } from '@/api'
+import { loadOnboardingConfig } from '@/config/onboarding'
 
 const SKIP_SILENT_LOGIN_KEY = 'wm_skip_silent_login'
 const REDIRECT_URL_KEY = 'REDIRECT_URL'
@@ -76,18 +77,26 @@ export function applyLoginTokens(data) {
   if (data?.refreshToken) setRefreshToken(data.refreshToken)
 }
 
+/** 未完成极简引导：无 onboardingCompletedAt 或未选性别 */
+function needsMinimalProfile(user) {
+  if (user == null) return false
+  const oc = user.onboardingCompletedAt
+  const g = user.gender
+  const needGender = g === null || g === undefined || g === ''
+  return !oc || needGender
+}
+
 /** 登录成功后的统一跳转（短信 / 微信共用） */
 export function navigateAfterLogin(user, { showToast = true } = {}) {
-  const oc = user?.onboardingCompletedAt
-  const needGender = user != null && (user.gender === null || user.gender === undefined)
   if (showToast) {
     uni.showToast({ title: '登录成功', icon: 'success' })
   }
   const delay = showToast ? 400 : 0
-  setTimeout(() => {
-    if (!oc) {
+  setTimeout(async () => {
+    const { fullEnabled } = await loadOnboardingConfig()
+    if (fullEnabled && !user?.onboardingCompletedAt) {
       uni.reLaunch({ url: '/pages/onboarding/onboarding' })
-    } else if (needGender) {
+    } else if (needsMinimalProfile(user)) {
       uni.reLaunch({ url: '/pages/profile-edit/profile-edit?first=1' })
     } else {
       uni.reLaunch({ url: consumePostLoginRedirect('/pages/home/home') })

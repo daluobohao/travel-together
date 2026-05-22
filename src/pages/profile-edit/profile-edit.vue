@@ -4,15 +4,15 @@
       <view class="profile-edit__back" @click="goBack">
         <wm-icon name="chevronLeft" :size="34" color="#0f172a" />
       </view>
-      <text class="profile-edit__title">编辑个人信息</text>
-      <text class="profile-edit__save" @click="saveProfile">保存</text>
+      <text class="profile-edit__title">{{ firstCompleteHint ? '完善资料' : '编辑个人信息' }}</text>
+      <text class="profile-edit__save" @click="saveProfile">{{ firstCompleteHint ? '进入旅聚' : '保存' }}</text>
     </view>
 
     <view class="profile-edit__content">
       <view v-if="firstCompleteHint" class="first-hint">
-        <text>请先完善资料：性别保存后不可修改</text>
+        <text>设置昵称与性别即可开始；性别保存后不可修改，其余资料可在「我的」中补充</text>
       </view>
-      <view class="avatar-card">
+      <view v-if="!firstCompleteHint" class="avatar-card">
         <view class="avatar-card__avatar">
           <text>{{ (form.name || '用').slice(0, 1) }}</text>
         </view>
@@ -47,7 +47,7 @@
         />
       </view>
 
-      <view class="field-card">
+      <view v-if="!firstCompleteHint" class="field-card">
         <text class="field-card__label">个人简介</text>
         <textarea
           v-model="form.bio"
@@ -161,10 +161,15 @@ export default {
 
       const payload = {
         nickname: nextProfile.name,
-        bio: nextProfile.bio,
+      }
+      if (!this.firstCompleteHint) {
+        payload.bio = nextProfile.bio
       }
       if (!this.genderLocked && this.form.gender) {
         payload.gender = this.form.gender
+      }
+      if (this.firstCompleteHint) {
+        payload.completeOnboarding = true
       }
 
       updateMe(payload)

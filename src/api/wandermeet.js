@@ -438,6 +438,7 @@ export const getOnboardingMeta = () =>
     needAuth: false,
     mockHandler: () =>
       ok({
+        fullOnboardingEnabled: false,
         acquisitionSources: [
           { id: 'xiaohongshu', label: '小红书' },
           { id: 'douyin', label: '抖音' },
