@@ -419,6 +419,18 @@ export const submitVerification = (payload) =>
   })
 
 // 9
+export const getPublishMeta = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/meta/publish',
+    needAuth: false,
+    mockHandler: () =>
+      ok({
+        publishPayEnabled: false,
+        publishFeeYuan: '0.10',
+      }),
+  })
+
 export const getOnboardingMeta = () =>
   wmRequest({
     method: 'GET',

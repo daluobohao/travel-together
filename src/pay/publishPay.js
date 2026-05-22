@@ -6,10 +6,40 @@ import {
   confirmMockPublishPayment,
   isPublishPayMockEnabled,
 } from '@/api/pay'
-import { getMe, isLoggedIn } from '@/api'
+import { getMe, getPublishMeta, isLoggedIn } from '@/api'
 import { getWxLoginCode, setPostLoginRedirect } from '@/utils/wechatAuth'
 import { generatePayQrId } from '@/utils/payQrId'
-import { PUBLISH_FEE_YUAN, formatPublishFeeYuan, publishFeeLabel } from '@/pay/constants'
+import {
+  PUBLISH_FEE_YUAN,
+  PUBLISH_PAY_FALLBACK_ENABLED,
+  formatPublishFeeYuan,
+  publishFeeLabel,
+} from '@/pay/constants'
+
+let publishPayConfigCache = null
+
+/** 是否启用发布前付费（读服务端 PAY_PUBLISH_ENABLED） */
+export async function loadPublishPayConfig(force = false) {
+  if (!force && publishPayConfigCache != null) return publishPayConfigCache
+  try {
+    const data = await getPublishMeta()
+    publishPayConfigCache = {
+      enabled: !!data?.publishPayEnabled,
+      feeYuan: data?.publishFeeYuan != null ? String(data.publishFeeYuan) : String(PUBLISH_FEE_YUAN),
+    }
+  } catch (e) {
+    console.warn('[publishPay] loadPublishPayConfig failed', e)
+    publishPayConfigCache = {
+      enabled: PUBLISH_PAY_FALLBACK_ENABLED,
+      feeYuan: String(PUBLISH_FEE_YUAN),
+    }
+  }
+  return publishPayConfigCache
+}
+
+export function clearPublishPayConfigCache() {
+  publishPayConfigCache = null
+}
 
 function resolveFeeYuan(order) {
   const fromApi = order?.feeYuan
@@ -203,6 +233,11 @@ async function payByMiniprogram() {
  * 发布活动前付费（当前优先 H5 扫码；小程序走 minipay 或提示）。
  */
 export async function payBeforePublishActivity() {
+  const cfg = await loadPublishPayConfig()
+  if (!cfg.enabled) {
+    return { skipped: true, publishPayEnabled: false }
+  }
+
   // #ifdef H5
   return prepareH5PublishPayment()
   // #endif

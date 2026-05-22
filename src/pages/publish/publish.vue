@@ -146,7 +146,7 @@
 
       <view class="publish__tip">
         <wm-icon name="shield" :size="32" color="#6366f1" />
-        <text>发布即表示同意《旅聚社区规范》，请确保活动信息真实有效。发布前需支付服务费 {{ publishFeeText }}。</text>
+        <text>{{ publishDisclaimer }}</text>
       </view>
     </view>
 
@@ -178,7 +178,7 @@ import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import PublishPayModal from '@/components/PublishPayModal/PublishPayModal.vue'
 import { createActivity, getActivityCategories } from '@/api'
-import { payBeforePublishActivity } from '@/pay/publishPay'
+import { loadPublishPayConfig, payBeforePublishActivity } from '@/pay/publishPay'
 import { PUBLISH_FEE_YUAN, publishFeeLabel } from '@/pay/constants'
 
 const FALLBACK_CATEGORIES = [
@@ -225,6 +225,8 @@ export default {
         description: '',
       },
       publishing: false,
+      publishPayEnabled: false,
+      publishFeeYuan: String(PUBLISH_FEE_YUAN),
       payModal: {
         visible: false,
         userId: '',
@@ -237,17 +239,30 @@ export default {
   },
   computed: {
     publishFeeText() {
-      return publishFeeLabel(PUBLISH_FEE_YUAN)
+      return publishFeeLabel(this.publishFeeYuan || PUBLISH_FEE_YUAN)
     },
     publishBtnText() {
-      return `发布活动（${this.publishFeeText}）`
+      return this.publishPayEnabled ? `发布活动（${this.publishFeeText}）` : '发布活动'
+    },
+    publishDisclaimer() {
+      if (this.publishPayEnabled) {
+        return `发布即表示同意《旅聚社区规范》，请确保活动信息真实有效。发布前需支付服务费 ${this.publishFeeText}。`
+      }
+      return '发布即表示同意《旅聚社区规范》，请确保活动信息真实有效。'
     },
     isOtherCategory() {
       const cid = this.categoryMap[this.form.category] || ''
       return cid === 'other'
     },
   },
-  onShow() {
+  async onShow() {
+    try {
+      const cfg = await loadPublishPayConfig(true)
+      this.publishPayEnabled = !!cfg.enabled
+      this.publishFeeYuan = cfg.feeYuan || String(PUBLISH_FEE_YUAN)
+    } catch (e) {
+      console.warn(e)
+    }
     this.loadCategories()
     this.tryApplyPickedLocation()
   },
@@ -454,6 +469,10 @@ export default {
       this.publishing = true
       try {
         const payResult = await payBeforePublishActivity()
+        if (payResult?.skipped) {
+          await this.doCreateActivity(payload)
+          return
+        }
         if (payResult?.needPayModal) {
           this.payModal = {
             visible: true,
