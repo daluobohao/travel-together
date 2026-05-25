@@ -152,7 +152,6 @@ import {
 // #ifdef MP-TOUTIAO
 import { loginWithDouyinCode, mapDouyinLoginErrorMessage } from '@/utils/douyinAuth'
 // #endif
-import { buildDefaultTimelineShare, DEFAULT_MINI_PROGRAM_SHARE } from '@/utils/activityShare'
 import {
   applyLoginTokens,
   clearSkipSilentLogin,
@@ -225,32 +224,7 @@ export default {
         clearWmAuthTokens()
       }
     }
-    // #ifdef MP-WEIXIN
-    try {
-      uni.showShareMenu({
-        withShareTicket: true,
-        menus: ['shareAppMessage', 'shareTimeline'],
-      })
-    } catch (_) {
-      /* ignore */
-    }
-    // #endif
-    // #ifdef MP-TOUTIAO
-    try {
-      uni.showShareMenu({ withShareTicket: false })
-    } catch (_) {
-      /* ignore */
-    }
-    // #endif
   },
-  onShareAppMessage() {
-    return { ...DEFAULT_MINI_PROGRAM_SHARE }
-  },
-  // #ifdef MP-WEIXIN
-  onShareTimeline() {
-    return buildDefaultTimelineShare()
-  },
-  // #endif
   methods: {
     onAgreeChange(e) {
       const v = e?.detail?.value || []

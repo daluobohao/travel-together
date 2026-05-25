@@ -218,7 +218,6 @@
  * navigateAfterLogin → profile-edit?first=1。恢复多步引导时勿删本页。
  */
 import { getOnboardingMeta, updateMe } from '@/api'
-import { buildDefaultTimelineShare, DEFAULT_MINI_PROGRAM_SHARE } from '@/utils/activityShare'
 
 const MAX_TAGS = 10
 
@@ -284,33 +283,6 @@ export default {
       uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
     }
   },
-  onShow() {
-    // #ifdef MP-WEIXIN
-    try {
-      uni.showShareMenu({
-        withShareTicket: true,
-        menus: ['shareAppMessage', 'shareTimeline'],
-      })
-    } catch (_) {
-      /* ignore */
-    }
-    // #endif
-    // #ifdef MP-TOUTIAO
-    try {
-      uni.showShareMenu({ withShareTicket: false })
-    } catch (_) {
-      /* ignore */
-    }
-    // #endif
-  },
-  onShareAppMessage() {
-    return { ...DEFAULT_MINI_PROGRAM_SHARE }
-  },
-  // #ifdef MP-WEIXIN
-  onShareTimeline() {
-    return buildDefaultTimelineShare()
-  },
-  // #endif
   methods: {
     toggleTraveler(id) {
       const next = { ...this.travelerSet }

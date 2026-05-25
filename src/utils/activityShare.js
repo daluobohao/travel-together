@@ -8,6 +8,53 @@ export function buildDefaultTimelineShare() {
   return { title: DEFAULT_MINI_PROGRAM_SHARE.title }
 }
 
+/** 登录/引导等页面不宜作为分享落地页，统一回首页 */
+const SHARE_FALLBACK_ROUTES = new Set([
+  'pages/login/login',
+  'pages/onboarding/onboarding',
+  'pages/bind-phone/bind-phone',
+  'pages/forgot-password/forgot-password',
+])
+
+function getCurrentPageContext() {
+  const pages = getCurrentPages()
+  const current = pages[pages.length - 1]
+  if (!current) return { route: '', options: {} }
+  const route = current.route || current.$page?.fullPath?.split('?')[0]?.replace(/^\//, '') || ''
+  const options = current.options || current.$page?.options || {}
+  return { route, options }
+}
+
+function buildPageQuery(options) {
+  return Object.keys(options)
+    .filter((key) => options[key] != null && options[key] !== '')
+    .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(String(options[key]))}`)
+    .join('&')
+}
+
+/** 全局默认分享：当前页（带 query）；敏感页回首页 */
+export function buildCurrentPageShareMessage(title = DEFAULT_MINI_PROGRAM_SHARE.title) {
+  const { route, options } = getCurrentPageContext()
+  if (!route || SHARE_FALLBACK_ROUTES.has(route)) {
+    return { ...DEFAULT_MINI_PROGRAM_SHARE }
+  }
+  const query = buildPageQuery(options)
+  return {
+    title,
+    path: query ? `/${route}?${query}` : `/${route}`,
+  }
+}
+
+/** 全局默认朋友圈分享 */
+export function buildCurrentPageTimelineShare(title = DEFAULT_MINI_PROGRAM_SHARE.title) {
+  const { route, options } = getCurrentPageContext()
+  if (!route || SHARE_FALLBACK_ROUTES.has(route)) {
+    return { title }
+  }
+  const query = buildPageQuery(options)
+  return query ? { title, query } : { title }
+}
+
 /** 活动详情分享 / 复制（微信小程序 path + 说明文案） */
 
 export function buildActivityDetailPath(activityId) {

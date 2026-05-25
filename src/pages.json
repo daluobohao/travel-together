@@ -11,9 +11,7 @@
 			"path": "pages/activity-detail/activity-detail",
 			"style": {
 				"navigationBarTitleText": "活动详情",
-				"navigationStyle": "custom",
-				"enableShareAppMessage": true,
-				"enableShareTimeline": true
+				"navigationStyle": "custom"
 			}
 		},
 		{
@@ -185,9 +183,7 @@
 			"path": "pages/login/login",
 			"style": {
 				"navigationBarTitleText": "登录",
-				"navigationStyle": "custom",
-				"enableShareAppMessage": true,
-				"enableShareTimeline": true
+				"navigationStyle": "custom"
 			}
 		},
 		{
@@ -201,9 +197,7 @@
 			"path": "pages/onboarding/onboarding",
 			"style": {
 				"navigationBarTitleText": "完善资料",
-				"navigationStyle": "custom",
-				"enableShareAppMessage": true,
-				"enableShareTimeline": true
+				"navigationStyle": "custom"
 			}
 		}
 	],
@@ -211,6 +205,8 @@
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "旅聚",
 		"navigationBarBackgroundColor": "#FFFFFF",
-		"backgroundColor": "#f0f9ff"
+		"backgroundColor": "#f0f9ff",
+		"enableShareAppMessage": true,
+		"enableShareTimeline": true
 	}
 }
