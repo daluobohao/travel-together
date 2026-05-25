@@ -222,10 +222,18 @@ export default {
       /* ignore */
     }
     // #endif
+    // #ifdef MP-TOUTIAO
+    try {
+      uni.showShareMenu({ withShareTicket: false })
+    } catch (_) {
+      /* ignore */
+    }
+    // #endif
   },
   onShareAppMessage() {
     return buildActivityShareMessage(this.activity)
   },
+  // #ifdef MP-WEIXIN
   onShareTimeline() {
     const a = this.activity
     if (!a?.id) {
@@ -236,6 +244,7 @@ export default {
       query: buildActivityTimelineQuery(a.id),
     }
   },
+  // #endif
   methods: {
     async loadActivity(id) {
       const actId = String(id || '').trim()

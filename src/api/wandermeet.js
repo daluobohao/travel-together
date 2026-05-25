@@ -281,6 +281,35 @@ export const loginByWechat = (payload) =>
     },
   })
 
+// 2.6 抖音小程序登录（tt.login 的 code）
+export const loginByDouyin = (payload) =>
+  wmRequest({
+    method: 'POST',
+    path: '/auth/douyin/login',
+    data: payload,
+    needAuth: false,
+    mockHandler: ({ data }) => {
+      const code = (data && data.code) || 'mock_tt_code'
+      const openidKey = `dy_${String(code).slice(0, 24)}`
+      const dataOut = {
+        accessToken: `wm_at_${openidKey}`,
+        expiresIn: 7200,
+        refreshToken: `wm_rt_${openidKey}`,
+        user: {
+          userId: wmDB.profile.userId,
+          nickname: wmDB.profile.nickname || '抖音用户',
+          avatarUrl: wmDB.profile.avatarUrl,
+          gender: wmDB.profile.gender,
+          status: wmDB.profile.status || 'active',
+          onboardingCompletedAt: wmDB.profile.onboardingCompletedAt,
+        },
+      }
+      setAccessToken(dataOut.accessToken)
+      setRefreshToken(dataOut.refreshToken)
+      return ok(dataOut)
+    },
+  })
+
 // 3
 export const refreshToken = (payload) =>
   wmRequest({

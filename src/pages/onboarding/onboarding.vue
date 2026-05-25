@@ -295,13 +295,22 @@ export default {
       /* ignore */
     }
     // #endif
+    // #ifdef MP-TOUTIAO
+    try {
+      uni.showShareMenu({ withShareTicket: false })
+    } catch (_) {
+      /* ignore */
+    }
+    // #endif
   },
   onShareAppMessage() {
     return { ...DEFAULT_MINI_PROGRAM_SHARE }
   },
+  // #ifdef MP-WEIXIN
   onShareTimeline() {
     return buildDefaultTimelineShare()
   },
+  // #endif
   methods: {
     toggleTraveler(id) {
       const next = { ...this.travelerSet }

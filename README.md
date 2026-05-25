@@ -93,11 +93,26 @@ setMockEnabled(false)
 
 mock 开关会写入本地存储键 `wm_use_mock`（定义于 `src/api/config.js`）。
 
-## 5. 常用脚本速查
+## 5. 运行抖音小程序
+
+uni-app 中抖音小程序平台名为 **`mp-toutiao`**。
+
+```bash
+npm run dev:mp-toutiao      # 开发
+npm run build:mp-toutiao    # 发布前构建
+```
+
+用 **抖音开发者工具** 导入 `dist/dev/mp-toutiao` 或 `dist/build/mp-toutiao`。  
+完整分阶段步骤（平台账号、登录改造、提审）见后端仓库文档：  
+**`../wander_meet/doc/WanderMeet_抖音小程序发布步骤.md`**（第一阶段平台账号已完成）。
+
+## 6. 常用脚本速查
 
 - `npm run dev:h5`：启动 H5 开发
 - `npm run build:h5`：构建 H5
 - `npm run dev:mp-weixin`：启动微信小程序开发构建
 - `npm run build:mp-weixin`：构建微信小程序
+- `npm run dev:mp-toutiao`：启动抖音小程序开发构建
+- `npm run build:mp-toutiao`：构建抖音小程序
 
 更多平台脚本请查看 `package.json` 中 `scripts`。

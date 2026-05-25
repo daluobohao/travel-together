@@ -8,9 +8,11 @@
       <view class="bind-phone__placeholder" />
     </view>
 
+    <!-- #ifdef MP-WEIXIN -->
     <text class="bind-phone__desc">
       绑定后可用于账号找回，并与此前手机号注册的数据合并。
     </text>
+    <!-- #endif -->
 
     <!-- #ifdef MP-WEIXIN -->
     <button
@@ -24,11 +26,19 @@
     </button>
     <!-- #endif -->
 
+    <!-- #ifdef MP-TOUTIAO -->
+    <text class="bind-phone__desc bind-phone__desc--sms">
+      使用短信验证码绑定手机号（抖音小程序暂不支持授权一键取号）。
+    </text>
+    <!-- #endif -->
+
+    <!-- #ifdef MP-WEIXIN -->
     <view class="bind-phone__divider">
       <view class="bind-phone__line" />
       <text>或短信验证</text>
       <view class="bind-phone__line" />
     </view>
+    <!-- #endif -->
 
     <view class="field">
       <text class="field__label">手机号</text>

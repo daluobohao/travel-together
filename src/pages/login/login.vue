@@ -109,6 +109,34 @@
       <view class="login__cancel" @click="onCancel">取消</view>
     </view>
     <!-- #endif -->
+
+    <!-- #ifdef MP-TOUTIAO -->
+    <view class="login__wechat-block">
+      <view class="login__agree login__agree--mp">
+        <checkbox-group @change="onAgreeChange">
+          <label class="login__agree-label">
+            <checkbox value="agree" :checked="agreeTerms" color="#0d9488" />
+            <view class="login__agree-text">
+              <text class="login__agree-plain">我已阅读并同意</text>
+              <text class="login__agree-link" @click.stop.prevent="openUserAgreement">《用户服务协议》</text>
+              <text class="login__agree-plain">与</text>
+              <text class="login__agree-link" @click.stop.prevent="openPrivacyPolicy">《隐私政策》</text>
+            </view>
+          </label>
+        </checkbox-group>
+      </view>
+
+      <button
+        class="login__douyin-btn"
+        :loading="douyinLoginLoading"
+        :disabled="douyinLoginLoading || !agreeTerms"
+        @click="onDouyinLogin"
+      >
+        抖音一键登录
+      </button>
+      <view class="login__cancel" @click="onCancelDouyin">取消</view>
+    </view>
+    <!-- #endif -->
   </view>
 </template>
 
@@ -119,6 +147,7 @@ import {
   getMe,
   loginByEmail,
   loginByWechat,
+  loginByDouyin,
   registerByEmail,
 } from '@/api'
 import { buildDefaultTimelineShare, DEFAULT_MINI_PROGRAM_SHARE } from '@/utils/activityShare'
@@ -130,6 +159,9 @@ import {
   navigateAfterLogin,
   setSkipSilentLogin,
 } from '@/utils/wechatAuth'
+// #ifdef MP-TOUTIAO
+import { getTtLoginCode } from '@/utils/douyinAuth'
+// #endif
 
 const EMAIL_REG = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PASS_MIN_LEN = 8
@@ -167,6 +199,9 @@ export default {
       // #ifdef MP-WEIXIN
       wechatLoginLoading: false,
       // #endif
+      // #ifdef MP-TOUTIAO
+      douyinLoginLoading: false,
+      // #endif
     }
   },
   computed: {
@@ -201,13 +236,22 @@ export default {
       /* ignore */
     }
     // #endif
+    // #ifdef MP-TOUTIAO
+    try {
+      uni.showShareMenu({ withShareTicket: false })
+    } catch (_) {
+      /* ignore */
+    }
+    // #endif
   },
   onShareAppMessage() {
     return { ...DEFAULT_MINI_PROGRAM_SHARE }
   },
+  // #ifdef MP-WEIXIN
   onShareTimeline() {
     return buildDefaultTimelineShare()
   },
+  // #endif
   methods: {
     onAgreeChange(e) {
       const v = e?.detail?.value || []
@@ -327,6 +371,36 @@ export default {
         uni.showToast({ title: e?.message || '微信登录失败', icon: 'none' })
       } finally {
         this.wechatLoginLoading = false
+      }
+    },
+    // #endif
+    // #ifdef MP-TOUTIAO
+    onCancelDouyin() {
+      setSkipSilentLogin(true)
+      clearWmAuthTokens()
+      uni.reLaunch({ url: '/pages/home/home' })
+    },
+    async onDouyinLogin() {
+      if (!this.agreeTerms) {
+        uni.showToast({ title: '请先阅读并勾选同意协议与隐私政策', icon: 'none' })
+        return
+      }
+      if (this.douyinLoginLoading) return
+      const now = Date.now()
+      if (now - this.lastLoginTapAt < 800) return
+      this.lastLoginTapAt = now
+
+      this.douyinLoginLoading = true
+      try {
+        clearSkipSilentLogin()
+        const code = await getTtLoginCode()
+        const data = await loginByDouyin({ code })
+        applyLoginTokens(data)
+        navigateAfterLogin(data?.user)
+      } catch (e) {
+        uni.showToast({ title: e?.message || '抖音登录失败', icon: 'none' })
+      } finally {
+        this.douyinLoginLoading = false
       }
     },
     // #endif
@@ -494,6 +568,25 @@ export default {
     font-weight: 700;
     border: none;
     box-shadow: 0 12rpx 32rpx rgba(7, 193, 96, 0.35);
+
+    &[disabled] {
+      background: #94a3b8;
+      color: #e2e8f0;
+      box-shadow: none;
+    }
+  }
+
+  &__douyin-btn {
+    width: 100%;
+    height: 100rpx;
+    line-height: 100rpx;
+    border-radius: $wm-radius-xl;
+    background: #fe2c55;
+    color: #ffffff;
+    font-size: 32rpx;
+    font-weight: 700;
+    border: none;
+    box-shadow: 0 12rpx 32rpx rgba(254, 44, 85, 0.28);
 
     &[disabled] {
       background: #94a3b8;

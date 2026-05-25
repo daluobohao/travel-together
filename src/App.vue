@@ -2,15 +2,20 @@
 import { setMockEnabled } from '@/api'
 import { loadOnboardingConfig } from '@/config/onboarding'
 import { trySilentWechatLogin } from '@/utils/wechatAuth'
+// #ifdef MP-TOUTIAO
+import { trySilentDouyinLogin } from '@/utils/douyinAuth'
+// #endif
 
 export default {
   onLaunch() {
-    // 本地模拟支付：改为 true 后，H5 发布活动走 mock 三接口（见控制台 [mock] 日志）
     setMockEnabled(false)
     console.log('WanderMeet App Launch', 'mock=', false)
     loadOnboardingConfig()
     // #ifdef MP-WEIXIN
     trySilentWechatLogin()
+    // #endif
+    // #ifdef MP-TOUTIAO
+    trySilentDouyinLogin()
     // #endif
   },
   onShow() {},
