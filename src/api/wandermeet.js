@@ -281,12 +281,15 @@ export const loginByWechat = (payload) =>
     },
   })
 
-// 2.6 抖音小程序登录（tt.login 的 code）
+// 2.6 抖音小程序登录
+// POST /api/v1/wm/auth/douyin/login
+// Body: { code: string } — tt.login 返回的 code
+// Response: accessToken, refreshToken, expiresIn, user（与短信/微信登录相同）
 export const loginByDouyin = (payload) =>
   wmRequest({
     method: 'POST',
     path: '/auth/douyin/login',
-    data: payload,
+    data: { code: payload?.code },
     needAuth: false,
     mockHandler: ({ data }) => {
       const code = (data && data.code) || 'mock_tt_code'

@@ -110,66 +110,32 @@
     </view>
     <!-- #endif -->
 
-    <!-- #ifndef H5 -->
-    <!-- #ifndef MP-WEIXIN -->
-    <view class="login__sms-block">
-      <view class="login__form">
-        <view class="field">
-          <text class="field__label">手机号</text>
-          <input
-            v-model="form.phone"
-            class="field__input"
-            type="number"
-            maxlength="11"
-            placeholder="11 位手机号"
-            placeholder-class="field__placeholder"
-          />
-        </view>
-
-        <view class="field field--code">
-          <text class="field__label">验证码</text>
-          <view class="field__code-line">
-            <input
-              v-model="form.code"
-              class="field__code-input"
-              type="number"
-              maxlength="6"
-              placeholder="短信验证码"
-              placeholder-class="field__placeholder"
-            />
-            <view class="field__sms" :class="{ 'field__sms--off': smsDisabled }" @click="onSendSms">
-              <text>{{ smsText }}</text>
+    <!-- #ifdef MP-TOUTIAO -->
+    <view class="login__douyin-block">
+      <view class="login__agree login__agree--mp">
+        <checkbox-group @change="onAgreeChange">
+          <label class="login__agree-label">
+            <checkbox value="agree" :checked="agreeTerms" color="#0d9488" />
+            <view class="login__agree-text">
+              <text class="login__agree-plain">我已阅读并同意</text>
+              <text class="login__agree-link" @click.stop.prevent="openUserAgreement">《用户服务协议》</text>
+              <text class="login__agree-plain">与</text>
+              <text class="login__agree-link" @click.stop.prevent="openPrivacyPolicy">《隐私政策》</text>
             </view>
-          </view>
-        </view>
+          </label>
+        </checkbox-group>
       </view>
 
-      <view class="login__action">
-        <view class="login__agree" @click="toggleAgree">
-          <view class="login__agree-box" :class="{ 'login__agree-box--checked': agreeTerms }">
-            <text v-if="agreeTerms" class="login__agree-check">✓</text>
-          </view>
-          <view class="login__agree-text">
-            <text class="login__agree-plain">我已阅读并同意</text>
-            <text class="login__agree-link" @click.stop.prevent="openUserAgreement">《用户服务协议》</text>
-            <text class="login__agree-plain">与</text>
-            <text class="login__agree-link" @click.stop.prevent="openPrivacyPolicy">《隐私政策》</text>
-          </view>
-        </view>
-
-        <view
-          class="login__btn"
-          :class="{ 'login__btn--loading': smsLoading, 'login__btn--disabled': !canSubmitSms }"
-          :hover-class="canSubmitSms && !smsLoading ? 'login__btn--hover' : ''"
-          @click="onSmsLogin"
-        >
-          <view v-if="smsLoading" class="btn-spinner" />
-          <text v-else>登录</text>
-        </view>
-        <view class="login__cancel" @click="onCancelBrowse">取消</view>
-      </view>
+      <button
+        class="login__douyin-btn"
+        :loading="douyinLoginLoading"
+        :disabled="douyinLoginLoading || !agreeTerms"
+        @click="onDouyinLogin"
+      >
+        抖音一键登录
+      </button>
+      <view class="login__cancel" @click="onCancelDouyin">取消</view>
     </view>
-    <!-- #endif -->
     <!-- #endif -->
   </view>
 </template>
@@ -180,12 +146,12 @@ import {
   getAccessToken,
   getMe,
   loginByEmail,
-  loginBySms,
   loginByWechat,
-  loginByDouyin,
   registerByEmail,
-  sendSmsCode,
 } from '@/api'
+// #ifdef MP-TOUTIAO
+import { loginWithDouyinCode, mapDouyinLoginErrorMessage } from '@/utils/douyinAuth'
+// #endif
 import { buildDefaultTimelineShare, DEFAULT_MINI_PROGRAM_SHARE } from '@/utils/activityShare'
 import {
   applyLoginTokens,
@@ -195,12 +161,8 @@ import {
   navigateAfterLogin,
   setSkipSilentLogin,
 } from '@/utils/wechatAuth'
-// #ifdef MP-TOUTIAO
-import { getTtLoginCode } from '@/utils/douyinAuth'
-// #endif
 
 const EMAIL_REG = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const PHONE_REG = /^1\d{10}$/
 const PASS_MIN_LEN = 8
 
 function isValidPassword(value) {
@@ -238,17 +200,6 @@ export default {
       // #endif
       // #ifdef MP-TOUTIAO
       douyinLoginLoading: false,
-      // #ifndef H5
-      // #ifndef MP-WEIXIN
-      form: {
-        phone: '',
-        code: '',
-      },
-      smsLoading: false,
-      sendingSms: false,
-      countdown: 0,
-      smsTimer: null,
-      // #endif
       // #endif
     }
   },
@@ -262,22 +213,6 @@ export default {
         String(this.form.confirmPassword || '') === String(this.form.password || '')
       return emailOk && passOk && confirmOk && !this.emailLoading && this.agreeTerms
     },
-    // #endif
-    // #ifndef H5
-    // #ifndef MP-WEIXIN
-    smsDisabled() {
-      return this.countdown > 0 || !PHONE_REG.test(String(this.form.phone || '')) || this.sendingSms
-    },
-    smsText() {
-      if (this.sendingSms) return '发送中…'
-      return this.countdown > 0 ? `${this.countdown}s` : '获取验证码'
-    },
-    canSubmitSms() {
-      const phone = String(this.form.phone || '')
-      const code = String(this.form.code || '')
-      return PHONE_REG.test(phone) && /^\d{4,6}$/.test(code) && !this.smsLoading && this.agreeTerms
-    },
-    // #endif
     // #endif
   },
   async onShow() {
@@ -308,13 +243,6 @@ export default {
     }
     // #endif
   },
-  // #ifndef H5
-  // #ifndef MP-WEIXIN
-  onUnload() {
-    if (this.smsTimer) clearInterval(this.smsTimer)
-  },
-  // #endif
-  // #endif
   onShareAppMessage() {
     return { ...DEFAULT_MINI_PROGRAM_SHARE }
   },
@@ -443,70 +371,34 @@ export default {
       }
     },
     // #endif
-    // #ifndef H5
-    // #ifndef MP-WEIXIN
-    startSmsCountdown() {
-      if (this.smsTimer) clearInterval(this.smsTimer)
-      this.countdown = 60
-      this.smsTimer = setInterval(() => {
-        this.countdown -= 1
-        if (this.countdown <= 0) {
-          this.countdown = 0
-          clearInterval(this.smsTimer)
-          this.smsTimer = null
-        }
-      }, 1000)
-    },
-    async onSendSms() {
-      if (this.smsDisabled) return
-      const phone = String(this.form.phone || '')
-      if (!PHONE_REG.test(phone)) {
-        uni.showToast({ title: '请输入正确手机号', icon: 'none' })
-        return
-      }
-      if (!this.agreeTerms) {
-        uni.showToast({ title: '请先阅读并勾选同意协议与隐私政策', icon: 'none' })
-        return
-      }
-      this.sendingSms = true
-      try {
-        await sendSmsCode({ phone, scene: 'login' })
-        this.startSmsCountdown()
-        uni.showToast({ title: '验证码已发送', icon: 'none' })
-      } catch (e) {
-        uni.showToast({ title: e?.message || '发送失败', icon: 'none' })
-      } finally {
-        this.sendingSms = false
-      }
-    },
-    onCancelBrowse() {
+    // #ifdef MP-TOUTIAO
+    onCancelDouyin() {
+      setSkipSilentLogin(true)
       clearWmAuthTokens()
       uni.reLaunch({ url: '/pages/home/home' })
     },
-    async onSmsLogin() {
+    async onDouyinLogin() {
       if (!this.agreeTerms) {
         uni.showToast({ title: '请先阅读并勾选同意协议与隐私政策', icon: 'none' })
         return
       }
-      if (this.smsLoading || !this.canSubmitSms) return
+      if (this.douyinLoginLoading) return
       const now = Date.now()
       if (now - this.lastLoginTapAt < 800) return
       this.lastLoginTapAt = now
 
-      const phone = String(this.form.phone || '')
-      const code = String(this.form.code || '')
-      this.smsLoading = true
+      this.douyinLoginLoading = true
       try {
-        const data = await loginBySms({ phone, code })
+        clearSkipSilentLogin()
+        const data = await loginWithDouyinCode()
         applyLoginTokens(data)
         navigateAfterLogin(data?.user)
       } catch (e) {
-        uni.showToast({ title: e?.message || '登录失败', icon: 'none' })
+        uni.showToast({ title: mapDouyinLoginErrorMessage(e), icon: 'none', duration: 3200 })
       } finally {
-        this.smsLoading = false
+        this.douyinLoginLoading = false
       }
     },
-    // #endif
     // #endif
   },
 }
@@ -657,7 +549,7 @@ export default {
   }
 
   &__wechat-block,
-  &__sms-block {
+  &__douyin-block {
     margin-bottom: 28rpx;
     animation: fadeInUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.08s both;
   }
@@ -807,56 +699,6 @@ export default {
     color: $wm-danger;
     margin-top: 6rpx;
     font-weight: 600;
-  }
-
-  &__row {
-    display: flex;
-    align-items: center;
-    gap: 16rpx;
-  }
-
-  &--code {
-    padding-bottom: 24rpx;
-  }
-
-  &__code-line {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    width: 100%;
-    min-height: 72rpx;
-    gap: 12rpx;
-  }
-
-  &__code-input {
-    flex: 1;
-    min-width: 0;
-    width: 0;
-    font-size: 32rpx;
-    color: $wm-text-1;
-    padding: 8rpx 0;
-    border: none;
-    background: transparent;
-    font-weight: 500;
-  }
-
-  &__sms {
-    flex-shrink: 0;
-    margin-left: auto;
-    padding: 0 20rpx;
-    height: 64rpx;
-    line-height: 64rpx;
-    background: $wm-primary-soft;
-    color: $wm-primary;
-    border-radius: $wm-radius-md;
-    font-size: 24rpx;
-    font-weight: 600;
-    white-space: nowrap;
-
-    &--off {
-      background: #f1f5f9;
-      color: $wm-text-3;
-    }
   }
 }
 

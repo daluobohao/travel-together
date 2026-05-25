@@ -57,6 +57,9 @@ export function mapBindPhoneErrorMessage(err) {
   if (msg.includes('该手机号已绑定其他微信')) {
     return '该手机号已绑定其他微信，请用对应微信登录或换号'
   }
+  if (msg.includes('该手机号已绑定其他抖音') || msg.includes('dy_openid')) {
+    return '该手机号已绑定其他抖音，请用对应抖音登录或换号'
+  }
   if (msg.includes('已被其他账号使用')) {
     return '该手机号已被其他账号使用'
   }

@@ -106,6 +106,18 @@ npm run build:mp-toutiao    # 发布前构建
 完整分阶段步骤（平台账号、登录改造、提审）见后端仓库文档：  
 **`../wander_meet/doc/WanderMeet_抖音小程序发布步骤.md`**（第一阶段平台账号已完成）。
 
+### 抖音登录
+
+- 接口：`POST /api/v1/wm/auth/douyin/login`，请求体 `{ "code": "<tt.login code>" }`（camelCase）
+- 响应与短信 / 微信登录相同：`accessToken`、`refreshToken`、`expiresIn`、`user`
+- 前端：`src/utils/douyinAuth.js`（`tt.login` + 静默登录）、`src/pages/login/login.vue`（`MP-TOUTIAO` 一键登录）
+- App 启动：`App.vue` 内 `trySilentDouyinLogin()`
+- 绑手机：抖音端走 `POST /me/phone/bind-sms`（见 `src/pages/bind-phone/bind-phone.vue`），无微信授权取号
+- 服务端环境变量：`DY_MP_APPID`、`DY_MP_APPSECRET`；本地 mock 时 `DY_MP_USE_MOCK=true`（服务端不调抖音，用 code 派生 mock openid）
+- 前端本地 Mock：`setMockEnabled(true)` 时走 `wandermeet.js` 内 `loginByDouyin` 的 `mockHandler`（`dy_` + code 前缀，与微信 mock 对照）
+
+`manifest.json` → `mp-toutiao.appid` 需与抖音开放平台 AppID 一致（当前已配置）。
+
 ## 6. 常用脚本速查
 
 - `npm run dev:h5`：启动 H5 开发
