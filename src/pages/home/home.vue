@@ -7,6 +7,27 @@
           <text class="home__logo">旅聚</text>
           <text class="home__subtitle">{{ citySubtitle }}</text>
         </view>
+        <view class="home__header-actions">
+          <!-- #ifdef MP-WEIXIN -->
+          <button
+            class="home__header-icon-btn home__header-icon-btn--share"
+            type="default"
+            hover-class="home__header-icon-btn--hover"
+            open-type="share"
+          >
+            <wm-icon name="shareForward" :size="34" color="#0f172a" />
+          </button>
+          <!-- #endif -->
+          <!-- #ifdef MP-WEIXIN -->
+          <view
+            class="home__header-icon-btn"
+            hover-class="home__header-icon-btn--hover"
+            @click="onCopyHomeShare"
+          >
+            <wm-icon name="link2" :size="34" color="#0f172a" />
+          </view>
+          <!-- #endif -->
+        </view>
       </view>
       <view class="home__search" @click="onTapSearch">
         <view class="home__search-inner">
@@ -130,6 +151,11 @@ import {
   getHomeActivityAnchor,
   getHomeSearchAnchorSync,
 } from '@/utils/homeCity'
+import {
+  buildDefaultTimelineShare,
+  buildHomeShareClipboardText,
+  buildHomeShareMessage,
+} from '@/utils/activityShare'
 
 export default {
   components: { WmIcon, WmTabBar },
@@ -163,9 +189,32 @@ export default {
     },
   },
   onShow() {
+    // #ifdef MP-WEIXIN
+    try {
+      uni.showShareMenu({
+        withShareTicket: true,
+        menus: ['shareAppMessage', 'shareTimeline'],
+      })
+    } catch (_) {
+      /* ignore */
+    }
+    // #endif
+    // #ifdef MP-TOUTIAO
+    Promise.resolve(uni.showShareMenu({ withShareTicket: false })).catch(() => {})
+    // #endif
     this.syncSearchAnchorUi()
     this.loadActivities()
   },
+  onShareAppMessage() {
+    const city =
+      (this.activityAnchor?.displayName && String(this.activityAnchor.displayName).trim()) || ''
+    return buildHomeShareMessage(city)
+  },
+  // #ifdef MP-WEIXIN
+  onShareTimeline() {
+    return buildDefaultTimelineShare()
+  },
+  // #endif
   methods: {
     syncSearchAnchorUi() {
       const search = getHomeSearchAnchorSync()
@@ -245,6 +294,20 @@ export default {
         url: `/pages/activity-detail/activity-detail?id=${item.id}`,
       })
     },
+    onCopyHomeShare() {
+      const city =
+        (this.activityAnchor?.displayName && String(this.activityAnchor.displayName).trim()) || ''
+      const text = buildHomeShareClipboardText(city)
+      uni.setClipboardData({
+        data: text,
+        success: () => {
+          uni.showToast({ title: '已复制，可粘贴到微信发给好友', icon: 'none', duration: 2500 })
+        },
+        fail: () => {
+          uni.showToast({ title: '复制失败', icon: 'none' })
+        },
+      })
+    },
   },
 }
 </script>
@@ -271,6 +334,40 @@ export default {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 16rpx;
+  }
+
+  &__header-actions {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4rpx;
+  }
+
+  &__header-icon-btn {
+    width: 72rpx;
+    height: 72rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16rpx;
+
+    &--hover {
+      background: rgba(15, 23, 42, 0.06);
+    }
+
+    &--share {
+      padding: 0;
+      margin: 0;
+      background: transparent;
+      border: none;
+      line-height: 1;
+
+      &::after {
+        border: none;
+      }
+    }
   }
 
   &__brand {

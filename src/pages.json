@@ -4,7 +4,9 @@
 			"path": "pages/home/home",
 			"style": {
 				"navigationBarTitleText": "旅聚",
-				"navigationStyle": "custom"
+				"navigationStyle": "custom",
+				"enableShareAppMessage": true,
+				"enableShareTimeline": true
 			}
 		},
 		{
@@ -128,7 +130,9 @@
 			"path": "pages/discover/discover",
 			"style": {
 				"navigationBarTitleText": "发现",
-				"navigationStyle": "custom"
+				"navigationStyle": "custom",
+				"enableShareAppMessage": true,
+				"enableShareTimeline": true
 			}
 		},
 		{

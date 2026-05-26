@@ -2,8 +2,44 @@
   <view class="page discover">
     <!-- Header -->
     <view class="discover__header">
-      <text class="discover__title">发现</text>
-      <text class="discover__subtitle">找到你感兴趣的活动</text>
+      <view class="discover__header-main">
+        <view class="discover__brand">
+          <text class="discover__title">发现</text>
+          <text class="discover__subtitle">找到你感兴趣的活动</text>
+        </view>
+        <view class="discover__header-actions">
+          <!-- #ifdef MP-WEIXIN -->
+          <button
+            class="discover__header-icon-btn discover__header-icon-btn--share"
+            type="default"
+            hover-class="discover__header-icon-btn--hover"
+            open-type="share"
+          >
+            <wm-icon name="shareForward" :size="34" color="#0f172a" />
+          </button>
+          <view
+            class="discover__header-icon-btn"
+            hover-class="discover__header-icon-btn--hover"
+            @click="onCopyDiscoverShare"
+          >
+            <wm-icon name="link2" :size="34" color="#0f172a" />
+          </view>
+          <!-- #endif -->
+        </view>
+      </view>
+      <view class="discover__search" @click="onTapSearch">
+        <view class="discover__search-inner">
+          <wm-icon name="search" :size="32" color="#94a3b8" />
+          <text class="discover__search-text">{{ searchBarText }}</text>
+        </view>
+        <view
+          v-if="hasSearchAnchor"
+          class="discover__search-clear"
+          @click.stop="onClearSearch"
+        >
+          <wm-icon name="close" :size="28" color="#64748b" />
+        </view>
+      </view>
     </view>
 
     <!-- Skeleton Loading -->
@@ -124,10 +160,20 @@ import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import FeaturedColorPickerModal from '@/components/FeaturedColorPickerModal/FeaturedColorPickerModal.vue'
 import { getActivities, getActivityCategories, mapActivityCard } from '@/api'
 import {
+  buildDiscoverShareClipboardText,
+  buildDiscoverShareMessage,
+  DISCOVER_PAGE_SHARE,
+} from '@/utils/activityShare'
+import {
   gradientsFromSlots,
   loadFeaturedGradientSlots,
   saveFeaturedGradientSlots,
 } from '@/utils/featuredGradient.js'
+import {
+  clearHomeSearchAnchor,
+  getHomeActivityAnchor,
+  getHomeSearchAnchorSync,
+} from '@/utils/homeCity'
 
 const FEATURED_LIMIT = 3
 
@@ -187,19 +233,78 @@ export default {
       featured: [],
       featuredGradientSlots: [],
       showFeaturedPicker: false,
+      hasSearchAnchor: false,
+      searchDisplayName: '',
     }
   },
+  computed: {
+    searchBarText() {
+      if (this.hasSearchAnchor && this.searchDisplayName) {
+        return this.searchDisplayName
+      }
+      return '搜索地点，查看附近活动'
+    },
+  },
   onShow() {
+    // #ifdef MP-WEIXIN
+    try {
+      uni.showShareMenu({
+        withShareTicket: true,
+        menus: ['shareAppMessage', 'shareTimeline'],
+      })
+    } catch (_) {
+      /* ignore */
+    }
+    // #endif
+    // #ifdef MP-TOUTIAO
+    Promise.resolve(uni.showShareMenu({ withShareTicket: false })).catch(() => {})
+    // #endif
+    this.syncSearchAnchorUi()
     this.featuredGradientSlots = loadFeaturedGradientSlots()
     this.loadData()
   },
+  onShareAppMessage() {
+    return buildDiscoverShareMessage()
+  },
+  // #ifdef MP-WEIXIN
+  onShareTimeline() {
+    return { title: DISCOVER_PAGE_SHARE.title }
+  },
+  // #endif
   methods: {
+    syncSearchAnchorUi() {
+      const search = getHomeSearchAnchorSync()
+      this.hasSearchAnchor = !!search
+      this.searchDisplayName = search?.displayName || ''
+    },
+    onTapSearch() {
+      uni.navigateTo({ url: '/pages/location-picker/location-picker?from=discover' })
+    },
+    onClearSearch() {
+      clearHomeSearchAnchor()
+      this.hasSearchAnchor = false
+      this.searchDisplayName = ''
+      this.loadData()
+    },
+    onCopyDiscoverShare() {
+      uni.setClipboardData({
+        data: buildDiscoverShareClipboardText(),
+        success: () => {
+          uni.showToast({ title: '已复制，可粘贴到微信发给好友', icon: 'none', duration: 2500 })
+        },
+        fail: () => {
+          uni.showToast({ title: '复制失败', icon: 'none' })
+        },
+      })
+    },
     async loadData() {
       this.loading = true
       try {
+        const anchor = await getHomeActivityAnchor()
+        const cityCode = anchor?.cityCode || '110000'
         const [categoryData, activityData] = await Promise.all([
           getActivityCategories(),
-          getActivities({ cityCode: '110000', page: 1, pageSize: 50 }),
+          getActivities({ cityCode, page: 1, pageSize: 50 }),
         ])
         const allCards = (activityData?.list || []).map(mapActivityCard)
         const countMap = allCards.reduce((acc, item) => {
@@ -293,7 +398,97 @@ export default {
     box-shadow: 0 12rpx 40rpx rgba(2, 132, 199, 0.06);
     display: flex;
     flex-direction: column;
+    gap: 24rpx;
+  }
+
+  &__header-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16rpx;
+  }
+
+  &__brand {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
     gap: 12rpx;
+  }
+
+  &__header-actions {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4rpx;
+  }
+
+  &__header-icon-btn {
+    width: 72rpx;
+    height: 72rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16rpx;
+
+    &--hover {
+      background: rgba(15, 23, 42, 0.06);
+    }
+
+    &--share {
+      padding: 0;
+      margin: 0;
+      background: transparent;
+      border: none;
+      line-height: 1;
+
+      &::after {
+        border: none;
+      }
+    }
+  }
+
+  &__search {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+  }
+
+  &__search-inner {
+    flex: 1;
+    min-width: 0;
+    height: 72rpx;
+    border-radius: $wm-radius-lg;
+    background: #ffffff;
+    border: $wm-card-edge;
+    box-shadow: $wm-shadow-sm;
+    padding: 0 24rpx;
+    display: flex;
+    align-items: center;
+    gap: 14rpx;
+  }
+
+  &__search-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 28rpx;
+    color: $wm-text-2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__search-clear {
+    flex-shrink: 0;
+    width: 64rpx;
+    height: 64rpx;
+    border-radius: 50%;
+    background: #ffffff;
+    border: $wm-card-edge;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   &__title {

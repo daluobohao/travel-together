@@ -55,6 +55,42 @@ export function buildCurrentPageTimelineShare(title = DEFAULT_MINI_PROGRAM_SHARE
   return query ? { title, query } : { title }
 }
 
+/** 首页分享标题（可带城市） */
+export function buildHomeShareMessage(cityName) {
+  const city = (cityName && String(cityName).trim()) || ''
+  const title = city ? `旅聚 · ${city}附近的活动` : DEFAULT_MINI_PROGRAM_SHARE.title
+  return { title, path: DEFAULT_MINI_PROGRAM_SHARE.path }
+}
+
+/** 发现 Tab 分享 */
+export const DISCOVER_PAGE_SHARE = {
+  title: '旅聚 · 发现活动与分类',
+  path: '/pages/discover/discover',
+}
+
+export function buildDiscoverShareMessage() {
+  return { ...DISCOVER_PAGE_SHARE }
+}
+
+export function buildDiscoverShareClipboardText() {
+  return [
+    '【旅聚】发现活动与分类',
+    '在微信中打开「旅聚」小程序：可点右上角「···」转发；或把下方页面路径发给已安装该小程序的朋友。',
+    `页面路径：${DISCOVER_PAGE_SHARE.path}`,
+  ].join('\n')
+}
+
+/** 复制首页分享说明（微信粘贴发给好友） */
+export function buildHomeShareClipboardText(cityName) {
+  const city = (cityName && String(cityName).trim()) || ''
+  const headline = city ? `【旅聚】${city}附近的活动` : '【旅聚】发现身边的活动'
+  return [
+    headline,
+    '在微信中打开「旅聚」小程序：可点右上角「···」转发；或把下方页面路径发给已安装该小程序的朋友。',
+    `页面路径：${DEFAULT_MINI_PROGRAM_SHARE.path}`,
+  ].join('\n')
+}
+
 /** 活动详情分享 / 复制（微信小程序 path + 说明文案） */
 
 export function buildActivityDetailPath(activityId) {

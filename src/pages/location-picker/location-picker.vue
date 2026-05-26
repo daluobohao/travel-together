@@ -263,7 +263,7 @@ export default {
     },
     async onUseMyLocation() {
       if (this.locating) return
-      if (this.pickerFrom === 'home') {
+      if (this.pickerFrom === 'home' || this.pickerFrom === 'discover') {
         clearHomeSearchAnchor()
         uni.removeStorageSync(HOME_LOCATION_KEY)
         uni.removeStorageSync(HOME_CITY_CODE_KEY)
@@ -275,6 +275,10 @@ export default {
           /* 首页 onShow 会再拉列表 */
         } finally {
           uni.hideLoading()
+        }
+        if (this.pickerFrom === 'discover') {
+          uni.reLaunch({ url: '/pages/home/home' })
+          return
         }
         uni.navigateBack()
         return
@@ -504,7 +508,7 @@ export default {
       const lat = Number(latRaw) || this.previewLat
       const listCityCode = adcodeToListCityCode(item.adcode) || String(item.adcode || '').trim()
 
-      if (this.pickerFrom === 'home') {
+      if (this.pickerFrom === 'home' || this.pickerFrom === 'discover') {
         if (!listCityCode) {
           uni.showToast({ title: '无法识别该地区，请换一条结果', icon: 'none' })
           return
@@ -517,6 +521,10 @@ export default {
           address: item.address || '',
           updatedAt: Date.now(),
         })
+        if (this.pickerFrom === 'discover') {
+          uni.reLaunch({ url: '/pages/home/home' })
+          return
+        }
       } else {
         uni.setStorageSync('PUBLISH_LOCATION_PICK_RESULT', {
           name: item.name || '',

@@ -16,7 +16,6 @@
         >
           <wm-icon name="shareForward" :size="34" color="#0f172a" />
         </button>
-        <!-- #endif -->
         <view
           v-if="activity"
           class="detail__header-icon-btn"
@@ -25,6 +24,18 @@
         >
           <wm-icon name="link2" :size="34" color="#0f172a" />
         </view>
+        <!-- #endif -->
+        <!-- #ifdef MP-TOUTIAO -->
+        <button
+          v-if="activity"
+          class="detail__header-icon-btn detail__header-icon-btn--share"
+          type="default"
+          hover-class="detail__header-icon-btn--hover"
+          open-type="share"
+        >
+          <wm-icon name="shareForward" :size="34" color="#0f172a" />
+        </button>
+        <!-- #endif -->
       </view>
     </view>
 
@@ -425,7 +436,7 @@ export default {
       uni.setClipboardData({
         data: text,
         success: () => {
-          uni.showToast({ title: '已复制', icon: 'success' })
+          uni.showToast({ title: '已复制，可粘贴到微信发给好友', icon: 'none', duration: 2500 })
         },
         fail: () => {
           uni.showToast({ title: '复制失败', icon: 'none' })
