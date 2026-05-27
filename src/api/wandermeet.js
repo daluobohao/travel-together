@@ -630,14 +630,25 @@ export const createPlaceActivityAlert = (data) =>
       }),
   })
 
-export const submitUserFeedback = (data) =>
-  wmRequest({
+export const submitUserFeedback = (data = {}) => {
+  const description = String(data.description || '').trim()
+  const payload = {
+    scene: data.scene || 'other',
+    description,
+    expectation: String(data.expectation || '').trim(),
+    contactWilling: !!data.contactWilling,
+    contactNote: String(data.contactNote || '').trim(),
+    appVersion: String(data.appVersion || '').trim(),
+    platform: data.platform || 'mp-weixin',
+  }
+  return wmRequest({
     method: 'POST',
     path: '/me/feedback',
-    data,
+    data: payload,
     needAuth: true,
     mockHandler: () => ok({ feedbackId: 'fb_mock_1' }),
   })
+}
 
 export const getNearbyActivities = (query = {}) =>
   wmRequest({

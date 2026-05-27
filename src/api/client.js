@@ -101,9 +101,27 @@ function messageFromHttpErrorBody(data) {
   const d = data.detail
   if (typeof d === 'string' && d.trim()) return d.trim()
   if (Array.isArray(d)) {
+    const fieldLabel = (loc) => {
+      const key = Array.isArray(loc) ? loc[loc.length - 1] : loc
+      const map = {
+        body: '请求数据',
+        description: '问题描述',
+        scene: '场景',
+        expectation: '补充说明',
+      }
+      return map[key] || key || '字段'
+    }
     const parts = d.map((item) => {
       if (typeof item === 'string') return item
-      if (item && typeof item.msg === 'string') return item.msg
+      if (item && item.type === 'missing' && Array.isArray(item.loc)) {
+        return `${fieldLabel(item.loc)}不能为空`
+      }
+      if (item && typeof item.msg === 'string') {
+        if (item.msg === 'Field required' && Array.isArray(item.loc)) {
+          return `${fieldLabel(item.loc)}不能为空`
+        }
+        return item.msg
+      }
       if (item && typeof item.message === 'string') return item.message
       return ''
     })
