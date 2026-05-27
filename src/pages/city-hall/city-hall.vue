@@ -58,6 +58,10 @@
           <text>{{ exists ? '加入城市大群' : '加入' }}</text>
         </view>
       </view>
+      <view class="city-hall__more" @click="openCatalog">
+        <text class="city-hall__more-text">选择其他城市大群</text>
+        <text class="city-hall__more-chev">›</text>
+      </view>
     </view>
   </view>
 </template>
@@ -133,7 +137,13 @@ export default {
       }).exec()
     },
     goBack() {
-      uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/discover/discover' }) })
+      uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/home/home' }) })
+    },
+    openCatalog() {
+      uni.redirectTo({
+        url: '/pages/city-hall/city-hall',
+        fail: () => uni.navigateTo({ url: '/pages/city-hall/city-hall' }),
+      })
     },
     toggleProvince(block) {
       const code = block && block.provinceCode
@@ -388,5 +398,23 @@ export default {
 .city-hall__btn--primary {
   background: linear-gradient(135deg, #6366f1, #4f46e5);
   color: #fff;
+}
+.city-hall__more {
+  margin-top: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  padding: 16rpx;
+}
+.city-hall__more-text {
+  font-size: 28rpx;
+  color: #4f46e5;
+  font-weight: 500;
+}
+.city-hall__more-chev {
+  font-size: 32rpx;
+  color: #6366f1;
+  line-height: 1;
 }
 </style>

@@ -4,7 +4,7 @@
     <view class="home__header">
       <view class="home__header-main">
         <view class="home__brand">
-          <text class="home__logo">旅聚</text>
+          <text class="home__logo">去旅聚</text>
           <text class="home__subtitle">{{ citySubtitle }}</text>
         </view>
         <view class="home__header-actions">
@@ -29,16 +29,21 @@
           <!-- #endif -->
         </view>
       </view>
-      <view class="home__city-hall" @click="onCityHall">
+      <view class="home__city-hall" hover-class="home__city-hall--hover" @click="onCityHall">
         <view class="home__city-hall-inner">
           <view class="home__city-hall-icon">
-            <wm-icon name="users" :size="40" color="#ffffff" />
+            <wm-icon name="users" :size="44" color="#ffffff" />
           </view>
           <view class="home__city-hall-text">
-            <text class="home__city-hall-title">城市大群</text>
-            <text class="home__city-hall-desc">按省选市/区县，与同地址旅人交流</text>
+            <view class="home__city-hall-title-row">
+              <text class="home__city-hall-title">{{ cityHallTitle }}</text>
+              <text class="home__city-hall-badge">免费加入</text>
+            </view>
+            <text class="home__city-hall-desc">{{ cityHallDesc }}</text>
           </view>
-          <wm-icon name="chevronRight" :size="32" color="#94a3b8" />
+          <view class="home__city-hall-cta">
+            <text>去看看</text>
+          </view>
         </view>
       </view>
       <view class="home__search" @click="onTapSearch">
@@ -199,6 +204,22 @@ export default {
       }
       return '搜索地点，查看附近活动'
     },
+    cityHallCityLabel() {
+      const name = (
+        (this.activityAnchor?.cityName && String(this.activityAnchor.cityName).trim()) ||
+        (this.activityAnchor?.displayName && String(this.activityAnchor.displayName).trim()) ||
+        ''
+      )
+      if (!name || name === '定位中') return ''
+      return name
+    },
+    cityHallTitle() {
+      if (this.cityHallCityLabel) return `【${this.cityHallCityLabel}】同城群`
+      return '城市大群 · 选城市进群'
+    },
+    cityHallDesc() {
+      return '找到同城的旅人，进群随时聊'
+    },
   },
   onShow() {
     // #ifdef MP-WEIXIN
@@ -215,6 +236,7 @@ export default {
     Promise.resolve(uni.showShareMenu({ withShareTicket: false })).catch(() => {})
     // #endif
     this.syncSearchAnchorUi()
+    this.ensureActivityAnchor().catch(() => {})
     this.loadActivities()
   },
   onShareAppMessage() {
@@ -307,6 +329,14 @@ export default {
       })
     },
     onCityHall() {
+      const code = (this.activityAnchor?.cityCode && String(this.activityAnchor.cityCode).trim()) || ''
+      const label = this.cityHallCityLabel
+      if (code) {
+        const q = [`cityCode=${encodeURIComponent(code)}`]
+        if (label) q.push(`cityLabel=${encodeURIComponent(label)}`)
+        uni.navigateTo({ url: `/pages/city-hall/city-hall?${q.join('&')}` })
+        return
+      }
       uni.navigateTo({ url: '/pages/city-hall/city-hall' })
     },
     onCopyHomeShare() {
@@ -464,22 +494,27 @@ export default {
     margin-bottom: 4rpx;
   }
 
+  &__city-hall--hover {
+    opacity: 0.92;
+  }
+
   &__city-hall-inner {
     display: flex;
     align-items: center;
     gap: 20rpx;
-    padding: 22rpx 28rpx;
-    background: #ffffff;
+    padding: 24rpx 28rpx;
     border-radius: $wm-radius-lg;
-    border: $wm-card-edge;
-    box-shadow: $wm-shadow-sm;
+    background: linear-gradient(135deg, #eef2ff 0%, #f0f9ff 55%, #ecfeff 100%);
+    border: 2rpx solid rgba(99, 102, 241, 0.22);
+    box-shadow: 0 8rpx 28rpx rgba(79, 70, 229, 0.12);
   }
 
   &__city-hall-icon {
-    width: 72rpx;
-    height: 72rpx;
-    border-radius: 16rpx;
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    width: 80rpx;
+    height: 80rpx;
+    border-radius: 20rpx;
+    background: linear-gradient(145deg, #6366f1, #4f46e5);
+    box-shadow: 0 6rpx 16rpx rgba(79, 70, 229, 0.35);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -491,19 +526,53 @@ export default {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 6rpx;
+    gap: 8rpx;
+  }
+
+  &__city-hall-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10rpx;
   }
 
   &__city-hall-title {
     font-size: 30rpx;
     font-weight: 700;
-    color: $wm-text-1;
+    color: #312e81;
+    line-height: 1.35;
+  }
+
+  &__city-hall-badge {
+    flex-shrink: 0;
+    font-size: 20rpx;
+    font-weight: 600;
+    color: #047857;
+    background: rgba(209, 250, 229, 0.95);
+    padding: 4rpx 14rpx;
+    border-radius: 999rpx;
+    border: 1rpx solid rgba(16, 185, 129, 0.35);
   }
 
   &__city-hall-desc {
     font-size: 24rpx;
-    color: $wm-text-3;
-    line-height: 1.4;
+    color: #475569;
+    line-height: 1.45;
+  }
+
+  &__city-hall-cta {
+    flex-shrink: 0;
+    padding: 14rpx 26rpx;
+    border-radius: 999rpx;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    box-shadow: 0 4rpx 14rpx rgba(79, 70, 229, 0.35);
+
+    text {
+      font-size: 26rpx;
+      font-weight: 600;
+      color: #ffffff;
+      white-space: nowrap;
+    }
   }
 
   &__empty {

@@ -3,7 +3,7 @@
 		{
 			"path": "pages/home/home",
 			"style": {
-				"navigationBarTitleText": "旅聚",
+				"navigationBarTitleText": "去旅聚",
 				"navigationStyle": "custom",
 				"enableShareAppMessage": true,
 				"enableShareTimeline": true
@@ -207,7 +207,7 @@
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "旅聚",
+		"navigationBarTitleText": "去旅聚",
 		"navigationBarBackgroundColor": "#FFFFFF",
 		"backgroundColor": "#f0f9ff",
 		"enableShareAppMessage": true,
