@@ -83,19 +83,6 @@
         </view>
       </view>
 
-      <view class="section city-hall-entry" @click="onCityHall">
-        <view class="city-hall-entry__inner">
-          <view class="city-hall-entry__icon">
-            <wm-icon name="users" :size="40" color="#ffffff" />
-          </view>
-          <view class="city-hall-entry__text">
-            <text class="city-hall-entry__title">城市大群</text>
-            <text class="city-hall-entry__desc">按省展开后选市/区县，与同地址旅人交流</text>
-          </view>
-          <wm-icon name="chevronRight" :size="32" color="#94a3b8" />
-        </view>
-      </view>
-
       <!-- Categories -->
       <view class="section">
         <text class="section__title">活动分类</text>
@@ -365,11 +352,6 @@ export default {
         url: '/pages/activity-list/activity-list',
       })
     },
-    onCityHall() {
-      uni.navigateTo({
-        url: '/pages/city-hall/city-hall',
-      })
-    },
     onPlaceSearch() {
       uni.navigateTo({ url: '/pages/place-activities/place-activities' })
     },
@@ -515,10 +497,6 @@ export default {
     padding-top: 24rpx;
   }
 
-  &.city-hall-entry {
-    padding-top: 16rpx;
-  }
-
   &__head {
     display: flex;
     justify-content: space-between;
@@ -549,43 +527,6 @@ export default {
       color: $wm-text-2;
     }
   }
-}
-
-.city-hall-entry__inner {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  padding: 24rpx 28rpx;
-  background: #ffffff;
-  border-radius: 20rpx;
-  box-shadow: 0 8rpx 28rpx rgba(15, 23, 42, 0.06);
-}
-.city-hall-entry__icon {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 16rpx;
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.city-hall-entry__text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6rpx;
-}
-.city-hall-entry__title {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: $wm-text-1;
-}
-.city-hall-entry__desc {
-  font-size: 24rpx;
-  color: $wm-text-3;
-  line-height: 1.4;
 }
 
 .place-search-entry__inner {

@@ -235,6 +235,7 @@ async function payByMiniprogram() {
 export async function payBeforePublishActivity() {
   const cfg = await loadPublishPayConfig()
   if (!cfg.enabled) {
+    await ensureLoggedInForPublish()
     return { skipped: true, publishPayEnabled: false }
   }
 

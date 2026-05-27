@@ -29,6 +29,18 @@
           <!-- #endif -->
         </view>
       </view>
+      <view class="home__city-hall" @click="onCityHall">
+        <view class="home__city-hall-inner">
+          <view class="home__city-hall-icon">
+            <wm-icon name="users" :size="40" color="#ffffff" />
+          </view>
+          <view class="home__city-hall-text">
+            <text class="home__city-hall-title">城市大群</text>
+            <text class="home__city-hall-desc">按省选市/区县，与同地址旅人交流</text>
+          </view>
+          <wm-icon name="chevronRight" :size="32" color="#94a3b8" />
+        </view>
+      </view>
       <view class="home__search" @click="onTapSearch">
         <view class="home__search-inner">
           <wm-icon name="search" :size="32" color="#94a3b8" />
@@ -77,8 +89,8 @@
     <!-- Empty state -->
     <view v-else-if="!loading && activities.length === 0" class="home__empty">
       <wm-icon name="users" :size="96" color="#cbd5e1" />
-      <text class="empty-title">暂无活动</text>
-      <text class="empty-desc">看看其他时间段，或者去发布一个？</text>
+      <text class="empty-title">附近暂无活动</text>
+      <text class="empty-desc">看看其他时间段，或者去发布一个？也可搜地点看看想去的地方的活动</text>
     </view>
 
     <!-- Activity list -->
@@ -294,6 +306,9 @@ export default {
         url: `/pages/activity-detail/activity-detail?id=${item.id}`,
       })
     },
+    onCityHall() {
+      uni.navigateTo({ url: '/pages/city-hall/city-hall' })
+    },
     onCopyHomeShare() {
       const city =
         (this.activityAnchor?.displayName && String(this.activityAnchor.displayName).trim()) || ''
@@ -445,6 +460,52 @@ export default {
     padding-bottom: 4rpx;
   }
 
+  &__city-hall {
+    margin-bottom: 4rpx;
+  }
+
+  &__city-hall-inner {
+    display: flex;
+    align-items: center;
+    gap: 20rpx;
+    padding: 22rpx 28rpx;
+    background: #ffffff;
+    border-radius: $wm-radius-lg;
+    border: $wm-card-edge;
+    box-shadow: $wm-shadow-sm;
+  }
+
+  &__city-hall-icon {
+    width: 72rpx;
+    height: 72rpx;
+    border-radius: 16rpx;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__city-hall-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6rpx;
+  }
+
+  &__city-hall-title {
+    font-size: 30rpx;
+    font-weight: 700;
+    color: $wm-text-1;
+  }
+
+  &__city-hall-desc {
+    font-size: 24rpx;
+    color: $wm-text-3;
+    line-height: 1.4;
+  }
+
   &__empty {
     padding: 140rpx 32rpx;
     display: flex;
@@ -470,6 +531,9 @@ export default {
 .empty-desc {
   font-size: 26rpx;
   color: $wm-text-3;
+  text-align: center;
+  line-height: 1.55;
+  max-width: 560rpx;
 }
 
 .chip {

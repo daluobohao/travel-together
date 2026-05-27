@@ -117,6 +117,36 @@ export function isLoggedIn() {
   return !!getAccessToken()
 }
 
+const POST_LOGIN_REDIRECT_KEY = 'REDIRECT_URL'
+
+function currentPageRoute() {
+  const pages = getCurrentPages()
+  const cur = pages[pages.length - 1]
+  const route = cur?.route || ''
+  return route ? `/${route}` : ''
+}
+
+/** needAuth 且无 token：跳转登录页（与 Tab 栏、发布页一致） */
+export function requireAuthOrLogin(redirectPath = '') {
+  if (getAccessToken()) return true
+  const path = redirectPath || currentPageRoute()
+  if (path) uni.setStorageSync(POST_LOGIN_REDIRECT_KEY, path)
+  uni.navigateTo({ url: '/pages/login/login' })
+  const err = new Error('请先登录')
+  err.needLogin = true
+  err.isAuthError = true
+  throw err
+}
+
+function isAuthFailureStatus(statusCode, data) {
+  if (statusCode === 401) return true
+  if (statusCode === 403) {
+    const detail = messageFromHttpErrorBody(data)
+    return /not authenticated/i.test(detail)
+  }
+  return false
+}
+
 let pendingLoginCallback = null
 
 export function setPendingLoginCallback(callback) {
@@ -148,6 +178,10 @@ export async function wmRequest({
   if (getMockEnabled() && typeof mockHandler === 'function') {
     const mockPayload = await Promise.resolve(mockHandler({ query: query || {}, data: data || {} }))
     return unwrap(mockPayload)
+  }
+
+  if (needAuth) {
+    requireAuthOrLogin()
   }
 
   const url = `${API_BASE_URL}${path}${buildQuery(query)}`
@@ -217,23 +251,33 @@ export async function wmRequest({
     }
 
     const fromBody = messageFromHttpErrorBody(response.data)
-    const msg =
-      fromBody ||
-      (response.statusCode === 401
-        ? '请先登录'
-        : response.statusCode === 403
-          ? '没有权限'
-          : response.statusCode === 404
-            ? '资源不存在'
-            : response.statusCode === 429
-              ? '操作过于频繁，请稍后再试'
-              : response.statusCode === 422
-                ? fromBody || '提交内容不符合要求，请检查字数与选项'
-                : `请求失败（${response.statusCode}）`)
+    const authFailed = needAuth && isAuthFailureStatus(response.statusCode, response.data)
+    if (authFailed) {
+      const route = currentPageRoute()
+      if (route && !route.includes('/pages/login/login')) {
+        uni.setStorageSync(POST_LOGIN_REDIRECT_KEY, route)
+        uni.navigateTo({ url: '/pages/login/login' })
+      }
+    }
+    const msg = authFailed
+      ? '请先登录'
+      : fromBody ||
+        (response.statusCode === 401
+          ? '请先登录'
+          : response.statusCode === 403
+            ? '没有权限'
+            : response.statusCode === 404
+              ? '资源不存在'
+              : response.statusCode === 429
+                ? '操作过于频繁，请稍后再试'
+                : response.statusCode === 422
+                  ? fromBody || '提交内容不符合要求，请检查字数与选项'
+                  : `请求失败（${response.statusCode}）`)
     const err = new Error(msg)
     err.statusCode = response.statusCode
     err.data = response.data
-    err.isAuthError = response.statusCode === 401
+    err.isAuthError = authFailed || response.statusCode === 401
+    err.needLogin = authFailed
     throw err
   }
   return unwrap(response.data)
