@@ -177,9 +177,8 @@
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import PublishPayModal from '@/components/PublishPayModal/PublishPayModal.vue'
-import { createActivity, getActivityCategories, isLoggedIn } from '@/api'
+import { createActivity, getActivityCategories, isLoggedIn, redirectToLogin } from '@/api'
 import { loadPublishPayConfig, payBeforePublishActivity } from '@/pay/publishPay'
-import { setPostLoginRedirect } from '@/utils/wechatAuth'
 import { PUBLISH_FEE_YUAN, publishFeeLabel } from '@/pay/constants'
 
 const FALLBACK_CATEGORIES = [
@@ -258,8 +257,7 @@ export default {
   },
   async onShow() {
     if (!isLoggedIn()) {
-      setPostLoginRedirect('/pages/publish/publish')
-      uni.navigateTo({ url: '/pages/login/login' })
+      redirectToLogin('/pages/publish/publish')
       return
     }
     try {
@@ -447,8 +445,7 @@ export default {
         })
       } catch (e) {
         if (e?.needLogin || e?.isAuthError) {
-          setPostLoginRedirect('/pages/publish/publish')
-          uni.navigateTo({ url: '/pages/login/login' })
+          redirectToLogin('/pages/publish/publish')
           return
         }
         uni.showToast({ title: e?.message || '发布失败', icon: 'none' })

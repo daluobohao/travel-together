@@ -1,3 +1,4 @@
+import { clearWmAuthTokens } from '@/api/config'
 import { getAccessToken, loginByWechat, setAccessToken, setRefreshToken } from '@/api'
 import { loadOnboardingConfig } from '@/config/onboarding'
 
@@ -16,6 +17,64 @@ export function consumePostLoginRedirect(fallback = '/pages/home/home') {
     return url
   }
   return fallback
+}
+
+export function clearPostLoginRedirect() {
+  try {
+    uni.removeStorageSync(REDIRECT_URL_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+const LOGIN_PAGE_PATH = '/pages/login/login'
+/** 取消登录后若回到这些页会再次触发登录，改回首页 */
+const LOGIN_GATED_RETURN_PREFIXES = ['/pages/chat-detail/', '/pages/publish/publish']
+
+function isLoginGatedReturnPath(url) {
+  const u = String(url || '')
+  return LOGIN_GATED_RETURN_PREFIXES.some((p) => u.startsWith(p) || u.includes(p))
+}
+
+/**
+ * 用户取消登录：清 token 与回跳；有页面栈则返回上一页，否则回到发起登录前的浏览页或首页。
+ */
+export function leaveLoginWithoutAuth() {
+  let returnUrl = ''
+  try {
+    returnUrl = String(uni.getStorageSync(REDIRECT_URL_KEY) || '').trim()
+  } catch {
+    /* ignore */
+  }
+  clearPostLoginRedirect()
+  setSkipSilentLogin(true)
+  clearWmAuthTokens()
+
+  const pages = getCurrentPages()
+  if (pages.length > 1) {
+    uni.navigateBack({
+      fail: () => {
+        uni.reLaunch({ url: '/pages/home/home' })
+      },
+    })
+    return
+  }
+
+  if (
+    returnUrl &&
+    !returnUrl.includes(LOGIN_PAGE_PATH) &&
+    !isLoginGatedReturnPath(returnUrl)
+  ) {
+    uni.redirectTo({
+      url: returnUrl,
+      fail: () => {
+        uni.reLaunch({ url: '/pages/home/home' })
+      },
+    })
+    return
+  }
+
+  uni.reLaunch({ url: '/pages/home/home' })
 }
 
 /** 用户在登录页主动取消后，本进程内不再静默 wx.login */

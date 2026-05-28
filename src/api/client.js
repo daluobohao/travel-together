@@ -144,12 +144,33 @@ function currentPageRoute() {
   return route ? `/${route}` : ''
 }
 
-/** needAuth 且无 token：跳转登录页（与 Tab 栏、发布页一致） */
-export function requireAuthOrLogin(redirectPath = '') {
+const LOGIN_PAGE = '/pages/login/login'
+
+/**
+ * 鉴权策略（与产品一致）：
+ * - 首页 / 发现 / 活动详情浏览：匿名可访问（接口 needAuth: false + tokenIfPresent）
+ * - 报名、群聊、消息、发布、我的数据：须登录（页面或接口 redirectToLogin）
+ */
+
+/** 未登录时 replace 到登录页，避免返回键回到需登录页形成循环；已登录返回 true */
+export function redirectToLogin(redirectPath = '') {
   if (getAccessToken()) return true
   const path = redirectPath || currentPageRoute()
-  if (path) uni.setStorageSync(POST_LOGIN_REDIRECT_KEY, path)
-  uni.navigateTo({ url: '/pages/login/login' })
+  if (path && !path.includes(LOGIN_PAGE)) {
+    uni.setStorageSync(POST_LOGIN_REDIRECT_KEY, path)
+  }
+  uni.redirectTo({
+    url: LOGIN_PAGE,
+    fail: () => {
+      uni.reLaunch({ url: LOGIN_PAGE })
+    },
+  })
+  return false
+}
+
+/** needAuth 且无 token：跳转登录页（与 Tab 栏、发布页一致） */
+export function requireAuthOrLogin(redirectPath = '') {
+  if (redirectToLogin(redirectPath)) return true
   const err = new Error('请先登录')
   err.needLogin = true
   err.isAuthError = true
@@ -179,7 +200,7 @@ export async function goToLogin(retryPath = '') {
   if (retryPath) {
     uni.setStorageSync('PENDING_REQUEST_PATH', retryPath)
   }
-  uni.navigateTo({ url: '/pages/login/login' })
+  redirectToLogin(retryPath)
 }
 
 export async function wmRequest({
@@ -272,9 +293,8 @@ export async function wmRequest({
     const authFailed = needAuth && isAuthFailureStatus(response.statusCode, response.data)
     if (authFailed) {
       const route = currentPageRoute()
-      if (route && !route.includes('/pages/login/login')) {
-        uni.setStorageSync(POST_LOGIN_REDIRECT_KEY, route)
-        uni.navigateTo({ url: '/pages/login/login' })
+      if (route && !route.includes(LOGIN_PAGE)) {
+        redirectToLogin(route)
       }
     }
     const msg = authFailed

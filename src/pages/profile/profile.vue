@@ -9,7 +9,7 @@
         <view class="profile__info">
           <view class="profile__name-row">
             <text class="profile__name">{{ user.name }}</text>
-            <view class="profile__verified">
+            <view v-if="loggedIn" class="profile__verified">
               <wm-icon name="check" :size="20" color="#10b981" />
               <text>已认证</text>
             </view>
@@ -19,7 +19,8 @@
           <text v-if="user.emailBound && user.emailMasked" class="profile__contact">{{ user.emailMasked }}</text>
           <text v-if="genderDisplay" class="profile__gender">{{ genderDisplay }}</text>
         </view>
-        <text class="profile__edit" @click="onEdit">编辑</text>
+        <text v-if="loggedIn" class="profile__edit" @click="onEdit">编辑</text>
+        <text v-else class="profile__edit profile__edit--login" @click="goLogin">登录</text>
       </view>
 
       <view class="profile__stats">
@@ -44,7 +45,10 @@
         <text class="section__title">我的活动</text>
         <text class="section__more" @click="onViewAllMyActivities">查看全部</text>
       </view>
-      <view class="activities">
+      <view v-if="!loggedIn" class="profile__guest-tip">
+        <text>登录后查看已报名的活动</text>
+      </view>
+      <view v-else class="activities">
         <view v-for="a in activities" :key="a.id" class="activity">
           <view class="activity__body">
             <view class="activity__title-row">
@@ -100,8 +104,10 @@ import {
   getMe,
   getMyActivities,
   getMyStats,
+  isLoggedIn,
   logout,
   mapActivityCard,
+  redirectToLogin,
 } from '@/api'
 export default {
   components: { WmIcon, WmTabBar },
@@ -121,6 +127,7 @@ export default {
         { value: 5, label: '发起活动' },
       ],
       activities: [],
+      loggedIn: false,
       menus: [
         { key: 'bindPhone', icon: 'bell', color: '#0284c7', bg: '#e0f2fe', label: '绑定手机号', hint: '' },
         { key: 'history', icon: 'history', color: '#0ea5e9', bg: '#e0f2fe', label: '历史活动' },
@@ -156,12 +163,22 @@ export default {
     },
   },
   methods: {
+    goLogin() {
+      redirectToLogin('/pages/profile/profile')
+    },
+    ensureLoggedIn() {
+      if (isLoggedIn()) return true
+      this.goLogin()
+      return false
+    },
     onEdit() {
+      if (!this.ensureLoggedIn()) return
       uni.navigateTo({
         url: '/pages/profile-edit/profile-edit',
       })
     },
     onStatClick(stat) {
+      if (!this.ensureLoggedIn()) return
       if (stat.label === '参加活动') {
         uni.navigateTo({
           url: '/pages/my-activity-list/my-activity-list',
@@ -178,6 +195,9 @@ export default {
     onMenu(m) {
       if (m.key === 'logout') {
         this.onLogout()
+        return
+      }
+      if (['bindPhone', 'history', 'feedback'].includes(m.key) && !this.ensureLoggedIn()) {
         return
       }
       if (m.key === 'bindPhone') {
@@ -233,12 +253,31 @@ export default {
       })
     },
     onViewAllMyActivities() {
+      if (!this.ensureLoggedIn()) return
       uni.navigateTo({
         url: '/pages/my-activity-list/my-activity-list',
       })
     },
   },
   async onShow() {
+    this.loggedIn = isLoggedIn()
+    if (!this.loggedIn) {
+      this.user = {
+        name: '游客',
+        bio: '登录后查看个人资料与我的活动',
+        gender: null,
+        phoneMasked: '',
+        phoneBound: false,
+        emailMasked: '',
+        emailBound: false,
+      }
+      this.stats = [
+        { value: '—', label: '参加活动' },
+        { value: '—', label: '发起活动' },
+      ]
+      this.activities = []
+      return
+    }
     try {
       const [me, stats, joined] = await Promise.all([
         getMe(),
@@ -398,6 +437,20 @@ export default {
     font-size: 28rpx;
     font-weight: 700;
     padding: 12rpx 8rpx;
+
+    &--login {
+      color: #ffffff;
+      background: $wm-gradient-primary;
+      border-radius: 999rpx;
+      padding: 12rpx 28rpx;
+    }
+  }
+
+  &__guest-tip {
+    padding: 32rpx 24rpx;
+    text-align: center;
+    font-size: 26rpx;
+    color: $wm-text-3;
   }
 
   &__stats {

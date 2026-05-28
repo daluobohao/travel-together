@@ -73,6 +73,7 @@ import {
   getCityHallLookup,
   isLoggedIn,
   joinCityHall,
+  redirectToLogin,
 } from '@/api'
 
 export default {
@@ -190,8 +191,7 @@ export default {
         const q = [`cityCode=${encodeURIComponent(this.cityCode)}`]
         const label = (this.cityLabel && String(this.cityLabel).trim()) || ''
         if (label) q.push(`cityLabel=${encodeURIComponent(label)}`)
-        uni.setStorageSync('REDIRECT_URL', `/pages/city-hall/city-hall?${q.join('&')}`)
-        uni.navigateTo({ url: '/pages/login/login' })
+        redirectToLogin(`/pages/city-hall/city-hall?${q.join('&')}`)
         return
       }
       const name = (this.cityLabel && String(this.cityLabel).trim()) || this.cityCode || '该城市'

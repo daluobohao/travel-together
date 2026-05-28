@@ -155,9 +155,9 @@ import {
   getActivityDetail,
   getMe,
   isLoggedIn,
+  redirectToLogin,
   resolveActivityCategoryTag,
 } from '@/api'
-import { setPostLoginRedirect } from '@/utils/wechatAuth'
 import {
   buildActivityShareClipboardText,
   buildActivityShareMessage,
@@ -186,7 +186,7 @@ export default {
     },
     canEnterGroup() {
       if (!this.activity) return false
-      return this.isJoined && !this.activity.isCancelled
+      return isLoggedIn() && this.isJoined && !this.activity.isCancelled
     },
     actionText() {
       if (!this.activity) return ''
@@ -221,6 +221,25 @@ export default {
   onLoad(query) {
     this.activityId = query?.id ? String(query.id) : ''
     this.loadActivity(this.activityId)
+  },
+  onShow() {
+    // #ifdef MP-WEIXIN
+    try {
+      uni.showShareMenu({
+        withShareTicket: true,
+        menus: ['shareAppMessage', 'shareTimeline'],
+      })
+    } catch (_) {
+      /* ignore */
+    }
+    // #endif
+    // #ifdef MP-TOUTIAO
+    try {
+      uni.showShareMenu({ withShareTicket: false })
+    } catch (_) {
+      /* ignore */
+    }
+    // #endif
   },
   onShareAppMessage() {
     return buildActivityShareMessage(this.activity)
@@ -375,10 +394,10 @@ export default {
       }
       if (!isLoggedIn()) {
         const id = this.activity.id || this.activityId
-        if (id) {
-          setPostLoginRedirect(`/pages/activity-detail/activity-detail?id=${encodeURIComponent(id)}`)
-        }
-        uni.navigateTo({ url: '/pages/login/login' })
+        const back = id
+          ? `/pages/activity-detail/activity-detail?id=${encodeURIComponent(id)}`
+          : ''
+        redirectToLogin(back)
         return
       }
       this.toggleEnroll()
@@ -417,10 +436,11 @@ export default {
       if (!this.canEnterGroup) return
       if (!isLoggedIn()) {
         const id = this.activity.id || this.activityId
-        if (id) {
-          setPostLoginRedirect(`/pages/activity-detail/activity-detail?id=${encodeURIComponent(id)}`)
-        }
-        uni.navigateTo({ url: '/pages/login/login' })
+        redirectToLogin(
+          id
+            ? `/pages/chat-detail/chat-detail?id=${encodeURIComponent(id)}`
+            : '/pages/activity-detail/activity-detail',
+        )
         return
       }
       uni.navigateTo({

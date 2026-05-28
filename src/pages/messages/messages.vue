@@ -21,8 +21,14 @@
       </view>
     </view>
 
+    <view v-if="!loggedIn" class="messages__login-prompt">
+      <text class="messages__login-prompt-title">登录后查看消息</text>
+      <text class="messages__login-prompt-sub">活动群聊、私聊与系统通知需登录后使用</text>
+      <view class="messages__login-btn" @click="goLogin">去登录</view>
+    </view>
+
     <!-- Skeleton Loading -->
-    <view v-if="loading" class="skeleton-content">
+    <view v-else-if="loading" class="skeleton-content">
       <view class="messages__list">
         <view v-for="i in 4" :key="i" class="skeleton-chat">
           <view class="skeleton-chat-avatar"></view>
@@ -216,8 +222,8 @@ import {
   readAllNotifications,
   readNotification,
   isLoggedIn,
+  redirectToLogin,
 } from '@/api'
-import { setPostLoginRedirect } from '@/utils/wechatAuth'
 
 /** 消息列表每页条数（首屏轻量，靠加载更多翻页） */
 const LIST_PAGE_SIZE = 5
@@ -314,6 +320,7 @@ export default {
       notifTotal: 0,
       notifHasMore: false,
       notifLoadingMore: false,
+      loggedIn: false,
     }
   },
   computed: {
@@ -328,14 +335,20 @@ export default {
     },
   },
   onShow() {
-    if (!isLoggedIn()) {
-      setPostLoginRedirect('/pages/messages/messages')
-      uni.navigateTo({ url: '/pages/login/login' })
+    this.loggedIn = isLoggedIn()
+    if (!this.loggedIn) {
+      this.loading = false
+      this.groupChats = []
+      this.privateChats = []
+      this.systemNotifs = []
       return
     }
     this.loadMessages()
   },
   methods: {
+    goLogin() {
+      redirectToLogin('/pages/messages/messages')
+    },
     _applyPaginationState(prefix, data, listLength) {
       const total = Number(data?.total) || 0
       this[`${prefix}Total`] = total
@@ -360,8 +373,11 @@ export default {
         this._applyPaginationState('notif', notifData, this.systemNotifs.length)
       } catch (e) {
         if (e.isAuthError) {
-          setPostLoginRedirect('/pages/messages/messages')
-          uni.navigateTo({ url: '/pages/login/login' })
+          this.loggedIn = false
+          this.groupChats = []
+          this.privateChats = []
+          this.systemNotifs = []
+          uni.showToast({ title: '请先登录', icon: 'none' })
           return
         }
         this.groupChats = []
@@ -425,6 +441,10 @@ export default {
       }
     },
     goDmRequests() {
+      if (!this.loggedIn) {
+        this.goLogin()
+        return
+      }
       uni.navigateTo({ url: '/pages/dm-requests/dm-requests' })
     },
     onOpenPrivate(chat) {
@@ -555,6 +575,45 @@ export default {
     color: $wm-text-3;
     font-size: 26rpx;
     font-weight: 500;
+  }
+
+  &__login-prompt {
+    margin: 32rpx 24rpx;
+    padding: 48rpx 32rpx;
+    background: #ffffff;
+    border-radius: $wm-radius-lg;
+    text-align: center;
+    box-shadow: $wm-shadow-md;
+    border: $wm-card-edge;
+  }
+
+  &__login-prompt-title {
+    display: block;
+    font-size: 32rpx;
+    font-weight: 700;
+    color: $wm-text-1;
+  }
+
+  &__login-prompt-sub {
+    display: block;
+    margin-top: 16rpx;
+    font-size: 26rpx;
+    color: $wm-text-2;
+    line-height: 1.5;
+  }
+
+  &__login-btn {
+    margin-top: 32rpx;
+    height: 84rpx;
+    border-radius: 999rpx;
+    background: $wm-gradient-primary;
+    color: #ffffff;
+    font-size: 28rpx;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: $wm-shadow-glow;
   }
 
   &__more {

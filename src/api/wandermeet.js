@@ -593,6 +593,8 @@ export const getActivities = (query = {}) =>
     method: 'GET',
     path: '/activities',
     query,
+    needAuth: false,
+    tokenIfPresent: true,
     mockHandler: ({ query: q }) => {
       let list = wmDB.activities.slice()
       if (q.cityCode) {
@@ -655,6 +657,8 @@ export const getNearbyActivities = (query = {}) =>
     method: 'GET',
     path: '/activities/nearby',
     query,
+    needAuth: false,
+    tokenIfPresent: true,
     mockHandler: ({ query: q }) => {
       const userLat = Number(q.lat)
       const userLng = Number(q.lng)
@@ -731,6 +735,7 @@ export const getUserPublicProfile = (userId) =>
   wmRequest({
     method: 'GET',
     path: `/users/${String(userId)}/public`,
+    needAuth: false,
     mockHandler: () => {
       const uid = String(userId)
       const organizedCount = wmDB.activities.filter((x) => x.organizer?.userId === uid).length

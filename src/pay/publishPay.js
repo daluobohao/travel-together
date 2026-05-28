@@ -7,7 +7,8 @@ import {
   isPublishPayMockEnabled,
 } from '@/api/pay'
 import { getMe, getPublishMeta, isLoggedIn } from '@/api'
-import { getWxLoginCode, setPostLoginRedirect } from '@/utils/wechatAuth'
+import { redirectToLogin } from '@/api'
+import { getWxLoginCode } from '@/utils/wechatAuth'
 import { generatePayQrId } from '@/utils/payQrId'
 import {
   PUBLISH_FEE_YUAN,
@@ -74,8 +75,7 @@ function sleep(ms) {
 
 async function ensureLoggedInForPublish() {
   if (!isLoggedIn()) {
-    setPostLoginRedirect('/pages/publish/publish')
-    uni.navigateTo({ url: '/pages/login/login' })
+    redirectToLogin('/pages/publish/publish')
     const e = new Error('请先登录')
     e.needLogin = true
     throw e

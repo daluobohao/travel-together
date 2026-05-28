@@ -98,7 +98,9 @@ import {
   getActivityDetail,
   getActivityMessages,
   getMe,
+  isLoggedIn,
   markMyChatRead,
+  redirectToLogin,
   sendActivityMessage,
 } from '@/api'
 import {
@@ -187,6 +189,10 @@ export default {
   },
   onLoad(query) {
     this.chatId = query?.id ? String(query.id) : '1'
+    if (!isLoggedIn()) {
+      redirectToLogin(`/pages/chat-detail/chat-detail?id=${encodeURIComponent(this.chatId)}`)
+      return
+    }
     this.bootstrapGroup()
   },
   onShow() {

@@ -111,7 +111,7 @@
     <!-- #endif -->
 
     <!-- #ifdef MP-TOUTIAO -->
-    <view class="login__douyin-block">
+    <view class="login__wechat-block">
       <view class="login__agree login__agree--mp">
         <checkbox-group @change="onAgreeChange">
           <label class="login__agree-label">
@@ -147,19 +147,22 @@ import {
   getMe,
   loginByEmail,
   loginByWechat,
+  loginByDouyin,
   registerByEmail,
 } from '@/api'
-// #ifdef MP-TOUTIAO
-import { loginWithDouyinCode, mapDouyinLoginErrorMessage } from '@/utils/douyinAuth'
-// #endif
+import { buildDefaultTimelineShare, DEFAULT_MINI_PROGRAM_SHARE } from '@/utils/activityShare'
 import {
   applyLoginTokens,
   clearSkipSilentLogin,
   consumePostLoginRedirect,
   getWxLoginCode,
+  leaveLoginWithoutAuth,
   navigateAfterLogin,
   setSkipSilentLogin,
 } from '@/utils/wechatAuth'
+// #ifdef MP-TOUTIAO
+import { getTtLoginCode } from '@/utils/douyinAuth'
+// #endif
 
 const EMAIL_REG = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PASS_MIN_LEN = 8
@@ -214,6 +217,10 @@ export default {
     },
     // #endif
   },
+  onBackPress() {
+    leaveLoginWithoutAuth()
+    return true
+  },
   async onShow() {
     if (getAccessToken()) {
       try {
@@ -224,15 +231,38 @@ export default {
         clearWmAuthTokens()
       }
     }
+    // #ifdef MP-WEIXIN
+    try {
+      uni.showShareMenu({
+        withShareTicket: true,
+        menus: ['shareAppMessage', 'shareTimeline'],
+      })
+    } catch (_) {
+      /* ignore */
+    }
+    // #endif
+    // #ifdef MP-TOUTIAO
+    Promise.resolve(uni.showShareMenu({ withShareTicket: false })).catch(() => {})
+    // #endif
   },
+  onShareAppMessage() {
+    return { ...DEFAULT_MINI_PROGRAM_SHARE }
+  },
+  // #ifdef MP-WEIXIN
+  onShareTimeline() {
+    return buildDefaultTimelineShare()
+  },
+  // #endif
   methods: {
     onAgreeChange(e) {
       const v = e?.detail?.value || []
       this.agreeTerms = Array.isArray(v) && v.indexOf('agree') !== -1
     },
+    // #ifdef H5
     toggleAgree() {
       this.agreeTerms = !this.agreeTerms
     },
+    // #endif
     openUserAgreement() {
       uni.navigateTo({ url: '/pages/user-agreement/user-agreement' })
     },
@@ -262,8 +292,7 @@ export default {
       if (this.confirmError) this.confirmError = ''
     },
     onCancelBrowse() {
-      clearWmAuthTokens()
-      uni.reLaunch({ url: '/pages/home/home' })
+      leaveLoginWithoutAuth()
     },
     async onEmailSubmit() {
       if (!this.agreeTerms) {
@@ -317,9 +346,7 @@ export default {
     // #endif
     // #ifdef MP-WEIXIN
     onCancel() {
-      setSkipSilentLogin(true)
-      clearWmAuthTokens()
-      uni.reLaunch({ url: '/pages/home/home' })
+      leaveLoginWithoutAuth()
     },
     async onWechatLogin() {
       if (!this.agreeTerms) {
@@ -347,9 +374,7 @@ export default {
     // #endif
     // #ifdef MP-TOUTIAO
     onCancelDouyin() {
-      setSkipSilentLogin(true)
-      clearWmAuthTokens()
-      uni.reLaunch({ url: '/pages/home/home' })
+      leaveLoginWithoutAuth()
     },
     async onDouyinLogin() {
       if (!this.agreeTerms) {
@@ -364,11 +389,12 @@ export default {
       this.douyinLoginLoading = true
       try {
         clearSkipSilentLogin()
-        const data = await loginWithDouyinCode()
+        const code = await getTtLoginCode()
+        const data = await loginByDouyin({ code })
         applyLoginTokens(data)
         navigateAfterLogin(data?.user)
       } catch (e) {
-        uni.showToast({ title: mapDouyinLoginErrorMessage(e), icon: 'none', duration: 3200 })
+        uni.showToast({ title: e?.message || '抖音登录失败', icon: 'none' })
       } finally {
         this.douyinLoginLoading = false
       }
@@ -522,8 +548,7 @@ export default {
     }
   }
 
-  &__wechat-block,
-  &__douyin-block {
+  &__wechat-block {
     margin-bottom: 28rpx;
     animation: fadeInUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.08s both;
   }
