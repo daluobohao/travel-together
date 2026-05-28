@@ -164,7 +164,7 @@ export default {
     onStatClick(stat) {
       if (stat.label === '参加活动') {
         uni.navigateTo({
-          url: '/pages/activity-list/activity-list',
+          url: '/pages/my-activity-list/my-activity-list',
         })
         return
       }

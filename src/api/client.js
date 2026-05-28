@@ -303,7 +303,7 @@ export async function wmRequest({
 
 export function paginate(list, page = 1, pageSize = 20) {
   const safePage = Math.max(1, Number(page) || 1)
-  const safePageSize = Math.min(50, Math.max(1, Number(pageSize) || 20))
+  const safePageSize = Math.min(100, Math.max(1, Number(pageSize) || 20))
   const start = (safePage - 1) * safePageSize
   return {
     list: list.slice(start, start + safePageSize),

@@ -1112,11 +1112,26 @@ export const getMyActivities = (query = {}) =>
     query,
     mockHandler: ({ query: q }) => {
       const role = q.role || 'joined'
-      const list =
+      let list =
         role === 'organized'
           ? wmDB.activities.filter((x) => x.organizer.userId === wmDB.profile.userId)
           : wmDB.activities.filter((x) => x.myEnrollment)
-      return ok(paginate(list.map(toActivityCard), q.page, q.pageSize))
+      const allCards = list.map(toActivityCard)
+      const cityHallCount = allCards.filter((x) => x.activityKind === 'city_hall').length
+      const eventCount = allCards.length - cityHallCount
+      if (q.activityKind === 'city_hall') {
+        list = list.filter((x) => x.activityKind === 'city_hall')
+      } else if (q.activityKind === 'event') {
+        list = list.filter((x) => x.activityKind !== 'city_hall')
+        list = list.slice().sort((a, b) => new Date(b.startAt) - new Date(a.startAt))
+      }
+      const cards = list.map(toActivityCard)
+      const pageData = paginate(cards, q.page, q.pageSize)
+      return ok({
+        ...pageData,
+        cityHallCount,
+        eventCount,
+      })
     },
   })
 
