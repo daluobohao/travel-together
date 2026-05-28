@@ -1116,6 +1116,9 @@ export const getMyActivities = (query = {}) =>
         role === 'organized'
           ? wmDB.activities.filter((x) => x.organizer.userId === wmDB.profile.userId)
           : wmDB.activities.filter((x) => x.myEnrollment)
+      if (role === 'organized') {
+        list = list.slice().sort((a, b) => new Date(b.startAt) - new Date(a.startAt))
+      }
       const allCards = list.map(toActivityCard)
       const cityHallCount = allCards.filter((x) => x.activityKind === 'city_hall').length
       const eventCount = allCards.length - cityHallCount

@@ -11,10 +11,10 @@
     <view class="hosted__content">
       <view class="hosted__summary">
         <text class="hosted__summary-title">我发起的活动</text>
-        <text class="hosted__summary-sub">共 {{ hostedActivities.length }} 场，点击进入发布页进行管理</text>
+        <text class="hosted__summary-sub">共 {{ total }} 场，按开始时间由新到旧</text>
       </view>
 
-      <view class="hosted__list">
+      <view v-if="hostedActivities.length" class="hosted__list">
         <view
           v-for="item in hostedActivities"
           :key="item.id"
@@ -35,6 +35,21 @@
         </view>
       </view>
 
+      <view
+        v-if="total > LIST_PAGE_SIZE"
+        class="hosted__more"
+        :class="{ 'hosted__more--disabled': loadingMore || !hasMore }"
+        @click="loadMore"
+      >
+        <text v-if="loadingMore">加载中…</text>
+        <text v-else-if="hasMore">加载更多（{{ hostedActivities.length }}/{{ total }}）</text>
+        <text v-else>没有更多了</text>
+      </view>
+
+      <view v-if="!loading && total === 0" class="hosted__empty">
+        <text>暂无发起的活动</text>
+      </view>
+
       <view class="hosted__new-btn" @click="openPublish()">
         <text>+ 去发布新活动</text>
       </view>
@@ -46,10 +61,18 @@
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import { getMyActivities, mapActivityCard } from '@/api'
 
+const LIST_PAGE_SIZE = 5
+
 export default {
   components: { WmIcon },
   data() {
     return {
+      LIST_PAGE_SIZE,
+      loading: false,
+      loadingMore: false,
+      total: 0,
+      page: 1,
+      hasMore: false,
       hostedActivities: [],
     }
   },
@@ -57,19 +80,52 @@ export default {
     this.loadHostedActivities()
   },
   methods: {
-    async loadHostedActivities() {
-      const data = await getMyActivities({ role: 'organized', page: 1, pageSize: 50 })
-      this.hostedActivities = (data?.list || []).map((item) => {
-        const card = mapActivityCard(item)
-        return {
-          id: String(card.activityId || ''),
-          title: card.title,
-          time: card.time,
-          location: card.location,
-          statusKey: 'recruiting',
-          statusLabel: '招募中',
-        }
+    mapRow(item) {
+      const card = mapActivityCard(item)
+      return {
+        id: String(card.activityId || ''),
+        title: card.title,
+        time: card.time,
+        location: card.location,
+        statusKey: card.statusKey || 'recruiting',
+        statusLabel: card.statusLabel || '招募中',
+      }
+    },
+    async fetchPage(reset) {
+      const page = reset ? 1 : this.page
+      const data = await getMyActivities({
+        role: 'organized',
+        page,
+        pageSize: LIST_PAGE_SIZE,
       })
+      const rows = (data?.list || []).map((item) => this.mapRow(item))
+      this.hostedActivities = reset ? rows : [...this.hostedActivities, ...rows]
+      this.page = page
+      this.total = data?.total ?? 0
+      this.hasMore = this.hostedActivities.length < this.total
+    },
+    async loadHostedActivities() {
+      this.loading = true
+      try {
+        await this.fetchPage(true)
+      } catch (e) {
+        uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+      } finally {
+        this.loading = false
+      }
+    },
+    async loadMore() {
+      if (!this.hasMore || this.loadingMore || this.loading) return
+      this.loadingMore = true
+      try {
+        this.page += 1
+        await this.fetchPage(false)
+      } catch (e) {
+        this.page = Math.max(1, this.page - 1)
+        uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+      } finally {
+        this.loadingMore = false
+      }
     },
     goBack() {
       uni.navigateBack()
@@ -146,6 +202,27 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 14rpx;
+  }
+
+  &__more {
+    margin-top: 16rpx;
+    padding: 20rpx;
+    text-align: center;
+    font-size: 24rpx;
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.06);
+    border-radius: 14rpx;
+
+    &--disabled {
+      opacity: 0.55;
+    }
+  }
+
+  &__empty {
+    padding: 48rpx 24rpx;
+    text-align: center;
+    font-size: 26rpx;
+    color: #94a3b8;
   }
 
   &__new-btn {
