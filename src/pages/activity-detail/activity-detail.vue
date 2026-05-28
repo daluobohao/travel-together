@@ -248,10 +248,10 @@ export default {
   onShareTimeline() {
     const a = this.activity
     if (!a?.id) {
-      return { title: '旅聚 · 发现身边的活动' }
+      return { title: '去旅聚 · 发现身边的活动' }
     }
     return {
-      title: (a.title && String(a.title).trim().slice(0, 64)) || '旅聚活动',
+      title: (a.title && String(a.title).trim().slice(0, 64)) || '去旅聚活动',
       query: buildActivityTimelineQuery(a.id),
     }
   },

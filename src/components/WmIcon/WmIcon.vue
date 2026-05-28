@@ -4,7 +4,7 @@
 
 <script>
 /**
- * 旅聚 WanderMeet 通用图标组件
+ * 去旅聚 WanderMeet 通用图标组件
  * 基于内联 SVG mask-image 实现，颜色可通过 color 属性动态变更
  */
 const ICONS = {

@@ -1,6 +1,6 @@
 /** 非活动详情页：分享统一落到首页，避免好友打开到登录/半完成引导页 */
 export const DEFAULT_MINI_PROGRAM_SHARE = {
-  title: '旅聚 · 发现身边的活动',
+  title: '去旅聚 · 发现身边的活动',
   path: '/pages/home/home',
 }
 
@@ -58,13 +58,13 @@ export function buildCurrentPageTimelineShare(title = DEFAULT_MINI_PROGRAM_SHARE
 /** 首页分享标题（可带城市） */
 export function buildHomeShareMessage(cityName) {
   const city = (cityName && String(cityName).trim()) || ''
-  const title = city ? `旅聚 · ${city}附近的活动` : DEFAULT_MINI_PROGRAM_SHARE.title
+  const title = city ? `去旅聚 · ${city}附近的活动` : DEFAULT_MINI_PROGRAM_SHARE.title
   return { title, path: DEFAULT_MINI_PROGRAM_SHARE.path }
 }
 
 /** 发现 Tab 分享 */
 export const DISCOVER_PAGE_SHARE = {
-  title: '旅聚 · 发现活动与分类',
+  title: '去旅聚 · 发现活动与分类',
   path: '/pages/discover/discover',
 }
 
@@ -74,8 +74,8 @@ export function buildDiscoverShareMessage() {
 
 export function buildDiscoverShareClipboardText() {
   return [
-    '【旅聚】发现活动与分类',
-    '在微信中打开「旅聚」小程序：可点右上角「···」转发；或把下方页面路径发给已安装该小程序的朋友。',
+    '【去旅聚】发现活动与分类',
+    '在微信中打开「去旅聚」小程序：可点右上角「···」转发；或把下方页面路径发给已安装该小程序的朋友。',
     `页面路径：${DISCOVER_PAGE_SHARE.path}`,
   ].join('\n')
 }
@@ -83,10 +83,10 @@ export function buildDiscoverShareClipboardText() {
 /** 复制首页分享说明（微信粘贴发给好友） */
 export function buildHomeShareClipboardText(cityName) {
   const city = (cityName && String(cityName).trim()) || ''
-  const headline = city ? `【旅聚】${city}附近的活动` : '【旅聚】发现身边的活动'
+  const headline = city ? `【去旅聚】${city}附近的活动` : '【去旅聚】发现身边的活动'
   return [
     headline,
-    '在微信中打开「旅聚」小程序：可点右上角「···」转发；或把下方页面路径发给已安装该小程序的朋友。',
+    '在微信中打开「去旅聚」小程序：可点右上角「···」转发；或把下方页面路径发给已安装该小程序的朋友。',
     `页面路径：${DEFAULT_MINI_PROGRAM_SHARE.path}`,
   ].join('\n')
 }
@@ -101,9 +101,9 @@ export function buildActivityDetailPath(activityId) {
 /** 供 ``onShareAppMessage`` 使用 */
 export function buildActivityShareMessage(activity) {
   if (!activity?.id) {
-    return { title: '旅聚 · 发现身边的活动', path: '/pages/home/home' }
+    return { title: '去旅聚 · 发现身边的活动', path: '/pages/home/home' }
   }
-  const title = (activity.title && String(activity.title).trim().slice(0, 64)) || '旅聚活动'
+  const title = (activity.title && String(activity.title).trim().slice(0, 64)) || '去旅聚活动'
   return {
     title,
     path: buildActivityDetailPath(activity.id),
@@ -120,8 +120,8 @@ export function buildActivityShareClipboardText(activity) {
   const title = (activity?.title && String(activity.title).trim()) || '活动'
   const path = activity?.id ? buildActivityDetailPath(activity.id) : '/pages/home/home'
   return [
-    `【旅聚】${title}`,
-    '在微信中打开「旅聚」小程序，使用右上角「···」可转发给好友；也可将下方路径发给已安装该小程序的朋友。',
+    `【去旅聚】${title}`,
+    '在微信中打开「去旅聚」小程序，使用右上角「···」可转发给好友；也可将下方路径发给已安装该小程序的朋友。',
     `页面路径：${path}`,
   ].join('\n')
 }

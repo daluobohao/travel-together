@@ -5,7 +5,7 @@
         <wm-icon name="chevronLeft" :size="34" color="#0f172a" />
       </view>
       <text class="profile-edit__title">{{ firstCompleteHint ? '完善资料' : '编辑个人信息' }}</text>
-      <text class="profile-edit__save" @click="saveProfile">{{ firstCompleteHint ? '进入旅聚' : '保存' }}</text>
+      <text class="profile-edit__save" @click="saveProfile">{{ firstCompleteHint ? '进入去旅聚' : '保存' }}</text>
     </view>
 
     <view class="profile-edit__content">

@@ -1,7 +1,7 @@
 <template>
   <view class="privacy">
     <view class="privacy__card">
-      <text class="privacy__title">旅聚隐私政策</text>
+      <text class="privacy__title">去旅聚隐私政策</text>
       <text class="privacy__time">更新日期：2026-05-12</text>
 
       <text class="privacy__section-title">1. 我们收集的信息</text>

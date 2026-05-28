@@ -24,7 +24,7 @@ export default {
 </script>
 
 <style lang="scss">
-/* 全局样式 - 旅聚（米白天青 · 见 uni.scss） */
+/* 全局样式 - 去旅聚（米白天青 · 见 uni.scss） */
 page {
   background: $wm-page-bg-gradient;
   background-attachment: fixed;

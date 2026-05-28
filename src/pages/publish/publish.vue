@@ -246,9 +246,9 @@ export default {
     },
     publishDisclaimer() {
       if (this.publishPayEnabled) {
-        return `发布即表示同意《旅聚社区规范》，请确保活动信息真实有效。发布前需支付服务费 ${this.publishFeeText}。`
+        return `发布即表示同意《去旅聚社区规范》，请确保活动信息真实有效。发布前需支付服务费 ${this.publishFeeText}。`
       }
-      return '发布即表示同意《旅聚社区规范》，请确保活动信息真实有效。'
+      return '发布即表示同意《去旅聚社区规范》，请确保活动信息真实有效。'
     },
     isOtherCategory() {
       const cid = this.categoryMap[this.form.category] || ''

@@ -10,7 +10,7 @@
 
     <scroll-view class="rules-page__content" scroll-y>
       <view class="rules-page__intro">
-        <text class="rules-page__intro-title">旅聚社区公约</text>
+        <text class="rules-page__intro-title">去旅聚社区公约</text>
         <text class="rules-page__intro-sub">为保障每一次线下活动的安全、友好与高质量，请遵守以下规范。</text>
       </view>
 
