@@ -35,8 +35,24 @@
             </view>
 
             <view class="msg-col" :class="item.mine ? 'msg-col--mine' : 'msg-col--other'">
-              <view class="msg-bubble" :class="{ 'msg-bubble--mine': item.mine, 'msg-bubble--failed': item.failed }">
-                <text class="msg-bubble__text">{{ item.text }}</text>
+              <view
+                class="msg-bubble"
+                :class="{
+                  'msg-bubble--mine': item.mine && item.msgType !== 'sticker',
+                  'msg-bubble--failed': item.failed,
+                  'msg-bubble--image': item.msgType === 'image',
+                  'msg-bubble--sticker': item.msgType === 'sticker',
+                }"
+              >
+                <image
+                  v-if="item.msgType === 'image' && item.imageUrl"
+                  class="msg-bubble__image"
+                  :src="item.imageUrl"
+                  mode="widthFix"
+                  @click.stop="previewChatImage(item.imageUrl)"
+                />
+                <text v-else-if="item.msgType === 'sticker'" class="msg-bubble__sticker">{{ item.stickerEmoji }}</text>
+                <text v-else class="msg-bubble__text">{{ item.text }}</text>
               </view>
               <text v-if="item.pending" class="msg-col__hint">发送中…</text>
               <text v-else-if="item.failed" class="msg-col__hint msg-col__hint--fail">发送失败，请重试</text>
@@ -57,6 +73,12 @@
     </scroll-view>
 
     <view class="dm-chat__composer">
+      <view class="dm-chat__emoji-btn" @click="toggleEmojiPanel">
+        <text class="dm-chat__emoji-icon">😊</text>
+      </view>
+      <view class="dm-chat__image-btn" @click="sendImageMessage">
+        <wm-icon name="camera" :size="36" color="#64748b" />
+      </view>
       <input
         v-model="draft"
         class="dm-chat__input"
@@ -69,12 +91,21 @@
         <text>发送</text>
       </view>
     </view>
+    <chat-emoji-panel
+      :visible="showEmojiPanel"
+      @pick-emoji="onPickEmoji"
+      @pick-sticker="onPickSticker"
+    />
   </view>
 </template>
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
+import ChatEmojiPanel from '@/components/ChatEmojiPanel/ChatEmojiPanel.vue'
 import { getDirectMessages, getMe, markDirectChatRead, sendDirectMessage } from '@/api'
+import { chooseAndUploadChatImage } from '@/utils/chatImagePicker'
+import { getStickerEmoji } from '@/constants/chatStickers'
+import { parseChatMessageFields } from '@/utils/chatMessageFields'
 
 const TIME_GAP_MS = 5 * 60 * 1000
 
@@ -102,7 +133,7 @@ function formatTimeDivider(iso, prevIso) {
 }
 
 export default {
-  components: { WmIcon },
+  components: { WmIcon, ChatEmojiPanel },
   data() {
     return {
       threadId: '',
@@ -115,6 +146,8 @@ export default {
       myUserId: '',
       myNickname: '我',
       myAvatarUrl: '',
+      sendingImage: false,
+      showEmojiPanel: false,
     }
   },
   computed: {
@@ -179,7 +212,7 @@ export default {
 
       return {
         id,
-        text: raw.text || '',
+        ...parseChatMessageFields(raw),
         mine,
         createdAt: raw.createdAt || new Date().toISOString(),
         avatarUrl: avatarUrl || '',
@@ -212,9 +245,140 @@ export default {
         this.scrollTop = 9999999 + Math.random()
       })
     },
+    previewChatImage(url) {
+      if (!url) return
+      uni.previewImage({ urls: [url], current: url })
+    },
+    toggleEmojiPanel() {
+      this.showEmojiPanel = !this.showEmojiPanel
+    },
+    onPickEmoji(emoji) {
+      this.draft = `${this.draft || ''}${emoji}`
+    },
+    onPickSticker(stickerId) {
+      this.showEmojiPanel = false
+      this.sendStickerMessage(stickerId)
+    },
+    async sendStickerMessage(stickerId) {
+      if (!stickerId || !this.threadId) return
+      const tempId = `temp_${Date.now()}`
+      const nowIso = new Date().toISOString()
+      const stickerEmoji = getStickerEmoji(stickerId)
+      this.messages.push({
+        id: tempId,
+        msgType: 'sticker',
+        text: '',
+        imageUrl: '',
+        stickerId,
+        stickerEmoji,
+        mine: true,
+        pending: true,
+        failed: false,
+        createdAt: nowIso,
+        avatarUrl: this.myAvatarUrl,
+        avatarLetter: String(this.myNickname || '我').slice(0, 1),
+      })
+      this.messageIds[tempId] = true
+      this.scrollToBottom()
+      try {
+        const row = await sendDirectMessage(this.threadId, { msgType: 'sticker', stickerId })
+        const realId = row?.messageId
+        const idx = this.messages.findIndex((m) => m.id === tempId)
+        if (idx >= 0) {
+          if (realId && !this.messageIds[realId]) {
+            this.messageIds[realId] = true
+            this.messages.splice(idx, 1, {
+              id: realId,
+              msgType: 'sticker',
+              text: '',
+              imageUrl: '',
+              stickerId: row?.stickerId || stickerId,
+              stickerEmoji: getStickerEmoji(row?.stickerId || stickerId),
+              mine: true,
+              pending: false,
+              failed: false,
+              createdAt: row?.createdAt || nowIso,
+              avatarUrl: this.myAvatarUrl,
+              avatarLetter: String(this.myNickname || '我').slice(0, 1),
+            })
+          } else {
+            this.messages[idx].pending = false
+          }
+        }
+        await markDirectChatRead(this.threadId)
+      } catch (e) {
+        const idx = this.messages.findIndex((m) => m.id === tempId)
+        if (idx >= 0) {
+          this.messages.splice(idx, 1, { ...this.messages[idx], failed: true, pending: false })
+        }
+        uni.showToast({ title: e.message || '发送失败', icon: 'none' })
+      }
+    },
+    async sendImageMessage() {
+      if (this.sendingImage || !this.threadId) return
+      this.showEmojiPanel = false
+      this.sendingImage = true
+      let tempId = ''
+      try {
+        const imageUrl = await chooseAndUploadChatImage()
+        tempId = `temp_${Date.now()}`
+        const nowIso = new Date().toISOString()
+        this.messages.push({
+          id: tempId,
+          msgType: 'image',
+          text: '',
+          imageUrl,
+          mine: true,
+          pending: true,
+          failed: false,
+          createdAt: nowIso,
+          avatarUrl: this.myAvatarUrl,
+          avatarLetter: String(this.myNickname || '我').slice(0, 1),
+        })
+        this.messageIds[tempId] = true
+        this.scrollToBottom()
+
+        const row = await sendDirectMessage(this.threadId, { msgType: 'image', imageUrl })
+        const realId = row?.messageId
+        const idx = this.messages.findIndex((m) => m.id === tempId)
+        if (idx >= 0) {
+          if (realId && !this.messageIds[realId]) {
+            this.messageIds[realId] = true
+            this.messages.splice(idx, 1, {
+              id: realId,
+              msgType: 'image',
+              text: '',
+              imageUrl: row?.imageUrl || imageUrl,
+              mine: true,
+              pending: false,
+              failed: false,
+              createdAt: row?.createdAt || nowIso,
+              avatarUrl: this.myAvatarUrl,
+              avatarLetter: String(this.myNickname || '我').slice(0, 1),
+            })
+          } else {
+            this.messages[idx].pending = false
+          }
+        }
+        await markDirectChatRead(this.threadId)
+      } catch (e) {
+        if (tempId) {
+          const idx = this.messages.findIndex((m) => m.id === tempId)
+          if (idx >= 0) {
+            this.messages.splice(idx, 1, { ...this.messages[idx], failed: true, pending: false })
+          }
+        }
+        if (e?.message && e.message !== '已取消') {
+          uni.showToast({ title: e.message || '发送失败', icon: 'none' })
+        }
+      } finally {
+        this.sendingImage = false
+      }
+    },
     async sendMessage() {
       const text = (this.draft || '').trim()
       if (!text || !this.threadId) return
+      this.showEmojiPanel = false
 
       const tempId = `temp_${Date.now()}`
       const nowIso = new Date().toISOString()
@@ -347,6 +511,23 @@ export default {
     border-top: 1rpx solid #e5e7eb;
   }
 
+  &__emoji-btn,
+  &__image-btn {
+    width: 72rpx;
+    height: 72rpx;
+    border-radius: 14rpx;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__emoji-icon {
+    font-size: 40rpx;
+    line-height: 1;
+  }
+
   &__input {
     flex: 1;
     height: 72rpx;
@@ -472,12 +653,36 @@ export default {
     opacity: 0.72;
   }
 
+  &--image {
+    padding: 0;
+    background: transparent;
+    max-width: 420rpx;
+  }
+
+  &--sticker {
+    padding: 0;
+    background: transparent;
+    max-width: 200rpx;
+  }
+
   &__text {
     font-size: 32rpx;
     color: #191919;
     line-height: 1.5;
     word-break: break-word;
     white-space: pre-wrap;
+  }
+
+  &__image {
+    max-width: 400rpx;
+    min-width: 120rpx;
+    border-radius: 8rpx;
+    display: block;
+  }
+
+  &__sticker {
+    font-size: 96rpx;
+    line-height: 1.1;
   }
 }
 </style>

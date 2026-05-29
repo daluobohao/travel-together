@@ -50,8 +50,24 @@
               >
                 {{ item.sender }}
               </text>
-              <view class="msg-bubble" :class="{ 'msg-bubble--mine': item.mine, 'msg-bubble--failed': item.failed }">
-                <text class="msg-bubble__text">{{ item.text }}</text>
+              <view
+                class="msg-bubble"
+                :class="{
+                  'msg-bubble--mine': item.mine && item.msgType !== 'sticker',
+                  'msg-bubble--failed': item.failed,
+                  'msg-bubble--image': item.msgType === 'image',
+                  'msg-bubble--sticker': item.msgType === 'sticker',
+                }"
+              >
+                <image
+                  v-if="item.msgType === 'image' && item.imageUrl"
+                  class="msg-bubble__image"
+                  :src="item.imageUrl"
+                  mode="widthFix"
+                  @click.stop="previewChatImage(item.imageUrl)"
+                />
+                <text v-else-if="item.msgType === 'sticker'" class="msg-bubble__sticker">{{ item.stickerEmoji }}</text>
+                <text v-else class="msg-bubble__text">{{ item.text }}</text>
               </view>
               <text v-if="item.pending" class="msg-col__hint">发送中…</text>
               <text v-else-if="item.failed" class="msg-col__hint msg-col__hint--fail">发送失败，请重试</text>
@@ -75,6 +91,12 @@
     </scroll-view>
 
     <view class="chat-detail__composer">
+      <view class="chat-detail__emoji-btn" @click="toggleEmojiPanel">
+        <text class="chat-detail__emoji-icon">😊</text>
+      </view>
+      <view class="chat-detail__image-btn" @click="sendImageMessage">
+        <wm-icon name="camera" :size="36" color="#64748b" />
+      </view>
       <input
         v-model="draft"
         class="chat-detail__input"
@@ -87,11 +109,17 @@
         <text>发送</text>
       </view>
     </view>
+    <chat-emoji-panel
+      :visible="showEmojiPanel"
+      @pick-emoji="onPickEmoji"
+      @pick-sticker="onPickSticker"
+    />
   </view>
 </template>
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
+import ChatEmojiPanel from '@/components/ChatEmojiPanel/ChatEmojiPanel.vue'
 import {
   API_BASE_URL,
   getAccessToken,
@@ -103,6 +131,9 @@ import {
   redirectToLogin,
   sendActivityMessage,
 } from '@/api'
+import { chooseAndUploadChatImage } from '@/utils/chatImagePicker'
+import { getStickerEmoji } from '@/constants/chatStickers'
+import { parseChatMessageFields } from '@/utils/chatMessageFields'
 import {
   getLastServerMessageId,
   loadActivityChatCache,
@@ -149,7 +180,7 @@ function buildWsUrl(activityId) {
 }
 
 export default {
-  components: { WmIcon },
+  components: { WmIcon, ChatEmojiPanel },
   data() {
     return {
       chatId: '',
@@ -170,6 +201,8 @@ export default {
       currentUserId: '',
       currentUserNickname: '',
       currentUserAvatar: '',
+      sendingImage: false,
+      showEmojiPanel: false,
     }
   },
   computed: {
@@ -305,7 +338,14 @@ export default {
       const merged = mergeMessageLists(this.messages, incoming)
       const changed =
         merged.length !== prevLen ||
-        merged.some((m, i) => m.id !== this.messages[i]?.id || m.text !== this.messages[i]?.text)
+        merged.some(
+          (m, i) =>
+            m.id !== this.messages[i]?.id ||
+            m.text !== this.messages[i]?.text ||
+            m.imageUrl !== this.messages[i]?.imageUrl ||
+            m.msgType !== this.messages[i]?.msgType ||
+            m.stickerId !== this.messages[i]?.stickerId
+        )
       if (changed) {
         this.messages = merged
         this.rebuildMessageIds()
@@ -322,10 +362,11 @@ export default {
       const openProfile =
         !isMine && senderUserId && senderUserId !== 'system'
       const nickname = raw.sender?.nickname || '用户'
+      const fields = parseChatMessageFields(raw)
       return {
         id,
         sender: nickname,
-        text: raw.text || '',
+        ...fields,
         mine: isMine,
         createdAt: raw.createdAt || new Date().toISOString(),
         userId: senderUserId,
@@ -460,9 +501,150 @@ export default {
     goBack() {
       uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/messages/messages' }) })
     },
+    previewChatImage(url) {
+      if (!url) return
+      uni.previewImage({ urls: [url], current: url })
+    },
+    toggleEmojiPanel() {
+      this.showEmojiPanel = !this.showEmojiPanel
+    },
+    onPickEmoji(emoji) {
+      this.draft = `${this.draft || ''}${emoji}`
+    },
+    onPickSticker(stickerId) {
+      this.showEmojiPanel = false
+      this.sendStickerMessage(stickerId)
+    },
+    async sendStickerMessage(stickerId) {
+      if (!stickerId || !this.chatId) return
+      const tempId = `temp_${Date.now()}`
+      const nowIso = new Date().toISOString()
+      const stickerEmoji = getStickerEmoji(stickerId)
+      this.messages.push({
+        id: tempId,
+        sender: this.currentUserNickname || '我',
+        msgType: 'sticker',
+        text: '',
+        imageUrl: '',
+        stickerId,
+        stickerEmoji,
+        mine: true,
+        pending: true,
+        createdAt: nowIso,
+        avatarUrl: this.currentUserAvatar,
+        avatarLetter: String(this.currentUserNickname || '我').slice(0, 1),
+      })
+      this.messageIds[tempId] = true
+      this.scrollToBottom()
+      try {
+        const row = await sendActivityMessage(this.chatId, { msgType: 'sticker', stickerId })
+        const realId = row?.messageId
+        const idx = this.messages.findIndex((m) => m.id === tempId)
+        if (idx >= 0) {
+          if (realId && !this.messageIds[realId]) {
+            this.messageIds[realId] = true
+            this.messages.splice(idx, 1, {
+              id: realId,
+              sender: this.currentUserNickname || '我',
+              msgType: 'sticker',
+              text: '',
+              imageUrl: '',
+              stickerId: row?.stickerId || stickerId,
+              stickerEmoji: getStickerEmoji(row?.stickerId || stickerId),
+              mine: true,
+              createdAt: row?.createdAt || nowIso,
+              avatarUrl: this.currentUserAvatar,
+              avatarLetter: String(this.currentUserNickname || '我').slice(0, 1),
+            })
+          } else {
+            this.messages[idx].pending = false
+          }
+        }
+        this.updateLastCreatedAt([{ createdAt: row?.createdAt }])
+        this.persistCache()
+        try {
+          await markMyChatRead(this.chatId)
+        } catch (e) {
+          console.warn('标记已读失败', e)
+        }
+      } catch (e) {
+        const idx = this.messages.findIndex((m) => m.id === tempId)
+        if (idx >= 0) {
+          this.messages.splice(idx, 1, { ...this.messages[idx], failed: true, pending: false })
+        }
+        uni.showToast({ title: e?.message || '发送失败', icon: 'none' })
+      }
+    },
+    async sendImageMessage() {
+      if (this.sendingImage || !this.chatId) return
+      this.showEmojiPanel = false
+      this.sendingImage = true
+      let tempId = ''
+      try {
+        const imageUrl = await chooseAndUploadChatImage()
+        tempId = `temp_${Date.now()}`
+        const nowIso = new Date().toISOString()
+        this.messages.push({
+          id: tempId,
+          sender: this.currentUserNickname || '我',
+          msgType: 'image',
+          text: '',
+          imageUrl,
+          mine: true,
+          pending: true,
+          createdAt: nowIso,
+          avatarUrl: this.currentUserAvatar,
+          avatarLetter: String(this.currentUserNickname || '我').slice(0, 1),
+        })
+        this.messageIds[tempId] = true
+        this.scrollToBottom()
+
+        const row = await sendActivityMessage(this.chatId, { msgType: 'image', imageUrl })
+        const realId = row?.messageId
+        const idx = this.messages.findIndex((m) => m.id === tempId)
+        if (idx >= 0) {
+          if (realId && !this.messageIds[realId]) {
+            this.messageIds[realId] = true
+            this.messages.splice(idx, 1, {
+              id: realId,
+              sender: this.currentUserNickname || '我',
+              msgType: 'image',
+              text: '',
+              imageUrl: row?.imageUrl || imageUrl,
+              mine: true,
+              createdAt: row?.createdAt || nowIso,
+              avatarUrl: this.currentUserAvatar,
+              avatarLetter: String(this.currentUserNickname || '我').slice(0, 1),
+            })
+          } else {
+            this.messages[idx].pending = false
+          }
+        }
+        this.updateLastCreatedAt([{ createdAt: row?.createdAt }])
+        this.persistCache()
+        try {
+          await markMyChatRead(this.chatId)
+        } catch (e) {
+          console.warn('标记已读失败', e)
+        }
+      } catch (e) {
+        if (tempId) {
+          const idx = this.messages.findIndex((m) => m.id === tempId)
+          if (idx >= 0) {
+            this.messages.splice(idx, 1, { ...this.messages[idx], failed: true, pending: false })
+          }
+        }
+        if (e?.message && e.message !== '已取消') {
+          uni.showToast({ title: e.message || '发送失败', icon: 'none' })
+        }
+      } finally {
+        this.sendingImage = false
+      }
+    },
     async sendMessage() {
       const text = (this.draft || '').trim()
       if (!text) return
+      this.showEmojiPanel = false
       // 群聊：走真实接口，乐观渲染
       const tempId = `temp_${Date.now()}`
       const nowIso = new Date().toISOString()
@@ -597,6 +779,23 @@ export default {
     padding: 16rpx 20rpx calc(16rpx + env(safe-area-inset-bottom));
     background: #ffffff;
     border-top: 1rpx solid #e5e7eb;
+  }
+
+  &__emoji-btn,
+  &__image-btn {
+    width: 72rpx;
+    height: 72rpx;
+    border-radius: 14rpx;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__emoji-icon {
+    font-size: 40rpx;
+    line-height: 1;
   }
 
   &__input {
@@ -739,12 +938,36 @@ export default {
     opacity: 0.72;
   }
 
+  &--image {
+    padding: 0;
+    background: transparent;
+    max-width: 420rpx;
+  }
+
+  &--sticker {
+    padding: 0;
+    background: transparent;
+    max-width: 200rpx;
+  }
+
   &__text {
     font-size: 32rpx;
     color: #191919;
     line-height: 1.5;
     word-break: break-word;
     white-space: pre-wrap;
+  }
+
+  &__image {
+    max-width: 400rpx;
+    min-width: 120rpx;
+    border-radius: 8rpx;
+    display: block;
+  }
+
+  &__sticker {
+    font-size: 96rpx;
+    line-height: 1.1;
   }
 }
 </style>

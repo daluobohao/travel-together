@@ -4,6 +4,7 @@ import cityHallPrefectures from './city_hall_prefectures.json'
 import { provinceDisplayName } from './china_province_display.js'
 import { wmDB, toActivityCard } from '@/mock/wandermeet-db'
 import { contactTextBlockedReason } from '@/utils/contactContentFilter'
+import { isKnownStickerId } from '@/constants/chatStickers'
 
 const ok = (data) => ({ code: 0, message: 'ok', data })
 
@@ -429,6 +430,7 @@ export const getAvatarUploadUrl = (payload) =>
 
 // 6.1 头像上传见 ./avatarUpload.js（避免本文件循环依赖）
 export { uploadAvatar } from './avatarUpload'
+export { uploadChatImage } from './chatImageUpload'
 
 // 7
 export const getVerification = () =>
@@ -1018,13 +1020,17 @@ export const sendActivityMessage = (activityId, payload) =>
         const blocked = contactTextBlockedReason(data.text)
         if (blocked) return { code: 400, message: blocked, data: null }
       }
+      if (data.msgType === 'sticker' && !isKnownStickerId(data.stickerId)) {
+        return { code: 400, message: 'Unknown stickerId', data: null }
+      }
       const row = {
         messageId: `msg_${Date.now()}`,
         activityId: String(activityId),
         sender: { userId: wmDB.profile.userId, nickname: wmDB.profile.nickname, avatarUrl: null },
         msgType: data.msgType,
-        text: data.text || null,
-        imageUrl: data.imageUrl || null,
+        text: data.msgType === 'text' ? data.text || null : null,
+        imageUrl: data.msgType === 'image' ? data.imageUrl || null : null,
+        stickerId: data.msgType === 'sticker' ? data.stickerId : null,
         createdAt: new Date().toISOString(),
       }
       if (!wmDB.chats[String(activityId)]) wmDB.chats[String(activityId)] = []
@@ -1819,6 +1825,9 @@ export const sendDirectMessage = (threadId, payload) =>
         const blocked = contactTextBlockedReason(data.text)
         if (blocked) return { code: 400, message: blocked, data: null }
       }
+      if (data.msgType === 'sticker' && !isKnownStickerId(data.stickerId)) {
+        return { code: 400, message: 'Unknown stickerId', data: null }
+      }
       const row = {
         messageId: `dmmsg_${Date.now()}`,
         threadId: `dmthr_${tid}`,
@@ -1828,8 +1837,9 @@ export const sendDirectMessage = (threadId, payload) =>
           avatarUrl: wmDB.profile.avatarUrl,
         },
         msgType: data.msgType || 'text',
-        text: data.text || null,
-        imageUrl: data.imageUrl || null,
+        text: data.msgType === 'text' ? data.text || null : null,
+        imageUrl: data.msgType === 'image' ? data.imageUrl || null : null,
+        stickerId: data.msgType === 'sticker' ? data.stickerId : null,
         createdAt: new Date().toISOString(),
       }
       if (!wmDB.dmMessages[String(tid)]) wmDB.dmMessages[String(tid)] = []
@@ -1839,6 +1849,7 @@ export const sendDirectMessage = (threadId, payload) =>
         msgType: row.msgType,
         text: row.text,
         imageUrl: row.imageUrl,
+        stickerId: row.stickerId,
         createdAt: row.createdAt,
       })
       return ok(row)

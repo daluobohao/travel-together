@@ -316,7 +316,8 @@ export default {
       return (data?.list || []).map(mapActivityCard)
     },
     /**
-     * 审核与首屏体验：定位城市/「今天」无数据时自动放宽条件，避免首页空白。
+     * 审核与首屏体验：GPS 定位城市无数据时自动放宽条件，避免首页空白。
+     * 用户主动搜地点后不再跨城回退（否则会误展示北京等活动）。
      */
     async loadActivitiesWithFallback(anchor, chip) {
       let list = await this.fetchActivityListForAnchor(anchor, chip)
@@ -325,11 +326,17 @@ export default {
       if (!list.length && dateRange !== 'all' && chip !== 'nearby') {
         list = await this.fetchActivityListForAnchor(anchor, 'all')
         if (list.length) {
-          hint = '当前时段附近暂无活动，已展示全部可报名活动'
+          hint = '当前时段暂无活动，已展示该地全部可报名活动'
         }
       }
+      const skipCrossCityFallback = anchor?.source === 'search'
       const fallbackCityCode = '110000'
-      if (!list.length && anchor.cityCode !== fallbackCityCode && chip !== 'nearby') {
+      if (
+        !skipCrossCityFallback &&
+        !list.length &&
+        anchor.cityCode !== fallbackCityCode &&
+        chip !== 'nearby'
+      ) {
         const fallbackAnchor = {
           ...anchor,
           cityCode: fallbackCityCode,
@@ -340,6 +347,11 @@ export default {
         if (list.length) {
           hint = '当前城市暂无活动，已展示其他城市热门活动'
         }
+      }
+      if (!list.length && skipCrossCityFallback) {
+        const place =
+          (anchor.displayName && String(anchor.displayName).trim()) || '该地'
+        hint = `${place}暂无符合条件的活动，可切换「全部」或去「发现」看看`
       }
       return { list, hint }
     },
