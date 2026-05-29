@@ -37,6 +37,10 @@ function uploadMyAvatar(tempFilePath) {
           reject(new Error('操作过于频繁，请稍后再试'))
           return
         }
+        if (res.statusCode === 413) {
+          reject(new Error('图片过大，请换一张较小的照片'))
+          return
+        }
         if (res.statusCode < 200 || res.statusCode >= 300) {
           let msg = `上传失败（${res.statusCode}）`
           try {

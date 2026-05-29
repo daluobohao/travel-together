@@ -7,7 +7,7 @@
           <image
             v-if="user.avatarUrl"
             class="profile__avatar-img"
-            :src="user.avatarUrl"
+            :src="avatarDisplaySrc"
             mode="aspectFill"
           />
           <text v-else class="profile__avatar-text">{{ user.name.slice(0, 1) }}</text>
@@ -115,6 +115,7 @@ import {
   mapActivityCard,
   redirectToLogin,
 } from '@/api'
+import { displayAvatarUrl } from '@/utils/avatarDisplay'
 export default {
   components: { WmIcon, WmTabBar },
   data() {
@@ -146,6 +147,9 @@ export default {
     }
   },
   computed: {
+    avatarDisplaySrc() {
+      return displayAvatarUrl(this.user.avatarUrl)
+    },
     genderDisplay() {
       return formatUserGenderLabel(this.user.gender)
     },

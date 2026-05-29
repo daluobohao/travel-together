@@ -17,7 +17,7 @@
           <image
             v-if="avatarUrl"
             class="avatar-card__img"
-            :src="avatarUrl"
+            :src="avatarDisplaySrc"
             mode="aspectFill"
           />
           <text v-else>{{ (form.name || '用').slice(0, 1) }}</text>
@@ -72,6 +72,7 @@
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import { formatUserGenderLabel, getMe, updateMe } from '@/api'
 import { chooseAndUploadAvatar } from '@/utils/avatarPicker'
+import { displayAvatarUrl } from '@/utils/avatarDisplay'
 
 export default {
   components: { WmIcon },
@@ -94,6 +95,9 @@ export default {
     }
   },
   computed: {
+    avatarDisplaySrc() {
+      return displayAvatarUrl(this.avatarUrl)
+    },
     genderLocked() {
       return this.serverGender != null && this.serverGender !== ''
     },
