@@ -95,11 +95,18 @@
     <view v-else-if="!loading && activities.length === 0" class="home__empty">
       <wm-icon name="users" :size="96" color="#cbd5e1" />
       <text class="empty-title">附近暂无活动</text>
-      <text class="empty-desc">看看其他时间段，或者去发布一个？也可搜地点看看想去的地方的活动</text>
+      <text class="empty-desc">可切换「全部」查看其他城市活动，或去「发现」浏览推荐</text>
+      <view class="home__empty-actions">
+        <view class="home__empty-btn" @click="onEmptyShowAll">查看全部活动</view>
+        <view class="home__empty-btn home__empty-btn--ghost" @click="onEmptyGoDiscover">去发现</view>
+      </view>
     </view>
 
     <!-- Activity list -->
     <view v-else class="home__list">
+      <view v-if="listFallbackHint" class="home__fallback-hint">
+        <text>{{ listFallbackHint }}</text>
+      </view>
       <view
         v-for="(item, index) in activities"
         :key="item.id"
@@ -189,6 +196,8 @@ export default {
       activityAnchor: null,
       hasSearchAnchor: false,
       loading: false,
+      /** 列表为回退数据时提示（如当前城市/时段无活动） */
+      listFallbackHint: '',
     }
   },
   computed: {
@@ -278,45 +287,89 @@ export default {
       this.hasSearchAnchor = false
       await this.loadActivities()
     },
-    async loadActivities() {
-      this.loading = true
-      this.activities = []
-      try {
-        const anchor = await this.ensureActivityAnchor()
-        const { lat, lng, cityCode } = anchor
-        if (this.activeChip === 'nearby') {
-          const data = await getNearbyActivities({
-            lat,
-            lng,
-            radiusKm: 5,
-            cityCode,
-            dateRange: 'all',
-            sortBy: 'distance',
-            page: 1,
-            pageSize: 20,
-          })
-          this.activities = (data?.list || []).map(mapActivityCard)
-          return
-        }
-        const dateRange =
-          this.activeChip === 'today'
-            ? 'today'
-            : this.activeChip === 'tomorrow'
-              ? 'tomorrow'
-              : 'all'
-        const data = await getActivities({
+    chipToDateRange(chip) {
+      if (chip === 'today') return 'today'
+      if (chip === 'tomorrow') return 'tomorrow'
+      return 'all'
+    },
+    async fetchActivityListForAnchor(anchor, chip) {
+      const { lat, lng, cityCode } = anchor
+      if (chip === 'nearby') {
+        const data = await getNearbyActivities({
+          lat,
+          lng,
+          radiusKm: 5,
           cityCode,
-          dateRange,
+          dateRange: 'all',
+          sortBy: 'distance',
           page: 1,
           pageSize: 20,
         })
-        this.activities = (data?.list || []).map(mapActivityCard)
+        return (data?.list || []).map(mapActivityCard)
+      }
+      const data = await getActivities({
+        cityCode,
+        dateRange: this.chipToDateRange(chip),
+        page: 1,
+        pageSize: 20,
+      })
+      return (data?.list || []).map(mapActivityCard)
+    },
+    /**
+     * 审核与首屏体验：定位城市/「今天」无数据时自动放宽条件，避免首页空白。
+     */
+    async loadActivitiesWithFallback(anchor, chip) {
+      let list = await this.fetchActivityListForAnchor(anchor, chip)
+      let hint = ''
+      const dateRange = this.chipToDateRange(chip)
+      if (!list.length && dateRange !== 'all' && chip !== 'nearby') {
+        list = await this.fetchActivityListForAnchor(anchor, 'all')
+        if (list.length) {
+          hint = '当前时段附近暂无活动，已展示全部可报名活动'
+        }
+      }
+      const fallbackCityCode = '110000'
+      if (!list.length && anchor.cityCode !== fallbackCityCode && chip !== 'nearby') {
+        const fallbackAnchor = {
+          ...anchor,
+          cityCode: fallbackCityCode,
+          displayName: '北京',
+          cityName: '北京',
+        }
+        list = await this.fetchActivityListForAnchor(fallbackAnchor, 'all')
+        if (list.length) {
+          hint = '当前城市暂无活动，已展示其他城市热门活动'
+        }
+      }
+      return { list, hint }
+    },
+    async loadActivities() {
+      this.loading = true
+      this.activities = []
+      this.listFallbackHint = ''
+      try {
+        const anchor = await this.ensureActivityAnchor()
+        const { list, hint } = await this.loadActivitiesWithFallback(anchor, this.activeChip)
+        this.activities = list
+        this.listFallbackHint = hint
       } catch (e) {
         this.activities = []
+        this.listFallbackHint = ''
         uni.showToast({ title: e?.message || '活动加载失败', icon: 'none' })
       } finally {
         this.loading = false
       }
+    },
+    onEmptyShowAll() {
+      if (this.activeChip === 'all') {
+        this.loadActivities()
+        return
+      }
+      this.activeChip = 'all'
+      this.loadActivities()
+    },
+    onEmptyGoDiscover() {
+      uni.switchTab({ url: '/pages/discover/discover' })
     },
     onChipClick(key) {
       if (key === this.activeChip) return
@@ -581,6 +634,37 @@ export default {
     flex-direction: column;
     align-items: center;
     gap: 28rpx;
+  }
+
+  &__empty-actions {
+    display: flex;
+    flex-direction: row;
+    gap: 20rpx;
+    margin-top: 12rpx;
+  }
+
+  &__empty-btn {
+    padding: 18rpx 36rpx;
+    border-radius: 999rpx;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    font-size: 26rpx;
+    font-weight: 600;
+    color: #fff;
+
+    &--ghost {
+      background: #fff;
+      color: #4f46e5;
+      border: 2rpx solid #c7d2fe;
+    }
+  }
+
+  &__fallback-hint {
+    padding: 16rpx 20rpx;
+    border-radius: 16rpx;
+    background: #eef2ff;
+    font-size: 24rpx;
+    color: #4338ca;
+    line-height: 1.45;
   }
 
   &__list {
