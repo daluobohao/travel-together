@@ -1,4 +1,5 @@
 export * from './config'
 export * from './client'
 export * from './pay'
+export * from './avatarUpload'
 export * from './wandermeet'

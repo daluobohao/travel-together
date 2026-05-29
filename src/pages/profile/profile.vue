@@ -4,7 +4,13 @@
     <view class="profile__hero">
       <view class="profile__user">
         <view class="profile__avatar">
-          <text class="profile__avatar-text">{{ user.name.slice(0, 1) }}</text>
+          <image
+            v-if="user.avatarUrl"
+            class="profile__avatar-img"
+            :src="user.avatarUrl"
+            mode="aspectFill"
+          />
+          <text v-else class="profile__avatar-text">{{ user.name.slice(0, 1) }}</text>
         </view>
         <view class="profile__info">
           <view class="profile__name-row">
@@ -117,6 +123,7 @@ export default {
         name: '小林',
         bio: '数字游民 · 周末出行爱好者',
         gender: null,
+        avatarUrl: '',
         phoneMasked: '',
         phoneBound: false,
         emailMasked: '',
@@ -266,6 +273,7 @@ export default {
         name: '游客',
         bio: '登录后查看个人资料与我的活动',
         gender: null,
+        avatarUrl: '',
         phoneMasked: '',
         phoneBound: false,
         emailMasked: '',
@@ -289,6 +297,7 @@ export default {
         name: me.nickname || this.user.name,
         bio: me.bio || this.user.bio,
         gender: me.gender != null ? me.gender : this.user.gender,
+        avatarUrl: me.avatarUrl || '',
         phoneMasked: me.phoneMasked || '',
         phoneBound: !!me.phoneBound,
         emailMasked: me.emailMasked || '',
@@ -372,6 +381,13 @@ export default {
     color: #ffffff;
     flex-shrink: 0;
     box-shadow: 0 8rpx 24rpx rgba(2, 132, 199, 0.3);
+    overflow: hidden;
+  }
+
+  &__avatar-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
   }
 
   &__avatar-text {

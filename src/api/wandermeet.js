@@ -1,5 +1,5 @@
 import { wmRequest, paginate } from './client'
-import { clearWmAuthTokens, setAccessToken, setRefreshToken } from './config'
+import { clearWmAuthTokens, getMockEnabled, setAccessToken, setRefreshToken } from './config'
 import cityHallPrefectures from './city_hall_prefectures.json'
 import { provinceDisplayName } from './china_province_display.js'
 import { wmDB, toActivityCard } from '@/mock/wandermeet-db'
@@ -415,13 +415,20 @@ export const getAvatarUploadUrl = (payload) =>
     method: 'POST',
     path: '/me/avatar/upload-url',
     data: payload,
-    mockHandler: ({ data }) =>
-      ok({
+    mockHandler: ({ data }) => {
+      const ext = data.fileExt || 'jpg'
+      const publicUrl = `https://oss.example.com/wm/avatar/${wmDB.profile.userId}/avatar.${ext}`
+      return ok({
         uploadUrl: 'https://oss.example.com/mock-upload',
-        objectKey: `wm/avatar/${wmDB.profile.userId}/avatar.${data.fileExt || 'jpg'}`,
-        headers: { 'Content-Type': data.contentType || 'image/jpeg' },
-      }),
+        objectKey: `wm/avatar/u_${wmDB.profile.userId}/avatar.${ext}`,
+        publicUrl,
+        headers: {},
+      })
+    },
   })
+
+// 6.1 头像上传见 ./avatarUpload.js（避免本文件循环依赖）
+export { uploadAvatar } from './avatarUpload'
 
 // 7
 export const getVerification = () =>

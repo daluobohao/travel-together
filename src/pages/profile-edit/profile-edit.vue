@@ -12,11 +12,17 @@
       <view v-if="firstCompleteHint" class="first-hint">
         <text>设置昵称与性别即可开始；性别保存后不可修改，其余资料可在「我的」中补充</text>
       </view>
-      <view v-if="!firstCompleteHint" class="avatar-card">
+      <view class="avatar-card" @click="onChooseAvatar">
         <view class="avatar-card__avatar">
-          <text>{{ (form.name || '用').slice(0, 1) }}</text>
+          <image
+            v-if="avatarUrl"
+            class="avatar-card__img"
+            :src="avatarUrl"
+            mode="aspectFill"
+          />
+          <text v-else>{{ (form.name || '用').slice(0, 1) }}</text>
         </view>
-        <text class="avatar-card__tip">头像首字母随昵称自动更新</text>
+        <text class="avatar-card__tip">{{ avatarUploading ? '上传中…' : '点击更换头像' }}</text>
       </view>
 
       <view class="field-card">
@@ -65,6 +71,7 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import { formatUserGenderLabel, getMe, updateMe } from '@/api'
+import { chooseAndUploadAvatar } from '@/utils/avatarPicker'
 
 export default {
   components: { WmIcon },
@@ -72,6 +79,8 @@ export default {
     return {
       firstCompleteHint: false,
       serverGender: null,
+      avatarUrl: '',
+      avatarUploading: false,
       genderOptions: [
         { value: 'male', label: '男' },
         { value: 'female', label: '女' },
@@ -98,6 +107,7 @@ export default {
       const me = await getMe()
       const g = me.gender != null && me.gender !== '' ? me.gender : null
       this.serverGender = g
+      this.avatarUrl = me.avatarUrl || ''
       this.form = {
         ...this.form,
         name: me.nickname || this.form.name,
@@ -116,6 +126,24 @@ export default {
     }
   },
   methods: {
+    async onChooseAvatar() {
+      if (this.avatarUploading) return
+      this.avatarUploading = true
+      try {
+        const me = await chooseAndUploadAvatar()
+        if (me?.avatarUrl) {
+          this.avatarUrl = me.avatarUrl
+        }
+        uni.showToast({ title: '头像已更新', icon: 'success' })
+      } catch (e) {
+        const msg = e?.message || '上传失败'
+        if (msg !== '已取消') {
+          uni.showToast({ title: msg, icon: 'none' })
+        }
+      } finally {
+        this.avatarUploading = false
+      }
+    },
     setGender(value) {
       if (this.genderLocked) return
       this.form.gender = value
@@ -308,12 +336,19 @@ export default {
     align-items: center;
     justify-content: center;
     box-shadow: 0 8rpx 24rpx rgba(2, 132, 199, 0.3);
+    overflow: hidden;
 
     text {
       color: #ffffff;
       font-size: 56rpx;
       font-weight: 800;
     }
+  }
+
+  &__img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
   }
 
   &__tip {
