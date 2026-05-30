@@ -739,12 +739,12 @@ export const getActivityDetail = (activityId, query = {}) =>
     },
   })
 
-/** 发起人/用户公开资料（便于详情页单独拉取或与后端对齐） */
+/** 发起人/用户公开资料（后端需登录；群聊/详情页查看他人资料） */
 export const getUserPublicProfile = (userId) =>
   wmRequest({
     method: 'GET',
-    path: `/users/${String(userId)}/public`,
-    needAuth: false,
+    path: `/users/${encodeURIComponent(String(userId))}/public`,
+    needAuth: true,
     mockHandler: () => {
       const uid = String(userId)
       const organizedCount = wmDB.activities.filter((x) => x.organizer?.userId === uid).length

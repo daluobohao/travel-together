@@ -297,6 +297,13 @@ export default {
           if (!apiBio && snapBio) merged = { ...merged, bio: snapBio }
           const snapTags = Array.isArray(this.snapshot?.tags) ? this.snapshot.tags.filter(Boolean) : []
           if (!(merged.tags && merged.tags.length) && snapTags.length) merged = { ...merged, tags: snapTags }
+          const snapNick = (this.snapshot?.nickname || '').trim()
+          if (snapNick && (!merged.nickname || merged.nickname === '用户')) {
+            merged = { ...merged, nickname: snapNick }
+          }
+          if (!merged.avatarUrl && this.snapshot?.avatarUrl) {
+            merged = { ...merged, avatarUrl: this.snapshot.avatarUrl }
+          }
           this.profile = merged
         } else {
           this.profile = this.profileFromSnapshot()
@@ -307,6 +314,8 @@ export default {
         this.profile = snap
         if (!snap) {
           uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+        } else if (e?.needLogin || e?.isAuthError) {
+          uni.showToast({ title: '请先登录后查看资料', icon: 'none' })
         }
         await this.loadDmContext()
       } finally {

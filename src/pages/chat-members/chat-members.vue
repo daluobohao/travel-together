@@ -8,7 +8,9 @@
         <text class="chat-members__title">群成员</text>
         <text class="chat-members__sub">{{ headerSub }}</text>
       </view>
-      <view class="chat-members__placeholder" />
+      <view class="chat-members__copy" @click="copyGroupInfo">
+        <text>复制</text>
+      </view>
     </view>
 
     <view v-if="isCityHall" class="chat-members__tip">
@@ -66,6 +68,7 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import { getActivityMembers } from '@/api'
+import { copyTextToClipboard } from '@/utils/clipboard'
 
 const PAGE_SIZE = 20
 /** 城市大群最多自动加载页数，避免大表分页压力 */
@@ -188,16 +191,32 @@ export default {
     },
     openUser(m) {
       if (!m?.userId) return
+      const q = [
+        'userId=' + encodeURIComponent(m.userId),
+        'activityId=' + encodeURIComponent(this.activityId),
+      ]
+      if (m.nickname) q.push('nick=' + encodeURIComponent(m.nickname))
+      if (m.avatarUrl) q.push('ava=' + encodeURIComponent(m.avatarUrl))
       uni.navigateTo({
-        url:
-          '/pages/user-public/user-public?userId=' +
-          encodeURIComponent(m.userId) +
-          '&activityId=' +
-          encodeURIComponent(this.activityId),
+        url: '/pages/user-public/user-public?' + q.join('&'),
       })
     },
     goBack() {
       uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/messages/messages' }) })
+    },
+    copyGroupInfo() {
+      const title = (this.chatTitle || '活动群聊').trim()
+      const lines = [title]
+      if (this.isCityHall) {
+        lines.push(`城市大群 · 共 ${this.memberTotalLabel} 人`)
+      } else {
+        const max = Number(this.maxMembers) || 0
+        const n = Number(this.memberTotal) || 0
+        if (max > 0) lines.push(`成员 ${n}/${max} 人`)
+        else if (n > 0) lines.push(`成员 ${n} 人`)
+      }
+      if (this.activityId) lines.push(`活动ID：${this.activityId}`)
+      copyTextToClipboard(lines.join('\n'), { successHint: '群信息已复制' })
     },
   },
 }
@@ -223,13 +242,24 @@ export default {
     justify-content: space-between;
   }
 
-  &__back,
-  &__placeholder {
+  &__back {
     width: 72rpx;
     height: 72rpx;
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  &__copy {
+    min-width: 72rpx;
+    height: 72rpx;
+    padding: 0 8rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26rpx;
+    color: #6366f1;
+    font-weight: 600;
   }
 
   &__title-wrap {

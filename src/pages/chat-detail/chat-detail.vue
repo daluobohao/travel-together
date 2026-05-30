@@ -58,6 +58,7 @@
                   'msg-bubble--image': item.msgType === 'image',
                   'msg-bubble--sticker': item.msgType === 'sticker',
                 }"
+                @longpress.stop="copyChatMessage(item)"
               >
                 <image
                   v-if="item.msgType === 'image' && item.imageUrl"
@@ -66,8 +67,8 @@
                   mode="widthFix"
                   @click.stop="previewChatImage(item.imageUrl)"
                 />
-                <text v-else-if="item.msgType === 'sticker'" class="msg-bubble__sticker">{{ item.stickerEmoji }}</text>
-                <text v-else class="msg-bubble__text">{{ item.text }}</text>
+                <text v-else-if="item.msgType === 'sticker'" class="msg-bubble__sticker" selectable>{{ item.stickerEmoji }}</text>
+                <text v-else class="msg-bubble__text" selectable>{{ item.text }}</text>
               </view>
               <text v-if="item.pending" class="msg-col__hint">发送中…</text>
               <text v-else-if="item.failed" class="msg-col__hint msg-col__hint--fail">发送失败，请重试</text>
@@ -134,6 +135,7 @@ import {
 import { chooseAndUploadChatImage } from '@/utils/chatImagePicker'
 import { getStickerEmoji } from '@/constants/chatStickers'
 import { parseChatMessageFields } from '@/utils/chatMessageFields'
+import { chatMessageCopyText, copyTextToClipboard } from '@/utils/clipboard'
 import {
   getLastServerMessageId,
   loadActivityChatCache,
@@ -377,12 +379,14 @@ export default {
     },
     openUserPublic(msg) {
       if (!msg?.userId || msg.userId === 'system') return
+      const q = [
+        'userId=' + encodeURIComponent(msg.userId),
+        'activityId=' + encodeURIComponent(this.chatId),
+      ]
+      if (msg.sender) q.push('nick=' + encodeURIComponent(msg.sender))
+      if (msg.avatarUrl) q.push('ava=' + encodeURIComponent(msg.avatarUrl))
       uni.navigateTo({
-        url:
-          '/pages/user-public/user-public?userId=' +
-          encodeURIComponent(msg.userId) +
-          '&activityId=' +
-          encodeURIComponent(this.chatId),
+        url: '/pages/user-public/user-public?' + q.join('&'),
       })
     },
     updateLastCreatedAt(list) {
@@ -504,6 +508,11 @@ export default {
     previewChatImage(url) {
       if (!url) return
       uni.previewImage({ urls: [url], current: url })
+    },
+    copyChatMessage(item) {
+      const text = chatMessageCopyText(item)
+      if (!text) return
+      copyTextToClipboard(text)
     },
     toggleEmojiPanel() {
       this.showEmojiPanel = !this.showEmojiPanel
