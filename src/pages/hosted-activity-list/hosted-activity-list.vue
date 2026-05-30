@@ -20,7 +20,7 @@
           :key="item.id"
           class="activity"
           hover-class="activity--hover"
-          @click="openPublish(item)"
+          @click="openActivity(item)"
         >
           <view class="activity__main">
             <text class="activity__title">{{ item.title }}</text>
@@ -129,6 +129,13 @@ export default {
     },
     goBack() {
       uni.navigateBack()
+    },
+    openActivity(item) {
+      const id = item?.id || item?.activityId
+      if (!id) return
+      uni.navigateTo({
+        url: `/pages/activity-detail/activity-detail?id=${encodeURIComponent(id)}`,
+      })
     },
     openPublish() {
       uni.navigateTo({
