@@ -142,11 +142,18 @@
         <text>{{ actionText }}</text>
       </view>
     </view>
+
+    <safety-enroll-modal
+      :visible="safetyModalVisible"
+      @cancel="safetyModalVisible = false"
+      @confirm="onSafetyConfirmed"
+    />
   </view>
 </template>
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
+import SafetyEnrollModal from '@/components/SafetyEnrollModal/SafetyEnrollModal.vue'
 import {
   cancelEnrollment,
   computeActivityStatus,
@@ -154,9 +161,11 @@ import {
   formatActivityTimeRange,
   getActivityDetail,
   getMe,
+  hasSafetyAck,
   isLoggedIn,
   redirectToLogin,
   resolveActivityCategoryTag,
+  submitSafetyAck,
 } from '@/api'
 import {
   buildActivityShareClipboardText,
@@ -165,7 +174,7 @@ import {
 } from '@/utils/activityShare'
 
 export default {
-  components: { WmIcon },
+  components: { WmIcon, SafetyEnrollModal },
   data() {
     return {
       activityId: '',
@@ -174,6 +183,8 @@ export default {
       loadErrorMsg: '',
       actionLoading: false,
       currentUserId: '',
+      safetyModalVisible: false,
+      pendingEnroll: false,
     }
   },
   computed: {
@@ -417,13 +428,15 @@ export default {
           this.activity.joined = Math.max(0, Number(this.activity.joined || 0) - 1)
           uni.showToast({ title: '已取消报名', icon: 'success' })
         } else {
-          await enrollActivity(this.activity.id)
-          this.activity.enrollmentStatus = 'joined'
-          this.activity.joined = Math.min(
-            Number(this.activity.total || 0),
-            Number(this.activity.joined || 0) + 1
-          )
-          uni.showToast({ title: '报名成功', icon: 'success' })
+          const needSafety =
+            (this.activity.activityKind || 'event') === 'event' && !hasSafetyAck('enroll_first')
+          if (needSafety) {
+            this.pendingEnroll = true
+            this.safetyModalVisible = true
+            this.actionLoading = false
+            return
+          }
+          await this.doEnroll()
         }
         this.refreshStatus()
       } catch (e) {
@@ -431,6 +444,28 @@ export default {
       } finally {
         this.actionLoading = false
       }
+    },
+    async onSafetyConfirmed() {
+      this.safetyModalVisible = false
+      try {
+        await submitSafetyAck('enroll_first')
+        if (this.pendingEnroll) {
+          this.pendingEnroll = false
+          await this.doEnroll()
+          this.refreshStatus()
+        }
+      } catch (e) {
+        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      }
+    },
+    async doEnroll() {
+      await enrollActivity(this.activity.id)
+      this.activity.enrollmentStatus = 'joined'
+      this.activity.joined = Math.min(
+        Number(this.activity.total || 0),
+        Number(this.activity.joined || 0) + 1,
+      )
+      uni.showToast({ title: '报名成功', icon: 'success' })
     },
     onEnterGroup() {
       if (!this.canEnterGroup) return

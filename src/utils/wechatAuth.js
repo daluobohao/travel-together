@@ -1,6 +1,7 @@
 import { clearWmAuthTokens } from '@/api/config'
 import { getAccessToken, loginByWechat, setAccessToken, setRefreshToken } from '@/api'
 import { loadOnboardingConfig } from '@/config/onboarding'
+import { tryBindPendingReferralAfterLogin } from '@/utils/referralInv'
 
 const SKIP_SILENT_LOGIN_KEY = 'wm_skip_silent_login'
 const REDIRECT_URL_KEY = 'REDIRECT_URL'
@@ -145,21 +146,42 @@ function needsMinimalProfile(user) {
   return !oc || needGender
 }
 
+function reLaunchAfterLogin(url) {
+  uni.reLaunch({
+    url,
+    fail: () => {
+      uni.switchTab?.({ url, fail: () => uni.redirectTo({ url }) })
+    },
+  })
+}
+
 /** 登录成功后的统一跳转（短信 / 微信共用） */
 export function navigateAfterLogin(user, { showToast = true } = {}) {
   if (showToast) {
     uni.showToast({ title: '登录成功', icon: 'success' })
   }
   const delay = showToast ? 400 : 0
-  setTimeout(async () => {
-    const { fullEnabled } = await loadOnboardingConfig()
-    if (fullEnabled && !user?.onboardingCompletedAt) {
-      uni.reLaunch({ url: '/pages/onboarding/onboarding' })
-    } else if (needsMinimalProfile(user)) {
-      uni.reLaunch({ url: '/pages/profile-edit/profile-edit?first=1' })
-    } else {
-      uni.reLaunch({ url: consumePostLoginRedirect('/pages/home/home') })
-    }
+  setTimeout(() => {
+    ;(async () => {
+      let target = '/pages/home/home'
+      try {
+        // 邀请绑定不阻塞跳转；失败时静默忽略
+        tryBindPendingReferralAfterLogin().catch(() => {})
+        const { fullEnabled } = await loadOnboardingConfig()
+        if (fullEnabled && !user?.onboardingCompletedAt) {
+          target = '/pages/onboarding/onboarding'
+        } else if (needsMinimalProfile(user)) {
+          target = '/pages/profile-edit/profile-edit?first=1'
+        } else {
+          target = consumePostLoginRedirect('/pages/home/home')
+        }
+      } catch (e) {
+        console.warn('[navigateAfterLogin]', e)
+        target = consumePostLoginRedirect('/pages/home/home')
+      } finally {
+        reLaunchAfterLogin(target)
+      }
+    })()
   }, delay)
 }
 

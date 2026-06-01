@@ -144,6 +144,20 @@
         <text class="field__counter">{{ (form.description || '').length }} / 300</text>
       </view>
 
+      <view class="publish__exposure" @click="goInvite">
+        <text class="publish__exposure-title">邀请好友，解锁活动曝光</text>
+        <text class="publish__exposure-sub">
+          有效邀请 {{ exposure.qualifiedReferrals || 0 }} 人
+          <text v-if="exposure.nextTier"> · 下一档 {{ exposure.nextTier }} 人</text>
+        </text>
+        <view v-if="exposure.nextTier" class="publish__exposure-bar">
+          <view
+            class="publish__exposure-fill"
+            :style="{ width: `${Math.round((exposure.nextTierProgress || 0) * 100)}%` }"
+          />
+        </view>
+      </view>
+
       <view class="publish__tip">
         <wm-icon name="shield" :size="32" color="#6366f1" />
         <text>{{ publishDisclaimer }}</text>
@@ -177,7 +191,7 @@
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import PublishPayModal from '@/components/PublishPayModal/PublishPayModal.vue'
-import { createActivity, getActivityCategories, isLoggedIn, redirectToLogin } from '@/api'
+import { createActivity, getActivityCategories, getOrganizerExposure, isLoggedIn, redirectToLogin } from '@/api'
 import { loadPublishPayConfig, payBeforePublishActivity } from '@/pay/publishPay'
 import { PUBLISH_FEE_YUAN, publishFeeLabel } from '@/pay/constants'
 
@@ -235,6 +249,7 @@ export default {
         mockMode: false,
         feeYuan: '',
       },
+      exposure: { qualifiedReferrals: 0, nextTier: 3, nextTierProgress: 0 },
     }
   },
   computed: {
@@ -264,6 +279,8 @@ export default {
       const cfg = await loadPublishPayConfig(true)
       this.publishPayEnabled = !!cfg.enabled
       this.publishFeeYuan = cfg.feeYuan || String(PUBLISH_FEE_YUAN)
+      const exp = await getOrganizerExposure().catch(() => null)
+      if (exp) this.exposure = exp
     } catch (e) {
       console.warn(e)
     }
@@ -307,6 +324,9 @@ export default {
         const idx = this.categories.findIndex((name) => name === this.form.category)
         this.categoryIndex = idx >= 0 ? idx : 0
       }
+    },
+    goInvite() {
+      uni.navigateTo({ url: '/pages/invite/invite' })
     },
     onCancel() {
       uni.reLaunch({ url: '/pages/home/home' })
@@ -551,6 +571,41 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 24rpx;
+  }
+
+  &__exposure {
+    padding: 24rpx 28rpx;
+    background: #fff;
+    border-radius: $wm-radius-md;
+    border: $wm-card-edge;
+    box-shadow: $wm-shadow-sm;
+  }
+
+  &__exposure-title {
+    display: block;
+    font-size: 28rpx;
+    font-weight: 700;
+    color: $wm-text-1;
+  }
+
+  &__exposure-sub {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 24rpx;
+    color: $wm-text-3;
+  }
+
+  &__exposure-bar {
+    margin-top: 16rpx;
+    height: 10rpx;
+    background: #e2e8f0;
+    border-radius: 999rpx;
+    overflow: hidden;
+  }
+
+  &__exposure-fill {
+    height: 100%;
+    background: $wm-gradient-primary;
   }
 
   &__tip {

@@ -25,12 +25,28 @@
         </view>
         <view class="hero__name-row">
           <text class="hero__name">{{ profile.nickname || '用户' }}</text>
+          <view v-if="profile.photoVerified" class="hero__badge hero__badge--photo">
+            <wm-icon name="shield" :size="20" color="#0d9488" />
+            <text>照片已验证</text>
+          </view>
           <view v-if="profile.verificationBadge" class="hero__badge">
             <wm-icon name="check" :size="20" color="#059669" />
             <text>已认证</text>
           </view>
+          <view v-if="profile.premiumBadge" class="hero__badge hero__badge--plus">
+            <text>旅聚+</text>
+          </view>
         </view>
         <text class="hero__stat">已组织 {{ profile.organizedCount || 0 }} 场活动</text>
+        <text
+          v-if="profile.showMeetCount !== false && profile.meetCount >= 1"
+          class="hero__stat"
+        >
+          成功见面 {{ profile.meetCount }} 次
+        </text>
+        <view v-if="displayBadges.length" class="hero__badges">
+          <text v-for="b in displayBadges" :key="b" class="hero__badge-pill">{{ badgeLabel(b) }}</text>
+        </view>
         <text v-if="publicGenderLabel" class="hero__gender">{{ publicGenderLabel }}</text>
       </view>
 
@@ -101,6 +117,7 @@ import {
   rejectDmRequest,
   cancelDmRequest,
 } from '@/api'
+import { BADGE_META } from '@/constants/growthTrust'
 
 export default {
   components: { WmIcon },
@@ -149,6 +166,9 @@ export default {
       }
       return map[r] || (r ? `暂不可申请（${r}）` : '')
     },
+    displayBadges() {
+      return (this.profile?.badges || []).slice(0, 6)
+    },
   },
   onLoad(query) {
     const userId = query?.userId ? String(query.userId) : ''
@@ -177,6 +197,9 @@ export default {
     this.loadProfile(userId)
   },
   methods: {
+    badgeLabel(id) {
+      return BADGE_META[id]?.name || id
+    },
     async loadDmContext() {
       if (!this.activityIdNorm || !this.targetUserId || this.profile?.__offlineSnapshot) return
       this.dmLoading = true
@@ -454,6 +477,38 @@ export default {
       color: #059669;
       font-weight: 600;
     }
+
+    &--photo {
+      background: #f0fdfa;
+      text {
+        color: #0d9488;
+      }
+    }
+
+    &--plus {
+      background: linear-gradient(135deg, #e0f2fe, #ccfbf1);
+      text {
+        color: #0284c7;
+        font-weight: 700;
+      }
+    }
+  }
+
+  &__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10rpx;
+    margin-top: 16rpx;
+    justify-content: center;
+  }
+
+  &__badge-pill {
+    font-size: 22rpx;
+    padding: 6rpx 16rpx;
+    border-radius: 999rpx;
+    background: #f1f5f9;
+    color: $wm-text-2;
+    font-weight: 600;
   }
 
   &__stat {

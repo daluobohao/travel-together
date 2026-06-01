@@ -203,6 +203,63 @@
 				"navigationBarTitleText": "完善资料",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/entry/entry",
+			"style": {
+				"navigationBarTitleText": "旅聚",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/invite/invite",
+			"style": {
+				"navigationBarTitleText": "邀请好友",
+				"navigationStyle": "custom",
+				"enableShareAppMessage": true
+			}
+		},
+		{
+			"path": "pages/trust/trust",
+			"style": {
+				"navigationBarTitleText": "信任中心",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/photo-verify/photo-verify",
+			"style": {
+				"navigationBarTitleText": "照片验证",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/meet-checkin/meet-checkin",
+			"style": {
+				"navigationBarTitleText": "见面打卡",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/meet-review/meet-review",
+			"style": {
+				"navigationBarTitleText": "见面互评",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/meet-history/meet-history",
+			"style": {
+				"navigationBarTitleText": "见面记录",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/safety-guide/safety-guide",
+			"style": {
+				"navigationBarTitleText": "安全指南",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"globalStyle": {

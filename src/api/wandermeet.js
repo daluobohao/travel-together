@@ -3,6 +3,31 @@ import { clearWmAuthTokens, getMockEnabled, setAccessToken, setRefreshToken } fr
 import cityHallPrefectures from './city_hall_prefectures.json'
 import { provinceDisplayName } from './china_province_display.js'
 import { wmDB, toActivityCard } from '@/mock/wandermeet-db'
+import {
+  mockApprovePhotoVerification,
+  mockBindReferral,
+  mockCheckin,
+  mockEnhancePublicProfile,
+  mockGetCheckinWindow,
+  mockGetEntitlements,
+  mockGetMeetHistory,
+  mockGetOrganizerExposure,
+  mockGetPendingCheckins,
+  mockGetPhotoVerification,
+  mockGetPremium,
+  mockGetReferral,
+  mockGetReviewCandidates,
+  mockGetSafetyGuide,
+  mockGetTrust,
+  mockHasSafetyAck,
+  mockOnQualifiedAction,
+  mockPinActivity,
+  mockSafetyAck,
+  mockSetBadgeVisibility,
+  mockSetShowMeetCount,
+  mockSubmitPhotoVerification,
+  mockSubmitReview,
+} from '@/mock/growth-trust-mock'
 import { contactTextBlockedReason } from '@/utils/contactContentFilter'
 import { isKnownStickerId } from '@/constants/chatStickers'
 
@@ -584,6 +609,7 @@ export const joinCityHall = (cityCode, cityLabel) => {
     mockHandler: ({ data }) => {
       const cc = (data && data.cityCode) || '110000'
       const name = (data && data.cityLabel && String(data.cityLabel).trim()) || cc
+      mockOnQualifiedAction('city_hall_join')
       return ok({
         cityCode: cc,
         displayName: `${name} · 城市大群`,
@@ -750,19 +776,24 @@ export const getUserPublicProfile = (userId) =>
       const organizedCount = wmDB.activities.filter((x) => x.organizer?.userId === uid).length
       const u = wmDB.users?.[uid]
       if (u) {
-        return ok({ ...u, organizedCount })
+        return ok(mockEnhancePublicProfile({ ...u, organizedCount }, uid))
       }
       const act = wmDB.activities.find((x) => x.organizer?.userId === uid)
       if (act?.organizer) {
-        return ok({
-          userId: act.organizer.userId,
-          nickname: act.organizer.nickname,
-          avatarUrl: act.organizer.avatarUrl,
-          bio: '',
-          tags: [],
-          verificationBadge: act.organizer.verificationBadge,
-          organizedCount,
-        })
+        return ok(
+          mockEnhancePublicProfile(
+            {
+              userId: act.organizer.userId,
+              nickname: act.organizer.nickname,
+              avatarUrl: act.organizer.avatarUrl,
+              bio: '',
+              tags: [],
+              verificationBadge: act.organizer.verificationBadge,
+              organizedCount,
+            },
+            uid,
+          ),
+        )
       }
       return ok(null)
     },
@@ -891,6 +922,7 @@ export const enrollActivity = (activityId) =>
             pushActivityFullNotification(row)
           }
         }
+        mockOnQualifiedAction('event_enroll')
       }
       return ok({ enrollmentId: `enr_${Date.now()}`, status: 'joined' })
     },
@@ -1161,8 +1193,199 @@ export const getPremiumStatus = () =>
   wmRequest({
     method: 'GET',
     path: '/me/premium',
-    mockHandler: () => ok({ enabled: false, sku: [] }),
+    mockHandler: () => ok(mockGetPremium()),
   })
+
+// ===== PRD 裂变与信任 =====
+
+export const getMyReferral = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/me/referral',
+    mockHandler: () => ok(mockGetReferral()),
+  })
+
+export const bindReferralCode = (code) =>
+  wmRequest({
+    method: 'POST',
+    path: '/me/referral/bind',
+    data: { code },
+    mockHandler: ({ data }) => {
+      const result = mockBindReferral(data?.code)
+      if (!result.ok) {
+        const msg =
+          result.reason === 'already_bound'
+            ? '已绑定邀请关系'
+            : result.reason === 'self_invite'
+              ? '不能使用自己的邀请码'
+              : '邀请码无效'
+        return { code: 400, message: msg, data: null }
+      }
+      return ok(result.binding)
+    },
+  })
+
+export const getMyEntitlements = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/me/entitlements',
+    mockHandler: () => ok({ list: mockGetEntitlements() }),
+  })
+
+export const pinMyActivity = (activityId) =>
+  wmRequest({
+    method: 'POST',
+    path: `/me/activities/${activityId}/pin`,
+    mockHandler: () => {
+      try {
+        return ok(mockPinActivity(activityId))
+      } catch (e) {
+        return { code: 400, message: e.message || '置顶失败', data: null }
+      }
+    },
+  })
+
+export const getPendingMeetCheckins = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/me/meet-checkins/pending',
+    mockHandler: () => ok({ list: mockGetPendingCheckins() }),
+  })
+
+export const checkinActivity = (activityId, payload = {}) =>
+  wmRequest({
+    method: 'POST',
+    path: `/activities/${activityId}/checkin`,
+    data: payload,
+    mockHandler: ({ data }) => {
+      try {
+        return ok(mockCheckin(activityId, data?.photoUrl))
+      } catch (e) {
+        return { code: 400, message: e.message || '打卡失败', data: null }
+      }
+    },
+  })
+
+export const getMeetReviewCandidates = (activityId) =>
+  wmRequest({
+    method: 'GET',
+    path: `/activities/${activityId}/meet-review/candidates`,
+    mockHandler: () => {
+      try {
+        return ok({ list: mockGetReviewCandidates(activityId) })
+      } catch (e) {
+        return { code: 400, message: e.message || '无法加载', data: null }
+      }
+    },
+  })
+
+export const submitMeetReview = (activityId, payload) =>
+  wmRequest({
+    method: 'POST',
+    path: `/activities/${activityId}/meet-review`,
+    data: payload,
+    mockHandler: ({ data }) => {
+      try {
+        return ok(mockSubmitReview(activityId, data))
+      } catch (e) {
+        return { code: 400, message: e.message || '提交失败', data: null }
+      }
+    },
+  })
+
+export const getMeetHistory = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/me/meet-history',
+    mockHandler: () => ok({ list: mockGetMeetHistory() }),
+  })
+
+export const getMyTrust = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/me/trust',
+    mockHandler: () => ok(mockGetTrust()),
+  })
+
+export const submitPhotoVerification = (payload) =>
+  wmRequest({
+    method: 'POST',
+    path: '/me/photo-verification',
+    data: payload,
+    mockHandler: ({ data }) => ok(mockSubmitPhotoVerification(data?.selfieUrl)),
+  })
+
+export const getPhotoVerification = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/me/photo-verification',
+    mockHandler: () => ok(mockGetPhotoVerification()),
+  })
+
+export const submitSafetyAck = (ackType = 'enroll_first') =>
+  wmRequest({
+    method: 'POST',
+    path: '/me/safety-ack',
+    data: { ackType },
+    mockHandler: ({ data }) => {
+      const type = data?.ackType || 'enroll_first'
+      const row = mockSafetyAck(type)
+      try {
+        uni.setStorageSync(`wm_safety_ack_${type}`, row.ackAt || new Date().toISOString())
+      } catch (_) {
+        /* ignore */
+      }
+      return ok(row)
+    },
+  })
+
+export function hasSafetyAck(ackType = 'enroll_first') {
+  if (getMockEnabled()) return mockHasSafetyAck(ackType)
+  try {
+    return !!uni.getStorageSync(`wm_safety_ack_${ackType}`)
+  } catch (_) {
+    return false
+  }
+}
+
+export const getSafetyGuideContent = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/content/safety-guide',
+    needAuth: false,
+    mockHandler: () => ok(mockGetSafetyGuide()),
+  })
+
+export const getOrganizerExposure = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/me/organizer-exposure',
+    mockHandler: () => ok(mockGetOrganizerExposure()),
+  })
+
+export const setBadgeVisibility = (badgeId, visible) =>
+  wmRequest({
+    method: 'PATCH',
+    path: '/me/badges/visibility',
+    data: { badgeId, visible },
+    mockHandler: ({ data }) => ok(mockSetBadgeVisibility(data.badgeId, data.visible)),
+  })
+
+export const setShowMeetCount = (show) =>
+  wmRequest({
+    method: 'PATCH',
+    path: '/me/trust/show-meet-count',
+    data: { showMeetCount: show },
+    mockHandler: ({ data }) => ok(mockSetShowMeetCount(data.showMeetCount)),
+  })
+
+/** Mock 开发：模拟照片验证通过 */
+export const devApprovePhotoVerification = () => {
+  mockApprovePhotoVerification()
+  return Promise.resolve({ status: 'approved' })
+}
+
+export { formatTrustLevelLabel } from '@/constants/growthTrust'
 
 // 30~36 admin
 export const adminListActivities = (query = {}) =>
