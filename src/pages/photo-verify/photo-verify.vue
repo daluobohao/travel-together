@@ -27,7 +27,13 @@
       </view>
 
       <view v-if="status !== 'approved' && status !== 'pending'" class="actions">
-        <view class="wm-btn wm-btn--primary actions__btn" @click="takeSelfie">现场自拍并提交</view>
+        <view
+          class="wm-btn wm-btn--primary actions__btn"
+          :class="{ 'wm-btn--disabled': submitting }"
+          @click="takeSelfie"
+        >
+          {{ submitting ? '上传中…' : '现场自拍并提交' }}
+        </view>
       </view>
     </view>
   </view>
@@ -35,12 +41,17 @@
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
-import { devApprovePhotoVerification, getPhotoVerification, submitPhotoVerification } from '@/api'
+import {
+  devApprovePhotoVerification,
+  getPhotoVerification,
+  submitPhotoVerification,
+  uploadPhotoVerificationSelfie,
+} from '@/api'
 
 export default {
   components: { WmIcon },
   data() {
-    return { status: null, rejectReason: '' }
+    return { status: null, rejectReason: '', submitting: false }
   },
   methods: {
     goBack() {
@@ -56,6 +67,7 @@ export default {
       }
     },
     takeSelfie() {
+      if (this.submitting) return
       uni.chooseMedia({
         count: 1,
         mediaType: ['image'],
@@ -63,12 +75,23 @@ export default {
         success: async (res) => {
           const path = res.tempFiles?.[0]?.tempFilePath
           if (!path) return
+          this.submitting = true
+          uni.showLoading({ title: '上传中', mask: true })
           try {
-            await submitPhotoVerification({ selfieUrl: path })
+            const uploaded = await uploadPhotoVerificationSelfie(path)
+            const selfieUrl = uploaded?.selfieUrl
+            if (!selfieUrl) {
+              throw new Error('上传失败')
+            }
+            await submitPhotoVerification({ selfieUrl })
             this.status = 'pending'
+            this.rejectReason = ''
             uni.showToast({ title: '已提交审核', icon: 'success' })
           } catch (e) {
             uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+          } finally {
+            this.submitting = false
+            uni.hideLoading()
           }
         },
         fail: () => {

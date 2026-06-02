@@ -667,3 +667,70 @@ export function mockSetShowMeetCount(show) {
   tp.showMeetCount = !!show
   return { showMeetCount: tp.showMeetCount }
 }
+
+function _parsePvId(verificationId) {
+  const s = String(verificationId || '')
+  return s.startsWith('pv_') ? s.slice(3) : s
+}
+
+export function mockAdminListPhotoVerifications(query = {}) {
+  ensureGrowthTables()
+  const status = query.status || 'pending'
+  const page = Math.max(1, Number(query.page) || 1)
+  const pageSize = Math.min(50, Math.max(1, Number(query.pageSize) || 20))
+  const rows = wmDB.photoVerifications
+    .filter((v) => v.status === status)
+    .sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt))
+  const total = rows.length
+  const slice = rows.slice((page - 1) * pageSize, page * pageSize)
+  const list = slice.map((v) => {
+    const u = wmDB.users?.[v.userId] || wmDB.profile
+    return {
+      verificationId: v.id || `pv_${v.userId}`,
+      userId: v.userId,
+      nickname: u?.nickname || '用户',
+      avatarUrl: u?.avatarUrl || null,
+      selfieUrl: v.selfieUrl,
+      status: v.status,
+      submittedAt: v.submittedAt,
+    }
+  })
+  return { list, total, page, pageSize }
+}
+
+export function mockAdminApprovePhotoVerification(verificationId) {
+  ensureGrowthTables()
+  const vid = _parsePvId(verificationId)
+  const row = wmDB.photoVerifications.find(
+    (v) => String(v.id) === String(vid) || String(v.id) === String(verificationId),
+  )
+  if (!row || row.status !== 'pending') throw new Error('记录不存在或已审核')
+  row.status = 'approved'
+  row.reviewedAt = nowIso()
+  const tp = getTrustProfile(row.userId)
+  tp.photoVerified = true
+  tp.trustScore = Math.min(1000, tp.trustScore + 150)
+  syncTrustLevel(row.userId)
+  return {
+    verificationId: row.id || `pv_${row.userId}`,
+    userId: row.userId,
+    status: 'approved',
+  }
+}
+
+export function mockAdminRejectPhotoVerification(verificationId, reason) {
+  ensureGrowthTables()
+  const vid = _parsePvId(verificationId)
+  const row = wmDB.photoVerifications.find(
+    (v) => String(v.id) === String(vid) || String(v.id) === String(verificationId),
+  )
+  if (!row || row.status !== 'pending') throw new Error('记录不存在或已审核')
+  row.status = 'rejected'
+  row.rejectReason = String(reason || '请重新拍摄').slice(0, 256)
+  row.reviewedAt = nowIso()
+  return {
+    verificationId: row.id || `pv_${row.userId}`,
+    userId: row.userId,
+    status: 'rejected',
+  }
+}

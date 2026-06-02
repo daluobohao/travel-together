@@ -260,6 +260,13 @@
 				"navigationBarTitleText": "安全指南",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/admin-photo-review/admin-photo-review",
+			"style": {
+				"navigationBarTitleText": "照片验证审核",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"globalStyle": {

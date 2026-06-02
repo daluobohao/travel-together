@@ -2,11 +2,17 @@
   <view class="page sub trust">
     <view class="sub__header">
       <view class="sub__back" @click="goBack"><wm-icon name="chevronLeft" :size="36" color="#0f172a" /></view>
-      <text class="sub__title">信任中心</text>
+      <text class="sub__title">{{ adminReviewMode ? '照片验证审核' : '信任中心' }}</text>
       <view class="sub__sp" />
     </view>
 
-    <view v-if="loading" class="sub__state"><text>加载中…</text></view>
+    <admin-photo-review-panel
+      v-if="adminReviewMode"
+      ref="adminReview"
+      @changed="onAdminReviewChanged"
+    />
+
+    <view v-else-if="loading" class="sub__state"><text>加载中…</text></view>
     <view v-else class="sub__body">
       <view class="level-card">
         <view class="level-card__main">
@@ -109,6 +115,7 @@
 </template>
 
 <script>
+import AdminPhotoReviewPanel from '@/components/AdminPhotoReviewPanel/AdminPhotoReviewPanel.vue'
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import {
   formatTrustLevelLabel,
@@ -120,9 +127,10 @@ import {
 import { BADGE_META } from '@/constants/growthTrust'
 
 export default {
-  components: { WmIcon },
+  components: { WmIcon, AdminPhotoReviewPanel },
   data() {
     return {
+      adminReviewMode: false,
       loading: true,
       trust: {},
       premium: { enabled: false, entitlement: {} },
@@ -214,9 +222,25 @@ export default {
         this.loading = false
       }
     },
+    onAdminReviewChanged() {
+      /* 审核后刷新「我的」待审数量等 */
+    },
+  },
+  onLoad(options) {
+    this.adminReviewMode = options?.mode === 'adminReview'
   },
   onShow() {
+    if (this.adminReviewMode) {
+      const panel = this.$refs.adminReview
+      if (panel && typeof panel.init === 'function') panel.init()
+      return
+    }
     this.load()
+  },
+  onReachBottom() {
+    if (this.adminReviewMode && this.$refs.adminReview) {
+      this.$refs.adminReview.loadMore()
+    }
   },
 }
 </script>

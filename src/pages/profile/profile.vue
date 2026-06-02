@@ -15,11 +15,7 @@
         <view class="profile__info">
           <view class="profile__name-row">
             <text class="profile__name">{{ user.name }}</text>
-            <view v-if="loggedIn && trustLevelLabel" class="profile__verified profile__verified--trust">
-              <wm-icon name="shield" :size="20" color="#0d9488" />
-              <text>{{ trustLevelLabel }}</text>
-            </view>
-            <view v-else-if="loggedIn && user.verified" class="profile__verified">
+            <view v-if="loggedIn" class="profile__verified">
               <wm-icon name="check" :size="20" color="#10b981" />
               <text>已认证</text>
             </view>
@@ -110,20 +106,17 @@
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import {
+  adminListPhotoVerifications,
   formatUserGenderLabel,
   getMe,
   getMyActivities,
   getMyStats,
-  getPendingMeetCheckins,
-  getMyTrust,
   isLoggedIn,
   logout,
   mapActivityCard,
   redirectToLogin,
 } from '@/api'
-import { formatTrustLevelLabel } from '@/constants/growthTrust'
 import { displayAvatarUrl } from '@/utils/avatarDisplay'
-
 export default {
   components: { WmIcon, WmTabBar },
   data() {
@@ -144,11 +137,9 @@ export default {
       ],
       activities: [],
       loggedIn: false,
-      trustLevelLabel: '',
+      isAdmin: false,
+      adminPendingCount: 0,
       menus: [
-        { key: 'trust', icon: 'shield', color: '#0d9488', bg: '#f0fdfa', label: '信任中心', hint: '' },
-        { key: 'invite', icon: 'shareForward', color: '#0284c7', bg: '#e0f2fe', label: '邀请好友', hint: '' },
-        { key: 'checkin', icon: 'calendar', color: '#059669', bg: '#ecfdf5', label: '待打卡', hint: '' },
         { key: 'bindPhone', icon: 'bell', color: '#0284c7', bg: '#e0f2fe', label: '绑定手机号', hint: '' },
         { key: 'history', icon: 'history', color: '#0ea5e9', bg: '#e0f2fe', label: '历史活动' },
         { key: 'feedback', icon: 'message', color: '#f59e0b', bg: '#fffbeb', label: '意见与建议' },
@@ -166,9 +157,20 @@ export default {
       return formatUserGenderLabel(this.user.gender)
     },
     displayMenus() {
+      const items = [...this.menus]
+      if (this.isAdmin) {
+        items.unshift({
+          key: 'adminPhotoReview',
+          icon: 'shield',
+          color: '#7c3aed',
+          bg: '#f5f3ff',
+          label: '照片验证审核',
+          hint: this.adminPendingCount > 0 ? `${this.adminPendingCount} 待审` : '',
+        })
+      }
       // #ifdef H5
       return [
-        ...this.menus,
+        ...items,
         {
           key: 'logout',
           icon: 'close',
@@ -181,7 +183,7 @@ export default {
       ]
       // #endif
       // #ifndef H5
-      return this.menus
+      return items
       // #endif
     },
   },
@@ -220,19 +222,14 @@ export default {
         this.onLogout()
         return
       }
-      if (['bindPhone', 'history', 'feedback', 'trust', 'invite', 'checkin'].includes(m.key) && !this.ensureLoggedIn()) {
+      if (
+        ['bindPhone', 'history', 'feedback', 'adminPhotoReview'].includes(m.key) &&
+        !this.ensureLoggedIn()
+      ) {
         return
       }
-      if (m.key === 'trust') {
-        uni.navigateTo({ url: '/pages/trust/trust' })
-        return
-      }
-      if (m.key === 'invite') {
-        uni.navigateTo({ url: '/pages/invite/invite' })
-        return
-      }
-      if (m.key === 'checkin') {
-        this.openPendingCheckin()
+      if (m.key === 'adminPhotoReview') {
+        uni.navigateTo({ url: '/pages/trust/trust?mode=adminReview' })
         return
       }
       if (m.key === 'bindPhone') {
@@ -293,22 +290,6 @@ export default {
         url: '/pages/my-activity-list/my-activity-list',
       })
     },
-    async openPendingCheckin() {
-      try {
-        const d = await getPendingMeetCheckins()
-        const list = d?.list || []
-        if (!list.length) {
-          uni.showToast({ title: '暂无待打卡活动', icon: 'none' })
-          return
-        }
-        const first = list[0]
-        uni.navigateTo({
-          url: `/pages/meet-checkin/meet-checkin?activityId=${encodeURIComponent(first.activityId)}`,
-        })
-      } catch (e) {
-        uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
-      }
-    },
   },
   async onShow() {
     this.loggedIn = isLoggedIn()
@@ -327,24 +308,18 @@ export default {
         { value: '—', label: '参加活动' },
         { value: '—', label: '发起活动' },
       ]
-      this.trustLevelLabel = ''
       this.activities = []
+      this.isAdmin = false
+      this.adminPendingCount = 0
       return
     }
     try {
-      const [me, stats, joined, trust, pendingCheckins] = await Promise.all([
+      const [me, stats, joined] = await Promise.all([
         getMe(),
         getMyStats(),
         getMyActivities({ role: 'joined', page: 1, pageSize: 2 }),
-        getMyTrust().catch(() => null),
-        getPendingMeetCheckins().catch(() => ({ list: [] })),
       ])
-      this.trustLevelLabel = trust?.trustLevel ? formatTrustLevelLabel(trust.trustLevel) : ''
-      const checkinMenu = this.menus.find((m) => m.key === 'checkin')
-      if (checkinMenu) {
-        const n = (pendingCheckins?.list || []).length
-        checkinMenu.hint = n ? `${n} 场` : ''
-      }
+      this.isAdmin = !!me.isAdmin
       this.user = {
         ...this.user,
         name: me.nickname || this.user.name,
@@ -355,6 +330,20 @@ export default {
         phoneBound: !!me.phoneBound,
         emailMasked: me.emailMasked || '',
         emailBound: !!me.emailBound,
+      }
+      if (this.isAdmin) {
+        try {
+          const pending = await adminListPhotoVerifications({
+            status: 'pending',
+            page: 1,
+            pageSize: 1,
+          })
+          this.adminPendingCount = pending?.total ?? 0
+        } catch {
+          this.adminPendingCount = 0
+        }
+      } else {
+        this.adminPendingCount = 0
       }
       const bindMenu = this.menus.find((m) => m.key === 'bindPhone')
       if (bindMenu) {
@@ -479,11 +468,6 @@ export default {
     font-weight: 700;
     padding: 4rpx 14rpx;
     border-radius: 999rpx;
-
-    &--trust {
-      background: $wm-primary-soft;
-      color: $wm-primary;
-    }
   }
 
   &__bio {

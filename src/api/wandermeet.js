@@ -4,6 +4,9 @@ import cityHallPrefectures from './city_hall_prefectures.json'
 import { provinceDisplayName } from './china_province_display.js'
 import { wmDB, toActivityCard } from '@/mock/wandermeet-db'
 import {
+  mockAdminApprovePhotoVerification,
+  mockAdminListPhotoVerifications,
+  mockAdminRejectPhotoVerification,
   mockApprovePhotoVerification,
   mockBindReferral,
   mockCheckin,
@@ -491,6 +494,7 @@ export const getAvatarUploadUrl = (payload) =>
 // 6.1 头像上传见 ./avatarUpload.js（避免本文件循环依赖）
 export { uploadAvatar } from './avatarUpload'
 export { uploadChatImage } from './chatImageUpload'
+export { uploadPhotoVerificationSelfie } from './photoVerifyUpload'
 
 // 7
 export const getVerification = () =>
@@ -1498,6 +1502,41 @@ export const adminUnbanUser = (userId) =>
     method: 'POST',
     path: `/admin/users/${userId}/unban`,
     mockHandler: () => ok({ userId, status: 'active' }),
+  })
+
+export const adminListPhotoVerifications = (query = {}) =>
+  wmRequest({
+    method: 'GET',
+    path: '/admin/photo-verifications',
+    query,
+    mockHandler: ({ query: q }) => ok(mockAdminListPhotoVerifications(q)),
+  })
+
+export const adminApprovePhotoVerification = (verificationId) =>
+  wmRequest({
+    method: 'POST',
+    path: `/admin/photo-verifications/${verificationId}/approve`,
+    mockHandler: () => {
+      try {
+        return ok(mockAdminApprovePhotoVerification(verificationId))
+      } catch (e) {
+        return { code: 400, message: e.message || '操作失败', data: null }
+      }
+    },
+  })
+
+export const adminRejectPhotoVerification = (verificationId, reason) =>
+  wmRequest({
+    method: 'POST',
+    path: `/admin/photo-verifications/${verificationId}/reject`,
+    data: { reason },
+    mockHandler: () => {
+      try {
+        return ok(mockAdminRejectPhotoVerification(verificationId, reason))
+      } catch (e) {
+        return { code: 400, message: e.message || '操作失败', data: null }
+      }
+    },
   })
 
 // ===== Frontend-friendly aggregate helpers =====

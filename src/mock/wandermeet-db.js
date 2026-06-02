@@ -26,6 +26,7 @@ export const wmDB = {
       status: 'approved',
       canCreateActivity: true,
     },
+    isAdmin: false,
   },
   /** 对外展示的用户资料（活动发起人等），按 userId 索引 */
   users: {
