@@ -103,6 +103,22 @@
         <text class="desc">{{ statusHint }}</text>
       </view>
 
+      <view v-if="activityPosts.length || canPostActivity" class="panel">
+        <view class="panel__head">
+          <text class="section-title">活动动态</text>
+          <text v-if="canPostActivity" class="panel__link" @click="onPublishActivityPost">发一条</text>
+        </view>
+        <text v-if="!activityPosts.length && canPostActivity" class="desc desc--muted">活动进行中可发图文，结束后 72 小时内仍可发复盘</text>
+        <text v-else-if="!activityPosts.length && isJoined && !activity.isCancelled" class="desc desc--muted">活动尚未开始或已超过复盘期，暂不可发布</text>
+        <feed-post-card
+          v-for="p in activityPosts"
+          :key="p.postId"
+          :item="p"
+          @refresh="loadActivityPosts"
+          @open="openFeedDetail"
+        />
+      </view>
+
       <view class="panel">
         <text class="section-title">发起人</text>
         <view class="host">
@@ -142,30 +158,24 @@
         <text>{{ actionText }}</text>
       </view>
     </view>
-
-    <safety-enroll-modal
-      :visible="safetyModalVisible"
-      @cancel="safetyModalVisible = false"
-      @confirm="onSafetyConfirmed"
-    />
   </view>
 </template>
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
-import SafetyEnrollModal from '@/components/SafetyEnrollModal/SafetyEnrollModal.vue'
+import FeedPostCard from '@/components/FeedPostCard/FeedPostCard.vue'
 import {
   cancelEnrollment,
   computeActivityStatus,
   enrollActivity,
   formatActivityTimeRange,
   getActivityDetail,
+  getActivityPosts,
   getMe,
-  hasSafetyAck,
+  isActivityPostWindowOpen,
   isLoggedIn,
   redirectToLogin,
   resolveActivityCategoryTag,
-  submitSafetyAck,
 } from '@/api'
 import {
   buildActivityShareClipboardText,
@@ -174,7 +184,7 @@ import {
 } from '@/utils/activityShare'
 
 export default {
-  components: { WmIcon, SafetyEnrollModal },
+  components: { WmIcon, FeedPostCard },
   data() {
     return {
       activityId: '',
@@ -183,8 +193,7 @@ export default {
       loadErrorMsg: '',
       actionLoading: false,
       currentUserId: '',
-      safetyModalVisible: false,
-      pendingEnroll: false,
+      activityPosts: [],
     }
   },
   computed: {
@@ -198,6 +207,13 @@ export default {
     canEnterGroup() {
       if (!this.activity) return false
       return isLoggedIn() && this.isJoined && !this.activity.isCancelled
+    },
+    canPostActivity() {
+      if (!isLoggedIn() || !this.isJoined || this.activity?.isCancelled) return false
+      return isActivityPostWindowOpen({
+        startAt: this.activity?.startAt,
+        endAt: this.activity?.endAt,
+      })
     },
     actionText() {
       if (!this.activity) return ''
@@ -259,10 +275,10 @@ export default {
   onShareTimeline() {
     const a = this.activity
     if (!a?.id) {
-      return { title: '去旅聚 · 发现身边的活动' }
+      return { title: '旅聚 · 发现身边的活动' }
     }
     return {
-      title: (a.title && String(a.title).trim().slice(0, 64)) || '去旅聚活动',
+      title: (a.title && String(a.title).trim().slice(0, 64)) || '旅聚活动',
       query: buildActivityTimelineQuery(a.id),
     }
   },
@@ -329,6 +345,7 @@ export default {
           ...status,
         }
         this.loadState = 'ready'
+        this.loadActivityPosts()
       } catch (e) {
         this.activity = null
         this.loadState = 'error'
@@ -340,6 +357,29 @@ export default {
     },
     retryLoad() {
       if (this.activityId) this.loadActivity(this.activityId)
+    },
+    async loadActivityPosts() {
+      if (!this.activityId) return
+      try {
+        const d = await getActivityPosts(this.activityId, { page: 1, pageSize: 20 })
+        this.activityPosts = d?.list || []
+      } catch (_) {
+        this.activityPosts = []
+      }
+    },
+    onPublishActivityPost() {
+      if (!this.canPostActivity) {
+        uni.showToast({ title: '当前不在活动动态发布时间', icon: 'none' })
+        return
+      }
+      uni.navigateTo({
+        url: `/pages/feed-publish/feed-publish?activityId=${encodeURIComponent(this.activityId)}`,
+      })
+    },
+    openFeedDetail(item) {
+      uni.navigateTo({
+        url: `/pages/feed-detail/feed-detail?postId=${encodeURIComponent(item.postId)}`,
+      })
     },
     onOpenOrganizerProfile() {
       const uid = this.activity?.organizerId
@@ -428,15 +468,13 @@ export default {
           this.activity.joined = Math.max(0, Number(this.activity.joined || 0) - 1)
           uni.showToast({ title: '已取消报名', icon: 'success' })
         } else {
-          const needSafety =
-            (this.activity.activityKind || 'event') === 'event' && !hasSafetyAck('enroll_first')
-          if (needSafety) {
-            this.pendingEnroll = true
-            this.safetyModalVisible = true
-            this.actionLoading = false
-            return
-          }
-          await this.doEnroll()
+          await enrollActivity(this.activity.id)
+          this.activity.enrollmentStatus = 'joined'
+          this.activity.joined = Math.min(
+            Number(this.activity.total || 0),
+            Number(this.activity.joined || 0) + 1
+          )
+          uni.showToast({ title: '报名成功', icon: 'success' })
         }
         this.refreshStatus()
       } catch (e) {
@@ -444,28 +482,6 @@ export default {
       } finally {
         this.actionLoading = false
       }
-    },
-    async onSafetyConfirmed() {
-      this.safetyModalVisible = false
-      try {
-        await submitSafetyAck('enroll_first')
-        if (this.pendingEnroll) {
-          this.pendingEnroll = false
-          await this.doEnroll()
-          this.refreshStatus()
-        }
-      } catch (e) {
-        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
-      }
-    },
-    async doEnroll() {
-      await enrollActivity(this.activity.id)
-      this.activity.enrollmentStatus = 'joined'
-      this.activity.joined = Math.min(
-        Number(this.activity.total || 0),
-        Number(this.activity.joined || 0) + 1,
-      )
-      uni.showToast({ title: '报名成功', icon: 'success' })
     },
     onEnterGroup() {
       if (!this.canEnterGroup) return
@@ -794,6 +810,17 @@ export default {
   .section-title {
     margin-bottom: 0;
   }
+}
+
+.panel__link {
+  font-size: 26rpx;
+  color: #0284c7;
+  font-weight: 600;
+}
+
+.desc--muted {
+  color: $wm-text-3;
+  margin-bottom: 8rpx;
 }
 
 .status-tag {

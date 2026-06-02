@@ -83,6 +83,19 @@
         </view>
       </view>
 
+      <view class="section place-search-entry place-search-entry--feed" @click="onCityFeed">
+        <view class="place-search-entry__inner">
+          <view class="place-search-entry__icon place-search-entry__icon--feed">
+            <wm-icon name="message" :size="40" color="#ffffff" />
+          </view>
+          <view class="place-search-entry__text">
+            <text class="place-search-entry__title">同城动态</text>
+            <text class="place-search-entry__desc">看看同城旅人在聊什么，分享状态与找搭子</text>
+          </view>
+          <wm-icon name="chevronRight" :size="32" color="#94a3b8" />
+        </view>
+      </view>
+
       <!-- Categories -->
       <view class="section">
         <text class="section__title">活动分类</text>
@@ -266,6 +279,18 @@ export default {
     },
     onTapSearch() {
       uni.navigateTo({ url: '/pages/location-picker/location-picker?from=discover' })
+    },
+    async onCityFeed() {
+      let cityCode = '110000'
+      try {
+        const anchor = await getHomeActivityAnchor()
+        if (anchor?.cityCode) cityCode = anchor.cityCode
+      } catch (_) {
+        /* ignore */
+      }
+      uni.navigateTo({
+        url: `/pages/feed/feed?cityCode=${encodeURIComponent(cityCode)}`,
+      })
     },
     onClearSearch() {
       clearHomeSearchAnchor()
@@ -547,6 +572,12 @@ export default {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  &--feed {
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+  }
+}
+.place-search-entry--feed {
+  padding-top: 16rpx;
 }
 .place-search-entry__text {
   flex: 1;

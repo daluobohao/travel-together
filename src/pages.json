@@ -136,6 +136,27 @@
 			}
 		},
 		{
+			"path": "pages/feed/feed",
+			"style": {
+				"navigationBarTitleText": "同城动态",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/feed-publish/feed-publish",
+			"style": {
+				"navigationBarTitleText": "发布动态",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/feed-detail/feed-detail",
+			"style": {
+				"navigationBarTitleText": "动态详情",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/place-activities/place-activities",
 			"style": {
 				"navigationBarTitleText": "搜地点找活动",

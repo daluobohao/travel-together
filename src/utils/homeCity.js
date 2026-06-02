@@ -1,4 +1,5 @@
 import { getMockEnabled } from '@/api/config'
+import { resolveCityHallCityName } from '@/utils/cityCatalog'
 
 /** 与 location-picker 一致（高德 Web 服务） */
 const AMAP_WEB_KEY = '15fb84dbcfd7a884bbb4133135d0d05f'
@@ -142,16 +143,27 @@ export function clearHomeSearchAnchor() {
  * 首页活动列表锚点：搜索地点优先，否则 GPS（resolveHomeCityForActivities）。
  * @returns {Promise<{ source: 'search'|'gps', lat: number, lng: number, cityCode: string, displayName: string, cityName?: string }>}
  */
+export async function resolveCoordsToListCityCode(lat, lng) {
+  const geo = await fetchRegeo(lat, lng)
+  return {
+    cityCode: geo.cityCode || adcodeToListCityCode(geo.adcode),
+    cityName: geo.cityName || geo.cityCode,
+    adcode: geo.adcode,
+  }
+}
+
 export async function getHomeActivityAnchor() {
   const search = getHomeSearchAnchorSync()
   if (search) {
+    const cityName = resolveCityHallCityName(search.cityCode)
     return {
       source: 'search',
       lat: search.lat,
       lng: search.lng,
       cityCode: search.cityCode,
       displayName: search.displayName,
-      cityName: search.displayName,
+      cityName: cityName || search.displayName,
+      placeName: search.displayName,
     }
   }
   const gps = await resolveHomeCityForActivities()
@@ -166,16 +178,39 @@ export async function getHomeActivityAnchor() {
   }
 }
 
-export async function resolveHomeCityForActivities() {
+/** 城市大群全国目录页：带上当前位置锚点（nearCity* 参数，与单城详情 cityCode 区分） */
+export function buildCityHallCatalogUrl(anchor) {
+  const code = (anchor?.cityCode && String(anchor.cityCode).trim()) || ''
+  const q = []
+  if (code) q.push(`nearCityCode=${encodeURIComponent(code)}`)
+  const catalogName = code ? resolveCityHallCityName(code) : ''
+  const label =
+    catalogName ||
+    (anchor?.cityName && String(anchor.cityName).trim()) ||
+    (anchor?.displayName && String(anchor.displayName).trim()) ||
+    ''
+  if (label) q.push(`nearCityLabel=${encodeURIComponent(label)}`)
+  const place =
+    anchor?.source === 'search' && anchor?.displayName
+      ? String(anchor.displayName).trim()
+      : ''
+  if (place && place !== (catalogName || label)) {
+    q.push(`nearPlaceName=${encodeURIComponent(place)}`)
+  }
+  return q.length ? `/pages/city-hall/city-hall?${q.join('&')}` : '/pages/city-hall/city-hall'
+}
+
+export async function resolveHomeCityForActivities(options = {}) {
+  const forceRefresh = !!options.forceRefresh
   if (getMockEnabled()) {
     const cached = readCachedHomeCity()
-    if (cached) return cached
+    if (cached && !forceRefresh) return cached
     cacheHomeCity(FALLBACK)
     return { ...FALLBACK }
   }
 
   const cached = readCachedHomeCity()
-  if (cached) return cached
+  if (cached && !forceRefresh) return cached
 
   try {
     const { lat, lng } = await getCurrentLocationGcj02()
@@ -190,6 +225,7 @@ export async function resolveHomeCityForActivities() {
     cacheHomeCity(ctx)
     return ctx
   } catch {
+    if (cached) return cached
     cacheHomeCity(FALLBACK)
     return { ...FALLBACK }
   }

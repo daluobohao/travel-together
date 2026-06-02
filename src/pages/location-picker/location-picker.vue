@@ -99,6 +99,7 @@ import {
   HOME_CITY_NAME_KEY,
   HOME_LOCATION_KEY,
   HOME_SEARCH_ANCHOR_KEY,
+  resolveCoordsToListCityCode,
   resolveHomeCityForActivities,
 } from '@/utils/homeCity'
 
@@ -271,7 +272,7 @@ export default {
         uni.removeStorageSync(HOME_CITY_NAME_KEY)
         uni.showLoading({ title: '定位中…', mask: true })
         try {
-          await resolveHomeCityForActivities()
+          await resolveHomeCityForActivities({ forceRefresh: true })
         } catch (_) {
           /* 首页 onShow 会再拉列表 */
         } finally {
@@ -503,13 +504,28 @@ export default {
       this.previewLng = nextLng
       this.previewLat = nextLat
     },
-    onChoose(item) {
+    async onChoose(item) {
       const [lngRaw, latRaw] = String(item.location || '').split(',')
       const lng = Number(lngRaw) || this.previewLng
       const lat = Number(latRaw) || this.previewLat
-      const listCityCode = adcodeToListCityCode(item.adcode) || String(item.adcode || '').trim()
+      let listCityCode = adcodeToListCityCode(item.adcode) || String(item.adcode || '').trim()
+      let cityLabel = ''
 
       if (this.pickerFrom === 'home' || this.pickerFrom === 'discover') {
+        if (!listCityCode) {
+          uni.showLoading({ title: '识别地区…', mask: true })
+          try {
+            const geo = await resolveCoordsToListCityCode(lat, lng)
+            listCityCode = geo.cityCode || ''
+            cityLabel = geo.cityName || ''
+          } catch (_) {
+            uni.hideLoading()
+            uni.showToast({ title: '无法识别该地区，请换一条结果', icon: 'none' })
+            return
+          } finally {
+            uni.hideLoading()
+          }
+        }
         if (!listCityCode) {
           uni.showToast({ title: '无法识别该地区，请换一条结果', icon: 'none' })
           return
@@ -518,7 +534,7 @@ export default {
           lat,
           lng,
           cityCode: listCityCode,
-          displayName: (item.name || item.district || '').trim() || listCityCode,
+          displayName: (item.name || item.district || cityLabel || '').trim() || listCityCode,
           address: item.address || '',
           updatedAt: Date.now(),
         })

@@ -31,6 +31,18 @@ import {
   mockSubmitPhotoVerification,
   mockSubmitReview,
 } from '@/mock/growth-trust-mock'
+import {
+  mockCreateFeedComment,
+  mockCreateFeedPost,
+  mockFollowUser,
+  mockGetFeedTopics,
+  mockGetFollowStatus,
+  mockListActivityPosts,
+  mockListFeed,
+  mockListFeedComments,
+  mockListUserPosts,
+  mockToggleLike,
+} from '@/mock/feed-mock'
 import { contactTextBlockedReason } from '@/utils/contactContentFilter'
 import { isKnownStickerId } from '@/constants/chatStickers'
 
@@ -1427,7 +1439,126 @@ export const devApprovePhotoVerification = () => {
   return Promise.resolve({ status: 'approved' })
 }
 
-export { formatTrustLevelLabel } from '@/constants/growthTrust'
+export { formatTrustLevelLabel, feedTopicLabel, FEED_TOPICS } from '@/constants/growthTrust'
+export { uploadFeedImage } from './feedImageUpload'
+
+// ===== 同城动态 feed =====
+
+export const getFeedTopics = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/feed/topics',
+    needAuth: false,
+    mockHandler: () => ok(mockGetFeedTopics()),
+  })
+
+export const getCityFeed = (query = {}) =>
+  wmRequest({
+    method: 'GET',
+    path: '/feed',
+    query,
+    mockHandler: ({ query: q }) => ok(mockListFeed(q)),
+  })
+
+export const createFeedPost = (payload) =>
+  wmRequest({
+    method: 'POST',
+    path: '/feed/posts',
+    data: payload,
+    mockHandler: ({ data }) => ok(mockCreateFeedPost(data)),
+  })
+
+export const getFeedPost = (postId) =>
+  wmRequest({
+    method: 'GET',
+    path: `/feed/posts/${postId}`,
+    mockHandler: () => {
+      const d = mockListFeed({ page: 1, pageSize: 100 }).list.find((x) => x.postId === postId)
+      return d ? ok(d) : { code: 404, message: 'not found', data: null }
+    },
+  })
+
+export const likeFeedPost = (postId) =>
+  wmRequest({
+    method: 'POST',
+    path: `/feed/posts/${postId}/like`,
+    mockHandler: () => {
+      try {
+        return ok(mockToggleLike(postId))
+      } catch (e) {
+        return { code: 400, message: e.message, data: null }
+      }
+    },
+  })
+
+export const getFeedComments = (postId, query = {}) =>
+  wmRequest({
+    method: 'GET',
+    path: `/feed/posts/${postId}/comments`,
+    query,
+    mockHandler: ({ query: q }) => ok(mockListFeedComments(postId, q)),
+  })
+
+export const createFeedComment = (postId, payload) =>
+  wmRequest({
+    method: 'POST',
+    path: `/feed/posts/${postId}/comments`,
+    data: payload,
+    needAuth: true,
+    mockHandler: ({ data }) => ok(mockCreateFeedComment(postId, data)),
+  })
+
+export const getActivityPosts = (activityId, query = {}) =>
+  wmRequest({
+    method: 'GET',
+    path: `/activities/${activityId}/posts`,
+    query,
+    mockHandler: ({ query: q }) => ok(mockListActivityPosts(activityId, q)),
+  })
+
+export const createActivityPost = (activityId, payload) =>
+  wmRequest({
+    method: 'POST',
+    path: `/activities/${activityId}/posts`,
+    data: payload,
+    mockHandler: ({ data }) => {
+      const row = mockCreateFeedPost({
+        ...data,
+        postKind: 'activity',
+        activityId: String(activityId),
+      })
+      return ok(row)
+    },
+  })
+
+export const followUser = (userId) =>
+  wmRequest({
+    method: 'POST',
+    path: `/users/${userId}/follow`,
+    mockHandler: () => ok(mockFollowUser(userId, true)),
+  })
+
+export const unfollowUser = (userId) =>
+  wmRequest({
+    method: 'DELETE',
+    path: `/users/${userId}/follow`,
+    mockHandler: () => ok(mockFollowUser(userId, false)),
+  })
+
+export const getFollowStatus = (userId) =>
+  wmRequest({
+    method: 'GET',
+    path: `/users/${userId}/follow`,
+    mockHandler: () => ok(mockGetFollowStatus(userId)),
+  })
+
+export const getUserFeedPosts = (userId, query = {}) =>
+  wmRequest({
+    method: 'GET',
+    path: `/users/${userId}/posts`,
+    query,
+    mockHandler: ({ query: q }) => ok(mockListUserPosts(userId, q)),
+  })
 
 // 30~36 admin
 export const adminListActivities = (query = {}) =>
@@ -1686,6 +1817,20 @@ export function computeActivityStatus(raw) {
   }
 }
 
+const ACTIVITY_POST_HOURS_AFTER_END = 72
+
+/** 与后端 activity_post_window_open 一致：开始后至结束+72h（无 endAt 则 start+72h） */
+export function isActivityPostWindowOpen(raw, nowMs = Date.now()) {
+  const startDt = raw?.startAt ? parseApiDateTime(raw.startAt) : null
+  if (!startDt) return false
+  const startMs = startDt.getTime()
+  const endDt = raw?.endAt ? parseApiDateTime(raw.endAt) : null
+  const windowEndMs = endDt
+    ? endDt.getTime() + ACTIVITY_POST_HOURS_AFTER_END * 60 * 60 * 1000
+    : startMs + ACTIVITY_POST_HOURS_AFTER_END * 60 * 60 * 1000
+  return nowMs >= startMs && nowMs <= windowEndMs
+}
+
 export function resolveActivityCategoryTag(card) {
   const base =
     categoryColorMap[card.categoryId] || {
@@ -1719,7 +1864,7 @@ export function mapActivityCard(card) {
     distance: metersToKm(card.distanceMeters),
     joined: Number(card.enrolledCount || 0),
     total: Number(card.maxMembers || 0),
-    organizer: card.organizer?.nickname || '组织者',
+    organizer: card.organizer?.nickname || '',
     organizerId: card.organizer?.userId || '',
     categoryId: card.categoryId,
     enrollmentStatus: card.enrollmentStatus || card.myEnrollment?.status || null,

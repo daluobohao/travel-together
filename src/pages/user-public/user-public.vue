@@ -25,29 +25,23 @@
         </view>
         <view class="hero__name-row">
           <text class="hero__name">{{ profile.nickname || '用户' }}</text>
-          <view v-if="profile.photoVerified" class="hero__badge hero__badge--photo">
-            <wm-icon name="shield" :size="20" color="#0d9488" />
-            <text>照片已验证</text>
-          </view>
           <view v-if="profile.verificationBadge" class="hero__badge">
             <wm-icon name="check" :size="20" color="#059669" />
             <text>已认证</text>
           </view>
-          <view v-if="profile.premiumBadge" class="hero__badge hero__badge--plus">
-            <text>旅聚+</text>
-          </view>
         </view>
         <text class="hero__stat">已组织 {{ profile.organizedCount || 0 }} 场活动</text>
-        <text
-          v-if="profile.showMeetCount !== false && profile.meetCount >= 1"
-          class="hero__stat"
-        >
-          成功见面 {{ profile.meetCount }} 次
-        </text>
-        <view v-if="displayBadges.length" class="hero__badges">
-          <text v-for="b in displayBadges" :key="b" class="hero__badge-pill">{{ badgeLabel(b) }}</text>
-        </view>
         <text v-if="publicGenderLabel" class="hero__gender">{{ publicGenderLabel }}</text>
+        <view v-if="showFollowBtn" class="hero__follow">
+          <button
+            class="follow-btn"
+            :class="{ 'follow-btn--on': followFollowing }"
+            :disabled="followLoading"
+            @click="toggleFollow"
+          >
+            {{ followFollowing ? '已关注' : '关注' }}
+          </button>
+        </view>
       </view>
 
       <view v-if="profile.tags && profile.tags.length" class="panel">
@@ -61,6 +55,16 @@
         <text class="section-title">个人简介</text>
         <text v-if="profile.bio" class="bio">{{ profile.bio }}</text>
         <text v-else class="bio bio--empty">暂无简介</text>
+      </view>
+
+      <view v-if="userPosts.length" class="panel">
+        <text class="section-title">Ta 的动态</text>
+        <feed-post-card
+          v-for="p in userPosts"
+          :key="p.postId"
+          :item="p"
+          @open="openFeedDetail"
+        />
       </view>
 
       <view v-if="activityIdNorm && !profile.__offlineSnapshot" class="panel panel--dm">
@@ -107,20 +111,26 @@
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
+import FeedPostCard from '@/components/FeedPostCard/FeedPostCard.vue'
 import {
   formatUserGenderLabel,
+  followUser,
+  getFollowStatus,
+  getUserFeedPosts,
   getUserPublicProfile,
   getUserDmContext,
+  getMe,
+  isLoggedIn,
   normalizeActivityIdForApi,
   createDmRequest,
   acceptDmRequest,
   rejectDmRequest,
   cancelDmRequest,
+  unfollowUser,
 } from '@/api'
-import { BADGE_META } from '@/constants/growthTrust'
 
 export default {
-  components: { WmIcon },
+  components: { WmIcon, FeedPostCard },
   data() {
     return {
       loading: true,
@@ -140,9 +150,18 @@ export default {
       showIntro: false,
       introDraft: '',
       targetUserId: '',
+      myUserId: '',
+      followFollowing: false,
+      followLoading: false,
+      userPosts: [],
     }
   },
   computed: {
+    showFollowBtn() {
+      if (!isLoggedIn() || !this.targetUserId || this.profile?.__offlineSnapshot) return false
+      if (!this.myUserId) return true
+      return String(this.myUserId) !== String(this.targetUserId)
+    },
     headerTitle() {
       return this.activityIdNorm ? '用户资料' : '发起人资料'
     },
@@ -165,9 +184,6 @@ export default {
         pending_incoming: '对方已向你发起申请',
       }
       return map[r] || (r ? `暂不可申请（${r}）` : '')
-    },
-    displayBadges() {
-      return (this.profile?.badges || []).slice(0, 6)
     },
   },
   onLoad(query) {
@@ -197,9 +213,6 @@ export default {
     this.loadProfile(userId)
   },
   methods: {
-    badgeLabel(id) {
-      return BADGE_META[id]?.name || id
-    },
     async loadDmContext() {
       if (!this.activityIdNorm || !this.targetUserId || this.profile?.__offlineSnapshot) return
       this.dmLoading = true
@@ -301,6 +314,46 @@ export default {
         __offlineSnapshot: true,
       }
     },
+    openFeedDetail(item) {
+      uni.navigateTo({
+        url: `/pages/feed-detail/feed-detail?postId=${encodeURIComponent(item.postId)}`,
+      })
+    },
+    async loadFollowStatus() {
+      if (!this.showFollowBtn) return
+      try {
+        const d = await getFollowStatus(this.targetUserId)
+        this.followFollowing = !!d?.following
+      } catch (_) {
+        this.followFollowing = false
+      }
+    },
+    async toggleFollow() {
+      if (this.followLoading) return
+      this.followLoading = true
+      try {
+        if (this.followFollowing) {
+          await unfollowUser(this.targetUserId)
+          this.followFollowing = false
+        } else {
+          await followUser(this.targetUserId)
+          this.followFollowing = true
+        }
+      } catch (e) {
+        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      } finally {
+        this.followLoading = false
+      }
+    },
+    async loadUserPosts() {
+      if (!this.targetUserId || this.profile?.__offlineSnapshot) return
+      try {
+        const d = await getUserFeedPosts(this.targetUserId, { page: 1, pageSize: 10 })
+        this.userPosts = d?.list || []
+      } catch (_) {
+        this.userPosts = []
+      }
+    },
     async loadProfile(userId) {
       if (!userId) {
         this.loading = false
@@ -344,6 +397,15 @@ export default {
       } finally {
         this.loading = false
       }
+      if (isLoggedIn()) {
+        try {
+          const me = await getMe()
+          this.myUserId = me?.userId ? String(me.userId) : ''
+        } catch (_) {
+          this.myUserId = ''
+        }
+      }
+      await Promise.all([this.loadFollowStatus(), this.loadUserPosts()])
     },
     goBack() {
       uni.navigateBack({
@@ -417,6 +479,21 @@ export default {
   }
 }
 
+.follow-btn {
+  margin-top: 20rpx;
+  padding: 12rpx 48rpx;
+  font-size: 28rpx;
+  border-radius: 999rpx;
+  background: #0284c7;
+  color: #fff;
+  border: none;
+  line-height: 1.4;
+  &--on {
+    background: #f1f5f9;
+    color: #64748b;
+  }
+}
+
 .hero {
   background: #ffffff;
   border-radius: 24rpx;
@@ -477,38 +554,6 @@ export default {
       color: #059669;
       font-weight: 600;
     }
-
-    &--photo {
-      background: #f0fdfa;
-      text {
-        color: #0d9488;
-      }
-    }
-
-    &--plus {
-      background: linear-gradient(135deg, #e0f2fe, #ccfbf1);
-      text {
-        color: #0284c7;
-        font-weight: 700;
-      }
-    }
-  }
-
-  &__badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10rpx;
-    margin-top: 16rpx;
-    justify-content: center;
-  }
-
-  &__badge-pill {
-    font-size: 22rpx;
-    padding: 6rpx 16rpx;
-    border-radius: 999rpx;
-    background: #f1f5f9;
-    color: $wm-text-2;
-    font-weight: 600;
   }
 
   &__stat {

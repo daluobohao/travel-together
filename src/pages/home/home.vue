@@ -5,7 +5,18 @@
       <view class="home__header-main">
         <view class="home__brand">
           <text class="home__logo">去旅聚</text>
-          <text class="home__subtitle">{{ citySubtitle }}</text>
+          <view class="home__tagline-wrap">
+            <text class="home__tagline">
+              <text class="home__slogan-a">找搭子</text>
+              <text class="home__slogan-sep"> · </text>
+              <text class="home__slogan-b">今天见面</text>
+            </text>
+          </view>
+          <text class="home__subtitle">
+            <text v-if="citySubtitlePlace">{{ citySubtitlePlace }} · </text>
+            <text class="home__slogan-a">找搭子</text>
+            <text v-if="citySubtitleMeta"> · {{ citySubtitleMeta }}</text>
+          </text>
         </view>
         <view class="home__header-actions">
           <!-- #ifdef MP-WEIXIN -->
@@ -37,12 +48,13 @@
           <view class="home__city-hall-text">
             <view class="home__city-hall-title-row">
               <text class="home__city-hall-title">{{ cityHallTitle }}</text>
-              <text class="home__city-hall-badge">免费加入</text>
+              <text v-if="!cityHallJoined" class="home__city-hall-badge">免费加入</text>
+              <text v-else class="home__city-hall-badge home__city-hall-badge--joined">已加入</text>
             </view>
             <text class="home__city-hall-desc">{{ cityHallDesc }}</text>
           </view>
           <view class="home__city-hall-cta">
-            <text>去看看</text>
+            <text>{{ cityHallCtaText }}</text>
           </view>
         </view>
       </view>
@@ -94,16 +106,27 @@
     <!-- Empty state -->
     <view v-else-if="!loading && activities.length === 0" class="home__empty">
       <wm-icon name="users" :size="96" color="#cbd5e1" />
-      <text class="empty-title">附近暂无活动</text>
-      <text class="empty-desc">可切换「全部」查看其他城市活动，或去「发现」浏览推荐</text>
+      <text class="empty-title">今天还没有搭子局</text>
+      <text class="empty-desc">先进群找搭子，或切换「全部」看看其他活动</text>
       <view class="home__empty-actions">
-        <view class="home__empty-btn" @click="onEmptyShowAll">查看全部活动</view>
-        <view class="home__empty-btn home__empty-btn--ghost" @click="onEmptyGoDiscover">去发现</view>
+        <view class="home__empty-btn" @click="onCityHall">进群找搭子</view>
+        <view class="home__empty-btn home__empty-btn--ghost" @click="onEmptyShowAll">查看全部活动</view>
       </view>
     </view>
 
     <!-- Activity list -->
     <view v-else class="home__list">
+      <view class="home__section-head">
+        <view class="home__section-title-wrap">
+          <view class="home__section-accent" />
+          <text class="home__section-title">
+            <text class="home__slogan-a">找搭子</text>
+            <text class="home__slogan-sep"> · </text>
+            <text class="home__slogan-b">今天见面</text>
+          </text>
+        </view>
+        <text v-if="todayActivityCount > 0" class="home__section-meta">{{ todayActivityCount }} 场可加入</text>
+      </view>
       <view v-if="listFallbackHint" class="home__fallback-hint">
         <text>{{ listFallbackHint }}</text>
       </view>
@@ -122,7 +145,13 @@
             </view>
             <view class="tag tag--verified">
               <wm-icon name="check" :size="20" color="#10b981" />
-              <text>已认证</text>
+              <text>发起人已认证</text>
+            </view>
+            <view
+              v-if="item.urgentSpot"
+              class="tag tag--urgent"
+            >
+              <text>{{ item.spotsLabel }}</text>
             </view>
             <view v-if="item.enrollmentStatus === 'joined'" class="tag tag--enrolled">
               <text>已报名</text>
@@ -147,7 +176,7 @@
           </view>
           <view class="meta-row">
             <wm-icon name="mapPin" :size="28" color="#6366f1" />
-            <text class="meta-row__text">{{ item.location }}</text>
+            <text class="meta-row__text">{{ item.locationShort }}</text>
             <text v-if="item.distance" class="meta-row__dist">· {{ item.distance }}</text>
           </view>
         </view>
@@ -155,9 +184,10 @@
         <view class="card__footer">
           <view class="card__quota">
             <wm-icon name="users" :size="26" color="#475569" />
-            <text class="card__quota-text">{{ item.joined }}/{{ item.total }}人</text>
+            <text class="card__quota-text">{{ item.spotsLabel }}</text>
           </view>
-          <text class="card__organizer">发起人：{{ item.organizer }}</text>
+          <text v-if="item.organizer" class="card__organizer">发起人：{{ item.organizer }}</text>
+          <text v-else class="card__organizer card__organizer--muted">发起人已认证</text>
         </view>
       </view>
     </view>
@@ -169,8 +199,16 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
-import { getActivities, getNearbyActivities, mapActivityCard } from '@/api'
+import { getActivities, getCityHallLookup, getNearbyActivities, mapActivityCard } from '@/api'
 import {
+  dedupeHomeActivities,
+  isUrgentSpot,
+  shortLocationName,
+  spotsLeftLabel,
+} from '@/utils/homeActivityCard'
+import { resolveCityHallCityName } from '@/utils/cityCatalog'
+import {
+  buildCityHallCatalogUrl,
   clearHomeSearchAnchor,
   getHomeActivityAnchor,
   getHomeSearchAnchorSync,
@@ -198,14 +236,42 @@ export default {
       loading: false,
       /** 列表为回退数据时提示（如当前城市/时段无活动） */
       listFallbackHint: '',
+      cityHallLookup: null,
+      todayActivityCount: 0,
     }
   },
   computed: {
-    citySubtitle() {
-      const name =
+    cityHallJoined() {
+      return !!this.cityHallLookup?.joined
+    },
+    cityHallMemberCount() {
+      return Number(this.cityHallLookup?.memberCount) || 0
+    },
+    cityHallActivityId() {
+      return this.cityHallLookup?.activityId || ''
+    },
+    citySubtitlePlace() {
+      const code = (this.activityAnchor?.cityCode && String(this.activityAnchor.cityCode).trim()) || ''
+      const fromCatalog = code ? resolveCityHallCityName(code) : ''
+      if (fromCatalog) return fromCatalog.replace(/市$/, '') || fromCatalog
+      const place =
         (this.activityAnchor?.displayName && String(this.activityAnchor.displayName).trim()) ||
-        '定位中'
-      return `${name} · 今天就能找到人`
+        (this.cityHallCityLabel && String(this.cityHallCityLabel).trim()) ||
+        ''
+      if (!place || place === '定位中') return ''
+      return place
+    },
+    citySubtitleMeta() {
+      const parts = []
+      if (this.cityHallMemberCount > 0) {
+        parts.push(`${this.cityHallMemberCount} 人在聊`)
+      }
+      if (this.todayActivityCount > 0) {
+        parts.push(`今天 ${this.todayActivityCount} 场可加入`)
+      } else {
+        parts.push('进群或报名活动')
+      }
+      return parts.join(' · ')
     },
     searchBarText() {
       if (this.hasSearchAnchor && this.activityAnchor?.displayName) {
@@ -214,11 +280,13 @@ export default {
       return '搜索地点，查看附近活动'
     },
     cityHallCityLabel() {
-      const name = (
-        (this.activityAnchor?.cityName && String(this.activityAnchor.cityName).trim()) ||
-        (this.activityAnchor?.displayName && String(this.activityAnchor.displayName).trim()) ||
-        ''
-      )
+      const code = this.activityAnchor?.cityCode
+      const fromCatalog = code ? resolveCityHallCityName(code) : ''
+      if (fromCatalog) return fromCatalog
+      const fromLookup =
+        (this.cityHallLookup?.displayName && String(this.cityHallLookup.displayName).trim()) || ''
+      if (fromLookup) return fromLookup
+      const name = (this.activityAnchor?.cityName && String(this.activityAnchor.cityName).trim()) || ''
       if (!name || name === '定位中') return ''
       return name
     },
@@ -227,7 +295,16 @@ export default {
       return '城市大群 · 选城市进群'
     },
     cityHallDesc() {
-      return '找到同城的旅人，进群随时聊'
+      if (this.cityHallJoined && this.cityHallMemberCount > 0) {
+        return `${this.cityHallMemberCount} 位旅人在聊 · 找搭子先从这里开始`
+      }
+      if (this.cityHallMemberCount > 0) {
+        return `${this.cityHallMemberCount} 位旅人在聊 · 进群找搭子`
+      }
+      return '进群找搭子：拼饭、出行、周末局'
+    },
+    cityHallCtaText() {
+      return this.cityHallJoined ? '进群找搭子' : '免费进群找搭子'
     },
   },
   onShow() {
@@ -245,8 +322,7 @@ export default {
     Promise.resolve(uni.showShareMenu({ withShareTicket: false })).catch(() => {})
     // #endif
     this.syncSearchAnchorUi()
-    this.ensureActivityAnchor().catch(() => {})
-    this.loadActivities()
+    this.loadHomeData()
   },
   onShareAppMessage() {
     const city =
@@ -263,13 +339,14 @@ export default {
       const search = getHomeSearchAnchorSync()
       this.hasSearchAnchor = !!search
       if (search) {
+        const cityName = resolveCityHallCityName(search.cityCode) || search.displayName
         this.activityAnchor = {
           source: 'search',
           lat: search.lat,
           lng: search.lng,
           cityCode: search.cityCode,
           displayName: search.displayName,
-          cityName: search.displayName,
+          cityName,
         }
       }
     },
@@ -285,7 +362,7 @@ export default {
     async onClearSearch() {
       clearHomeSearchAnchor()
       this.hasSearchAnchor = false
-      await this.loadActivities()
+      await this.loadHomeData()
     },
     chipToDateRange(chip) {
       if (chip === 'today') return 'today'
@@ -355,14 +432,55 @@ export default {
       }
       return { list, hint }
     },
-    async loadActivities() {
+    decorateActivityCards(list) {
+      return dedupeHomeActivities(list).map((item) => {
+        const spotsLabel = spotsLeftLabel(item.joined, item.total)
+        return {
+          ...item,
+          locationShort: shortLocationName(item.location),
+          spotsLabel,
+          urgentSpot: isUrgentSpot(item.joined, item.total),
+        }
+      })
+    },
+    async loadCityHallStats(cityCode) {
+      const cc = (cityCode && String(cityCode).trim()) || ''
+      if (!cc) {
+        this.cityHallLookup = null
+        return
+      }
+      try {
+        this.cityHallLookup = await getCityHallLookup(cc)
+      } catch (_) {
+        this.cityHallLookup = null
+      }
+    },
+    async loadTodayActivityCount(cityCode) {
+      const cc = (cityCode && String(cityCode).trim()) || ''
+      if (!cc) {
+        this.todayActivityCount = 0
+        return
+      }
+      try {
+        const data = await getActivities({ cityCode: cc, dateRange: 'today', page: 1, pageSize: 1 })
+        this.todayActivityCount = Number(data?.total) || 0
+      } catch (_) {
+        this.todayActivityCount = 0
+      }
+    },
+    async loadHomeData() {
       this.loading = true
       this.activities = []
       this.listFallbackHint = ''
       try {
         const anchor = await this.ensureActivityAnchor()
+        const cityCode = anchor?.cityCode || ''
+        await Promise.all([
+          this.loadCityHallStats(cityCode),
+          this.loadTodayActivityCount(cityCode),
+        ])
         const { list, hint } = await this.loadActivitiesWithFallback(anchor, this.activeChip)
-        this.activities = list
+        this.activities = this.decorateActivityCards(list)
         this.listFallbackHint = hint
       } catch (e) {
         this.activities = []
@@ -374,11 +492,11 @@ export default {
     },
     onEmptyShowAll() {
       if (this.activeChip === 'all') {
-        this.loadActivities()
+        this.loadHomeData()
         return
       }
       this.activeChip = 'all'
-      this.loadActivities()
+      this.loadHomeData()
     },
     onEmptyGoDiscover() {
       uni.switchTab({ url: '/pages/discover/discover' })
@@ -386,7 +504,7 @@ export default {
     onChipClick(key) {
       if (key === this.activeChip) return
       this.activeChip = key
-      this.loadActivities()
+      this.loadHomeData()
     },
     onOpenActivity(item) {
       uni.navigateTo({
@@ -394,15 +512,24 @@ export default {
       })
     },
     onCityHall() {
+      if (this.cityHallJoined) {
+        uni.navigateTo({ url: buildCityHallCatalogUrl(this.activityAnchor) })
+        return
+      }
       const code = (this.activityAnchor?.cityCode && String(this.activityAnchor.cityCode).trim()) || ''
-      const label = this.cityHallCityLabel
+      const cityName = this.cityHallCityLabel
+      const place =
+        this.activityAnchor?.source === 'search' && this.activityAnchor?.displayName
+          ? String(this.activityAnchor.displayName).trim()
+          : ''
       if (code) {
         const q = [`cityCode=${encodeURIComponent(code)}`]
-        if (label) q.push(`cityLabel=${encodeURIComponent(label)}`)
+        if (cityName) q.push(`cityLabel=${encodeURIComponent(cityName)}`)
+        if (place && place !== cityName) q.push(`placeName=${encodeURIComponent(place)}`)
         uni.navigateTo({ url: `/pages/city-hall/city-hall?${q.join('&')}` })
         return
       }
-      uni.navigateTo({ url: '/pages/city-hall/city-hall' })
+      uni.navigateTo({ url: buildCityHallCatalogUrl(this.activityAnchor) })
     },
     onCopyHomeShare() {
       const city =
@@ -498,11 +625,43 @@ export default {
     line-height: 64rpx;
   }
 
+  &__tagline-wrap {
+    align-self: flex-start;
+    margin-top: 2rpx;
+    padding: 8rpx 22rpx;
+    border-radius: $wm-radius-pill;
+    background: rgba(251, 146, 60, 0.14);
+    border: 2rpx solid rgba(251, 146, 60, 0.35);
+    box-shadow: 0 4rpx 16rpx rgba(251, 146, 60, 0.16);
+  }
+
+  &__tagline {
+    font-size: 30rpx;
+    font-weight: 800;
+    line-height: 42rpx;
+    letter-spacing: 2rpx;
+  }
+
+  &__slogan-a,
+  &__slogan-b {
+    color: #fb923c;
+    font-weight: 800;
+  }
+
+  &__slogan-sep {
+    color: rgba(251, 146, 60, 0.55);
+    font-weight: 600;
+  }
+
   &__subtitle {
     font-size: 26rpx;
     color: $wm-text-3;
     line-height: 36rpx;
     font-weight: 500;
+
+    .home__slogan-a {
+      font-weight: 800;
+    }
   }
 
   &__search {
@@ -617,6 +776,12 @@ export default {
     padding: 4rpx 14rpx;
     border-radius: 999rpx;
     border: 1rpx solid rgba(16, 185, 129, 0.35);
+
+    &--joined {
+      color: #4338ca;
+      background: rgba(224, 231, 255, 0.95);
+      border-color: rgba(99, 102, 241, 0.35);
+    }
   }
 
   &__city-hall-desc {
@@ -684,6 +849,43 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 28rpx;
+  }
+
+  &__section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16rpx;
+    margin-bottom: -8rpx;
+  }
+
+  &__section-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+    min-width: 0;
+  }
+
+  &__section-accent {
+    flex-shrink: 0;
+    width: 8rpx;
+    height: 36rpx;
+    border-radius: 999rpx;
+    background: linear-gradient(180deg, #fdba74 0%, #fb923c 100%);
+    box-shadow: 0 2rpx 12rpx rgba(251, 146, 60, 0.32);
+  }
+
+  &__section-title {
+    font-size: 36rpx;
+    font-weight: 800;
+    letter-spacing: 1rpx;
+    line-height: 1.35;
+  }
+
+  &__section-meta {
+    font-size: 24rpx;
+    color: $wm-text-3;
+    font-weight: 500;
   }
 }
 
@@ -901,6 +1103,10 @@ export default {
   &__organizer {
     font-size: 22rpx;
     color: $wm-text-3;
+
+    &--muted {
+      color: #64748b;
+    }
   }
 }
 
@@ -933,6 +1139,11 @@ export default {
   &--enrolled {
     background: $wm-primary-soft;
     color: $wm-primary;
+  }
+
+  &--urgent {
+    background: #fff7ed;
+    color: #ea580c;
   }
 }
 
