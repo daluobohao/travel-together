@@ -21,5 +21,12 @@ export function chatMessageCopyText(msg) {
   if (!msg) return ''
   if (msg.msgType === 'image') return msg.imageUrl || ''
   if (msg.msgType === 'sticker') return msg.stickerEmoji || ''
+  if (msg.msgType === 'location') {
+    const name = msg.locationName || '位置'
+    const addr = msg.address || ''
+    const coords =
+      msg.lat != null && msg.lng != null ? `（${msg.lat},${msg.lng}）` : ''
+    return [name, addr, coords].filter(Boolean).join(' ')
+  }
   return msg.text || ''
 }

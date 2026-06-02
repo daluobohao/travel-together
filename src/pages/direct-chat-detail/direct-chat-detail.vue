@@ -42,6 +42,7 @@
                   'msg-bubble--failed': item.failed,
                   'msg-bubble--image': item.msgType === 'image',
                   'msg-bubble--sticker': item.msgType === 'sticker',
+                  'msg-bubble--location': item.msgType === 'location',
                 }"
                 @longpress.stop="copyChatMessage(item)"
               >
@@ -51,6 +52,12 @@
                   :src="item.imageUrl"
                   mode="widthFix"
                   @click.stop="previewChatImage(item.imageUrl)"
+                />
+                <chat-location-bubble
+                  v-else-if="item.msgType === 'location'"
+                  :location-name="item.locationName"
+                  :address="item.address"
+                  @open="openLocationMessage(item)"
                 />
                 <text v-else-if="item.msgType === 'sticker'" class="msg-bubble__sticker" selectable>{{ item.stickerEmoji }}</text>
                 <text v-else class="msg-bubble__text" selectable>{{ item.text }}</text>
@@ -80,6 +87,9 @@
       <view class="dm-chat__image-btn" @click="sendImageMessage">
         <wm-icon name="camera" :size="36" color="#64748b" />
       </view>
+      <view class="dm-chat__loc-btn" @click="openLocationPicker">
+        <wm-icon name="mapPin" :size="36" color="#64748b" />
+      </view>
       <input
         v-model="draft"
         class="dm-chat__input"
@@ -103,11 +113,18 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import ChatEmojiPanel from '@/components/ChatEmojiPanel/ChatEmojiPanel.vue'
+import ChatLocationBubble from '@/components/ChatLocationBubble/ChatLocationBubble.vue'
 import { getDirectMessages, getMe, markDirectChatRead, sendDirectMessage } from '@/api'
 import { chooseAndUploadChatImage } from '@/utils/chatImagePicker'
 import { getStickerEmoji } from '@/constants/chatStickers'
 import { parseChatMessageFields } from '@/utils/chatMessageFields'
 import { chatMessageCopyText, copyTextToClipboard } from '@/utils/clipboard'
+import {
+  buildLocationMessagePayload,
+  clearChatLocationPickResult,
+  openChatLocationOnMap,
+  readChatLocationPickResult,
+} from '@/utils/chatLocation'
 
 const TIME_GAP_MS = 5 * 60 * 1000
 
@@ -135,7 +152,7 @@ function formatTimeDivider(iso, prevIso) {
 }
 
 export default {
-  components: { WmIcon, ChatEmojiPanel },
+  components: { WmIcon, ChatEmojiPanel, ChatLocationBubble },
   data() {
     return {
       threadId: '',
@@ -149,6 +166,7 @@ export default {
       myNickname: '我',
       myAvatarUrl: '',
       sendingImage: false,
+      sendingLocation: false,
       showEmojiPanel: false,
     }
   },
@@ -174,6 +192,7 @@ export default {
     this.bootstrap()
   },
   onShow() {
+    this.trySendPickedLocation()
     if (this.threadId) markDirectChatRead(this.threadId).catch(() => {})
   },
   methods: {
@@ -382,6 +401,63 @@ export default {
         this.sendingImage = false
       }
     },
+    openLocationPicker() {
+      this.showEmojiPanel = false
+      uni.navigateTo({ url: '/pages/location-picker/location-picker?from=chat' })
+    },
+    trySendPickedLocation() {
+      const loc = readChatLocationPickResult()
+      if (!loc) return
+      clearChatLocationPickResult()
+      this.sendLocationMessage(loc)
+    },
+    openLocationMessage(item) {
+      openChatLocationOnMap(item)
+    },
+    async sendLocationMessage(loc) {
+      if (this.sendingLocation || !this.threadId || !loc) return
+      this.showEmojiPanel = false
+      this.sendingLocation = true
+      const payload = buildLocationMessagePayload(loc)
+      const tempId = `temp_loc_${Date.now()}`
+      const nowIso = new Date().toISOString()
+      const fields = parseChatMessageFields({ msgType: 'location', ...payload })
+      this.messages.push({
+        id: tempId,
+        mine: true,
+        pending: true,
+        failed: false,
+        createdAt: nowIso,
+        avatarUrl: this.myAvatarUrl,
+        avatarLetter: String(this.myNickname || '我').slice(0, 1),
+        ...fields,
+      })
+      this.messageIds[tempId] = true
+      this.scrollToBottom()
+      try {
+        const row = await sendDirectMessage(this.threadId, payload)
+        const realId = row?.messageId
+        const idx = this.messages.findIndex((m) => m.id === tempId)
+        const normalized = this.normalizeMessage(row, { skipDedup: true })
+        if (idx >= 0 && normalized) {
+          if (realId && !this.messageIds[realId]) {
+            this.messageIds[realId] = true
+            this.messages.splice(idx, 1, { ...normalized, mine: true, pending: false })
+          } else {
+            this.messages[idx].pending = false
+          }
+        }
+        await markDirectChatRead(this.threadId)
+      } catch (e) {
+        const idx = this.messages.findIndex((m) => m.id === tempId)
+        if (idx >= 0) {
+          this.messages.splice(idx, 1, { ...this.messages[idx], failed: true, pending: false })
+        }
+        uni.showToast({ title: e?.message || '发送失败', icon: 'none' })
+      } finally {
+        this.sendingLocation = false
+      }
+    },
     async sendMessage() {
       const text = (this.draft || '').trim()
       if (!text || !this.threadId) return
@@ -519,7 +595,8 @@ export default {
   }
 
   &__emoji-btn,
-  &__image-btn {
+  &__image-btn,
+  &__loc-btn {
     width: 72rpx;
     height: 72rpx;
     border-radius: 14rpx;
@@ -670,6 +747,12 @@ export default {
     padding: 0;
     background: transparent;
     max-width: 200rpx;
+  }
+
+  &--location {
+    padding: 0;
+    background: transparent;
+    max-width: 520rpx;
   }
 
   &__text {

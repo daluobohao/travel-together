@@ -90,6 +90,7 @@
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
+import { CHAT_LOCATION_PICK_KEY } from '@/utils/chatLocation'
 import { getCurrentPositionGcj02, supportsWxLocationScopeApi } from '@/utils/geoLocation'
 import {
   adcodeToListCityCode,
@@ -181,7 +182,7 @@ export default {
       previewLat: DEFAULT_LOCATION.lat,
       currentCity: '',
       hasLocated: false,
-      /** `home`：首页搜地点；缺省为发布选点 */
+      /** `home` / `discover` / `chat`；缺省为发布选点 */
       pickerFrom: '',
     }
   },
@@ -525,6 +526,13 @@ export default {
           uni.reLaunch({ url: '/pages/home/home' })
           return
         }
+      } else if (this.pickerFrom === 'chat') {
+        uni.setStorageSync(CHAT_LOCATION_PICK_KEY, {
+          name: item.name || '',
+          address: item.address || '',
+          lng,
+          lat,
+        })
       } else {
         uni.setStorageSync('PUBLISH_LOCATION_PICK_RESULT', {
           name: item.name || '',

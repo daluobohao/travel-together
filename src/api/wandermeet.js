@@ -33,6 +33,41 @@ import { isKnownStickerId } from '@/constants/chatStickers'
 
 const ok = (data) => ({ code: 0, message: 'ok', data })
 
+function mockChatMessageRow(base, data) {
+  const msgType = data.msgType || 'text'
+  const row = {
+    ...base,
+    msgType,
+    text: msgType === 'text' ? data.text || null : null,
+    imageUrl: msgType === 'image' ? data.imageUrl || null : null,
+    stickerId: msgType === 'sticker' ? data.stickerId : null,
+    locationName: null,
+    address: null,
+    lat: null,
+    lng: null,
+    createdAt: new Date().toISOString(),
+  }
+  if (msgType === 'location') {
+    row.locationName = data.locationName || null
+    row.address = data.address || null
+    row.lat = data.lat
+    row.lng = data.lng
+  }
+  return row
+}
+
+function mockChatLastPreview(msg) {
+  if (!msg) return null
+  const t = msg.msgType
+  if (t === 'image') return '[图片]'
+  if (t === 'sticker') return '[表情]'
+  if (t === 'location') {
+    const n = msg.locationName || ''
+    return n ? `[位置] ${String(n).slice(0, 24)}` : '[位置]'
+  }
+  return msg.text || null
+}
+
 function buildMockCityHallCatalog() {
   const provinces = cityHallPrefectures.map((blk) => ({
     provinceCode: blk.provinceCode,
@@ -1055,16 +1090,19 @@ export const sendActivityMessage = (activityId, payload) =>
       if (data.msgType === 'sticker' && !isKnownStickerId(data.stickerId)) {
         return { code: 400, message: 'Unknown stickerId', data: null }
       }
-      const row = {
-        messageId: `msg_${Date.now()}`,
-        activityId: String(activityId),
-        sender: { userId: wmDB.profile.userId, nickname: wmDB.profile.nickname, avatarUrl: null },
-        msgType: data.msgType,
-        text: data.msgType === 'text' ? data.text || null : null,
-        imageUrl: data.msgType === 'image' ? data.imageUrl || null : null,
-        stickerId: data.msgType === 'sticker' ? data.stickerId : null,
-        createdAt: new Date().toISOString(),
+      if (data.msgType === 'location') {
+        if (!data.locationName || data.lat == null || data.lng == null) {
+          return { code: 400, message: 'locationName, lat, lng required', data: null }
+        }
       }
+      const row = mockChatMessageRow(
+        {
+          messageId: `msg_${Date.now()}`,
+          activityId: String(activityId),
+          sender: { userId: wmDB.profile.userId, nickname: wmDB.profile.nickname, avatarUrl: null },
+        },
+        data
+      )
       if (!wmDB.chats[String(activityId)]) wmDB.chats[String(activityId)] = []
       wmDB.chats[String(activityId)].push(row)
       return ok(row)
@@ -1682,8 +1720,7 @@ export const getMyChats = (query = {}) =>
         .map((activity) => {
           const chatList = wmDB.chats[String(activity.activityId)] || []
           const last = chatList.length ? chatList[chatList.length - 1] : null
-          const lastMessage =
-            last?.msgType === 'image' ? '[图片]' : last?.text || null
+          const lastMessage = mockChatLastPreview(last)
           // Keep member count logic compatible:
           const memberCount =
             typeof activity.enrolledCount !== 'undefined'
@@ -1990,7 +2027,7 @@ export const getDirectChats = (query = {}) =>
             peerUserId: peer,
             peerNickname: u?.nickname || '用户',
             peerAvatarUrl: u?.avatarUrl || null,
-            lastMessage: last ? (last.msgType === 'image' ? '[图片]' : last.text) : null,
+            lastMessage: mockChatLastPreview(last),
             lastMessageAt: last?.createdAt || null,
             unreadCount: 0,
           }
@@ -2026,6 +2063,11 @@ export const getDirectMessages = (threadId, query = {}) =>
         msgType: m.msgType,
         text: m.text,
         imageUrl: m.imageUrl,
+        stickerId: m.stickerId,
+        locationName: m.locationName,
+        address: m.address,
+        lat: m.lat,
+        lng: m.lng,
         createdAt: m.createdAt,
       }))
       const nextCursor = mapped.length ? mapped[0].messageId : null
@@ -2051,20 +2093,23 @@ export const sendDirectMessage = (threadId, payload) =>
       if (data.msgType === 'sticker' && !isKnownStickerId(data.stickerId)) {
         return { code: 400, message: 'Unknown stickerId', data: null }
       }
-      const row = {
-        messageId: `dmmsg_${Date.now()}`,
-        threadId: `dmthr_${tid}`,
-        sender: {
-          userId: wmDB.profile.userId,
-          nickname: wmDB.profile.nickname,
-          avatarUrl: wmDB.profile.avatarUrl,
-        },
-        msgType: data.msgType || 'text',
-        text: data.msgType === 'text' ? data.text || null : null,
-        imageUrl: data.msgType === 'image' ? data.imageUrl || null : null,
-        stickerId: data.msgType === 'sticker' ? data.stickerId : null,
-        createdAt: new Date().toISOString(),
+      if (data.msgType === 'location') {
+        if (!data.locationName || data.lat == null || data.lng == null) {
+          return { code: 400, message: 'locationName, lat, lng required', data: null }
+        }
       }
+      const row = mockChatMessageRow(
+        {
+          messageId: `dmmsg_${Date.now()}`,
+          threadId: `dmthr_${tid}`,
+          sender: {
+            userId: wmDB.profile.userId,
+            nickname: wmDB.profile.nickname,
+            avatarUrl: wmDB.profile.avatarUrl,
+          },
+        },
+        data
+      )
       if (!wmDB.dmMessages[String(tid)]) wmDB.dmMessages[String(tid)] = []
       wmDB.dmMessages[String(tid)].push({
         messageId: row.messageId,
@@ -2073,6 +2118,10 @@ export const sendDirectMessage = (threadId, payload) =>
         text: row.text,
         imageUrl: row.imageUrl,
         stickerId: row.stickerId,
+        locationName: row.locationName,
+        address: row.address,
+        lat: row.lat,
+        lng: row.lng,
         createdAt: row.createdAt,
       })
       return ok(row)

@@ -4,6 +4,7 @@ export function inferMsgType(raw) {
   if (raw?.msgType) return raw.msgType
   if (raw?.stickerId) return 'sticker'
   if (raw?.imageUrl) return 'image'
+  if (raw?.locationName != null && raw?.lat != null && raw?.lng != null) return 'location'
   return 'text'
 }
 
@@ -17,5 +18,9 @@ export function parseChatMessageFields(raw) {
     imageUrl: msgType === 'image' ? raw?.imageUrl || '' : '',
     stickerId,
     stickerEmoji: msgType === 'sticker' ? getStickerEmoji(stickerId) : '',
+    locationName: msgType === 'location' ? raw?.locationName || '' : '',
+    address: msgType === 'location' ? raw?.address || '' : '',
+    lat: msgType === 'location' ? raw?.lat : null,
+    lng: msgType === 'location' ? raw?.lng : null,
   }
 }

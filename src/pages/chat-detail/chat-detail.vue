@@ -57,6 +57,7 @@
                   'msg-bubble--failed': item.failed,
                   'msg-bubble--image': item.msgType === 'image',
                   'msg-bubble--sticker': item.msgType === 'sticker',
+                  'msg-bubble--location': item.msgType === 'location',
                 }"
                 @longpress.stop="copyChatMessage(item)"
               >
@@ -66,6 +67,12 @@
                   :src="item.imageUrl"
                   mode="widthFix"
                   @click.stop="previewChatImage(item.imageUrl)"
+                />
+                <chat-location-bubble
+                  v-else-if="item.msgType === 'location'"
+                  :location-name="item.locationName"
+                  :address="item.address"
+                  @open="openLocationMessage(item)"
                 />
                 <text v-else-if="item.msgType === 'sticker'" class="msg-bubble__sticker" selectable>{{ item.stickerEmoji }}</text>
                 <text v-else class="msg-bubble__text" selectable>{{ item.text }}</text>
@@ -98,6 +105,9 @@
       <view class="chat-detail__image-btn" @click="sendImageMessage">
         <wm-icon name="camera" :size="36" color="#64748b" />
       </view>
+      <view class="chat-detail__loc-btn" @click="openLocationPicker">
+        <wm-icon name="mapPin" :size="36" color="#64748b" />
+      </view>
       <input
         v-model="draft"
         class="chat-detail__input"
@@ -121,6 +131,7 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import ChatEmojiPanel from '@/components/ChatEmojiPanel/ChatEmojiPanel.vue'
+import ChatLocationBubble from '@/components/ChatLocationBubble/ChatLocationBubble.vue'
 import {
   API_BASE_URL,
   getAccessToken,
@@ -136,6 +147,12 @@ import { chooseAndUploadChatImage } from '@/utils/chatImagePicker'
 import { getStickerEmoji } from '@/constants/chatStickers'
 import { parseChatMessageFields } from '@/utils/chatMessageFields'
 import { chatMessageCopyText, copyTextToClipboard } from '@/utils/clipboard'
+import {
+  buildLocationMessagePayload,
+  clearChatLocationPickResult,
+  openChatLocationOnMap,
+  readChatLocationPickResult,
+} from '@/utils/chatLocation'
 import {
   getLastServerMessageId,
   loadActivityChatCache,
@@ -182,7 +199,7 @@ function buildWsUrl(activityId) {
 }
 
 export default {
-  components: { WmIcon, ChatEmojiPanel },
+  components: { WmIcon, ChatEmojiPanel, ChatLocationBubble },
   data() {
     return {
       chatId: '',
@@ -204,6 +221,7 @@ export default {
       currentUserNickname: '',
       currentUserAvatar: '',
       sendingImage: false,
+      sendingLocation: false,
       showEmojiPanel: false,
     }
   },
@@ -232,6 +250,7 @@ export default {
   },
   onShow() {
     this.pollingPaused = false
+    this.trySendPickedLocation()
     // 回到前台先拉一次
     this.fetchIncremental().catch(() => {})
   },
@@ -346,7 +365,9 @@ export default {
             m.text !== this.messages[i]?.text ||
             m.imageUrl !== this.messages[i]?.imageUrl ||
             m.msgType !== this.messages[i]?.msgType ||
-            m.stickerId !== this.messages[i]?.stickerId
+            m.stickerId !== this.messages[i]?.stickerId ||
+            m.locationName !== this.messages[i]?.locationName ||
+            m.lat !== this.messages[i]?.lat
         )
       if (changed) {
         this.messages = merged
@@ -650,6 +671,69 @@ export default {
         this.sendingImage = false
       }
     },
+    openLocationPicker() {
+      this.showEmojiPanel = false
+      uni.navigateTo({ url: '/pages/location-picker/location-picker?from=chat' })
+    },
+    trySendPickedLocation() {
+      const loc = readChatLocationPickResult()
+      if (!loc) return
+      clearChatLocationPickResult()
+      this.sendLocationMessage(loc)
+    },
+    openLocationMessage(item) {
+      openChatLocationOnMap(item)
+    },
+    async sendLocationMessage(loc) {
+      if (this.sendingLocation || !loc) return
+      this.showEmojiPanel = false
+      this.sendingLocation = true
+      const payload = buildLocationMessagePayload(loc)
+      const tempId = `temp_loc_${Date.now()}`
+      const nowIso = new Date().toISOString()
+      const fields = parseChatMessageFields({ msgType: 'location', ...payload })
+      this.messages.push({
+        id: tempId,
+        sender: this.currentUserNickname || '我',
+        mine: true,
+        pending: true,
+        createdAt: nowIso,
+        avatarUrl: this.currentUserAvatar,
+        avatarLetter: String(this.currentUserNickname || '我').slice(0, 1),
+        ...fields,
+      })
+      this.messageIds[tempId] = true
+      this.scrollToBottom()
+      try {
+        const row = await sendActivityMessage(this.chatId, payload)
+        const realId = row?.messageId
+        const idx = this.messages.findIndex((m) => m.id === tempId)
+        const normalized = this.normalizeMessage(row, { skipDedup: true })
+        if (idx >= 0 && normalized) {
+          if (realId && !this.messageIds[realId]) {
+            this.messageIds[realId] = true
+            this.messages.splice(idx, 1, { ...normalized, mine: true, pending: false })
+          } else {
+            this.messages[idx].pending = false
+          }
+        }
+        this.updateLastCreatedAt([{ createdAt: row?.createdAt }])
+        this.persistCache()
+        try {
+          await markMyChatRead(this.chatId)
+        } catch (e) {
+          console.warn('标记已读失败', e)
+        }
+      } catch (e) {
+        const idx = this.messages.findIndex((m) => m.id === tempId)
+        if (idx >= 0) {
+          this.messages.splice(idx, 1, { ...this.messages[idx], failed: true, pending: false })
+        }
+        uni.showToast({ title: e?.message || '发送失败', icon: 'none' })
+      } finally {
+        this.sendingLocation = false
+      }
+    },
     async sendMessage() {
       const text = (this.draft || '').trim()
       if (!text) return
@@ -791,7 +875,8 @@ export default {
   }
 
   &__emoji-btn,
-  &__image-btn {
+  &__image-btn,
+  &__loc-btn {
     width: 72rpx;
     height: 72rpx;
     border-radius: 14rpx;
@@ -957,6 +1042,12 @@ export default {
     padding: 0;
     background: transparent;
     max-width: 200rpx;
+  }
+
+  &--location {
+    padding: 0;
+    background: transparent;
+    max-width: 520rpx;
   }
 
   &__text {
