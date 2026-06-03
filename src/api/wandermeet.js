@@ -1460,6 +1460,21 @@ export const getCityFeed = (query = {}) =>
     mockHandler: ({ query: q }) => ok(mockListFeed(q)),
   })
 
+/** 发布前内容安全检测（微信 msgSecCheck）；scene: 1资料 2评论 3论坛 4社交日志 */
+export const checkContentSec = (payload) =>
+  wmRequest({
+    method: 'POST',
+    path: '/content/sec-check',
+    data: payload,
+    mockHandler: ({ data }) => {
+      const text = String(data?.content || '').trim()
+      if (/违规测试|色情|赌博|毒品/.test(text)) {
+        return { code: 400, message: '所发布内容含违规信息，请修改后重试', data: null }
+      }
+      return ok({ safe: true })
+    },
+  })
+
 export const createFeedPost = (payload) =>
   wmRequest({
     method: 'POST',
@@ -1513,6 +1528,8 @@ export const getActivityPosts = (activityId, query = {}) =>
     method: 'GET',
     path: `/activities/${activityId}/posts`,
     query,
+    needAuth: false,
+    tokenIfPresent: true,
     mockHandler: ({ query: q }) => ok(mockListActivityPosts(activityId, q)),
   })
 

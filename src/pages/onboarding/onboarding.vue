@@ -1,14 +1,14 @@
 <template>
   <view class="page ob">
     <view class="ob__head">
-      <text class="ob__brand">去旅聚 WanderMeet</text>
+      <text class="ob__brand">旅聚 WanderMeet</text>
       <text class="ob__progress">{{ step + 1 }} / {{ totalSteps }}</text>
     </view>
 
     <view v-if="meta" class="ob__body">
       <!-- 0 渠道 -->
       <view v-if="step === 0" class="ob__panel">
-        <text class="ob__title">你怎么知道去旅聚的？</text>
+        <text class="ob__title">你怎么知道旅聚的？</text>
         <text class="ob__sub">帮助我们做得更好</text>
         <view class="ob__chips ob__chips--wrap">
           <view
@@ -193,7 +193,7 @@
       <!-- 12 完成 -->
       <view v-if="step === 12" class="ob__panel">
         <text class="ob__title">准备好了</text>
-        <text class="ob__desc">点击下方按钮保存资料并进入去旅聚。稍后可在「我的」中继续编辑。</text>
+        <text class="ob__desc">点击下方按钮保存资料并进入旅聚。稍后可在「我的」中继续编辑。</text>
       </view>
     </view>
 
@@ -206,7 +206,7 @@
         <text>上一步</text>
       </view>
       <view class="ob__btn ob__btn--primary" :class="{ 'ob__btn--disabled': !canNext && step < 12 }" @click="next">
-        <text>{{ step >= 12 ? '进入去旅聚' : '下一步' }}</text>
+        <text>{{ step >= 12 ? '进入旅聚' : '下一步' }}</text>
       </view>
     </view>
   </view>
@@ -218,6 +218,8 @@
  * navigateAfterLogin → profile-edit?first=1。恢复多步引导时勿删本页。
  */
 import { getOnboardingMeta, updateMe } from '@/api'
+import { ensureTextFieldsSafe, SEC_SCENE } from '@/utils/contentSecurity'
+import { buildDefaultTimelineShare, DEFAULT_MINI_PROGRAM_SHARE } from '@/utils/activityShare'
 
 const MAX_TAGS = 10
 
@@ -283,6 +285,33 @@ export default {
       uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
     }
   },
+  onShow() {
+    // #ifdef MP-WEIXIN
+    try {
+      uni.showShareMenu({
+        withShareTicket: true,
+        menus: ['shareAppMessage', 'shareTimeline'],
+      })
+    } catch (_) {
+      /* ignore */
+    }
+    // #endif
+    // #ifdef MP-TOUTIAO
+    try {
+      uni.showShareMenu({ withShareTicket: false })
+    } catch (_) {
+      /* ignore */
+    }
+    // #endif
+  },
+  onShareAppMessage() {
+    return { ...DEFAULT_MINI_PROGRAM_SHARE }
+  },
+  // #ifdef MP-WEIXIN
+  onShareTimeline() {
+    return buildDefaultTimelineShare()
+  },
+  // #endif
   methods: {
     toggleTraveler(id) {
       const next = { ...this.travelerSet }
@@ -366,8 +395,16 @@ export default {
       }
       if (bio) payload.bio = bio
       try {
+        await ensureTextFieldsSafe(
+          {
+            nickname: payload.nickname,
+            bio: payload.bio,
+            currentPlace: payload.currentPlace,
+          },
+          SEC_SCENE.PROFILE,
+        )
         await updateMe(payload)
-        uni.showToast({ title: '欢迎加入去旅聚', icon: 'success' })
+        uni.showToast({ title: '欢迎加入旅聚', icon: 'success' })
         setTimeout(() => {
           uni.reLaunch({ url: '/pages/home/home' })
         }, 400)

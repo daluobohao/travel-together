@@ -106,6 +106,7 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import { isLoggedIn, submitUserFeedback } from '@/api'
+import { ensureTextFieldsSafe, SEC_SCENE } from '@/utils/contentSecurity'
 
 const ISSUE_SCENES = [
   { id: 'other', label: '一般建议' },
@@ -209,6 +210,14 @@ export default {
       this.submitting = true
       try {
         const payload = this.buildFeedbackPayload()
+        await ensureTextFieldsSafe(
+          {
+            description: payload.description,
+            expectation: payload.expectation,
+            contactNote: payload.contactNote,
+          },
+          SEC_SCENE.COMMENT,
+        )
         await submitUserFeedback(payload)
         uni.showModal({
           title: '已收到',

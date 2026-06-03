@@ -23,6 +23,21 @@
           </view>
         </view>
       </view>
+
+      <view class="panel">
+        <text class="panel__label">位置（可选）</text>
+        <view class="loc-row" @click="pickLocation">
+          <wm-icon name="mapPin" :size="32" color="#0d9488" />
+          <view class="loc-row__text">
+            <text v-if="location" class="loc-row__name">{{ location.locationName }}</text>
+            <text v-else class="loc-row__placeholder">添加位置，让同城更容易找到你</text>
+            <text v-if="location?.address" class="loc-row__addr">{{ location.address }}</text>
+          </view>
+          <text v-if="location" class="loc-row__clear" @click.stop="clearLocation">清除</text>
+          <text v-else class="loc-row__chev">›</text>
+        </view>
+      </view>
+
       <view v-if="!activityId" class="panel">
         <text class="panel__label">话题（可选）</text>
         <view class="topic-row">
@@ -47,7 +62,23 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import { createActivityPost, createFeedPost, FEED_TOPICS, uploadFeedImage } from '@/api'
+import { ensureTextContentSafe, SEC_SCENE } from '@/utils/contentSecurity'
 import { prepareChatImageForUpload, validateChatImageFile } from '@/utils/avatarImage'
+import {
+  buildFeedLocationPayload,
+  clearFeedLocationPickResult,
+  readFeedLocationPickResult,
+} from '@/utils/feedLocation'
+
+function decodeQueryValue(raw) {
+  const s = raw != null ? String(raw) : ''
+  if (!s) return ''
+  try {
+    return decodeURIComponent(s.replace(/\+/g, ' '))
+  } catch (_) {
+    return s
+  }
+}
 
 export default {
   components: { WmIcon },
@@ -58,6 +89,7 @@ export default {
       uploadedUrls: [],
       cityCode: '110000',
       activityId: '',
+      location: null,
       topics: FEED_TOPICS,
       selectedTopics: [],
       submitting: false,
@@ -66,6 +98,32 @@ export default {
   methods: {
     goBack() {
       uni.navigateBack()
+    },
+    syncLocationPickResult() {
+      const picked = readFeedLocationPickResult()
+      if (picked) {
+        this.location = picked
+        clearFeedLocationPickResult()
+      }
+    },
+    pickLocation() {
+      uni.navigateTo({ url: '/pages/location-picker/location-picker?from=feed' })
+    },
+    clearLocation() {
+      this.location = null
+      clearFeedLocationPickResult()
+    },
+    applyDefaultLocation(options = {}) {
+      const name = decodeQueryValue(options.locationName)
+      const lat = Number(options.lat)
+      const lng = Number(options.lng)
+      if (!name || !Number.isFinite(lat) || !Number.isFinite(lng)) return
+      this.location = {
+        locationName: name,
+        address: decodeQueryValue(options.address) || null,
+        lat,
+        lng,
+      }
     },
     toggleTopic(id) {
       const i = this.selectedTopics.indexOf(id)
@@ -110,11 +168,17 @@ export default {
         return
       }
       this.submitting = true
+      const locationPayload = buildFeedLocationPayload(this.location)
       try {
+        await ensureTextContentSafe(this.content.trim(), SEC_SCENE.SOCIAL)
+        if (locationPayload.locationName) {
+          await ensureTextContentSafe(locationPayload.locationName, SEC_SCENE.SOCIAL)
+        }
         if (this.activityId) {
           await createActivityPost(this.activityId, {
             content: this.content.trim(),
             images: this.uploadedUrls,
+            ...locationPayload,
           })
         } else {
           await createFeedPost({
@@ -123,6 +187,7 @@ export default {
             cityCode: this.cityCode,
             topicTags: this.selectedTopics,
             postKind: 'city',
+            ...locationPayload,
           })
         }
         uni.showToast({ title: '已发布', icon: 'success' })
@@ -137,6 +202,10 @@ export default {
   onLoad(options) {
     if (options?.cityCode) this.cityCode = options.cityCode
     if (options?.activityId) this.activityId = options.activityId
+    this.applyDefaultLocation(options || {})
+  },
+  onShow() {
+    this.syncLocationPickResult()
   },
 }
 </script>
@@ -183,6 +252,51 @@ export default {
     height: 36rpx;
     text-align: center;
     line-height: 36rpx;
+  }
+}
+.loc-row {
+  margin-top: 12rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 20rpx 22rpx;
+  border-radius: 16rpx;
+  background: #f8fafc;
+  border: 2rpx solid rgba(13, 148, 136, 0.12);
+  &__text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6rpx;
+  }
+  &__name {
+    font-size: 28rpx;
+    color: #0f172a;
+    font-weight: 600;
+  }
+  &__placeholder {
+    font-size: 28rpx;
+    color: #94a3b8;
+  }
+  &__addr {
+    font-size: 24rpx;
+    color: #64748b;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__clear {
+    flex-shrink: 0;
+    font-size: 24rpx;
+    color: #64748b;
+    padding: 8rpx 12rpx;
+  }
+  &__chev {
+    flex-shrink: 0;
+    font-size: 36rpx;
+    color: #cbd5e1;
+    line-height: 1;
   }
 }
 .topic-row {

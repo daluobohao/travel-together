@@ -17,6 +17,14 @@
       <text v-if="item.postKind === 'activity'" class="feed-card__tag">活动态</text>
     </view>
     <text class="feed-card__content">{{ item.content }}</text>
+    <view
+      v-if="item.locationName"
+      class="feed-card__location"
+      @click.stop="onOpenLocation"
+    >
+      <wm-icon name="mapPin" :size="24" color="#0d9488" />
+      <text class="feed-card__location-text">{{ item.locationName }}</text>
+    </view>
     <view v-if="item.images?.length" class="feed-card__imgs">
       <image
         v-for="(img, i) in item.images.slice(0, 3)"
@@ -40,6 +48,7 @@
 <script>
 import { feedTopicLabel, formatActivityTime, likeFeedPost } from '@/api'
 import { displayAvatarUrl } from '@/utils/avatarDisplay'
+import { openFeedLocationOnMap } from '@/utils/feedLocation'
 
 export default {
   props: {
@@ -58,6 +67,13 @@ export default {
     topicLabel: feedTopicLabel,
     onOpen() {
       this.$emit('open', this.item)
+    },
+    onOpenLocation() {
+      if (this.item?.lat != null && this.item?.lng != null) {
+        openFeedLocationOnMap(this.item)
+        return
+      }
+      uni.showToast({ title: this.item.locationName, icon: 'none' })
     },
     previewImages(index) {
       const urls = (this.item.images || []).map((u) => displayAvatarUrl(u) || u)
@@ -123,6 +139,23 @@ export default {
     color: #334155;
     line-height: 1.6;
     white-space: pre-wrap;
+  }
+  &__location {
+    margin-top: 12rpx;
+    display: inline-flex;
+    align-items: center;
+    gap: 8rpx;
+    max-width: 100%;
+    padding: 8rpx 14rpx;
+    border-radius: 999rpx;
+    background: #f0fdfa;
+  }
+  &__location-text {
+    font-size: 24rpx;
+    color: #0d9488;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   &__imgs {
     display: flex;

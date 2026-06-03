@@ -125,6 +125,7 @@ import {
   openChatLocationOnMap,
   readChatLocationPickResult,
 } from '@/utils/chatLocation'
+import { ensureTextContentSafe, ensureTextFieldsSafe, SEC_SCENE } from '@/utils/contentSecurity'
 
 const TIME_GAP_MS = 5 * 60 * 1000
 
@@ -435,6 +436,10 @@ export default {
       this.messageIds[tempId] = true
       this.scrollToBottom()
       try {
+        await ensureTextFieldsSafe(
+          { locationName: payload.locationName, address: payload.address },
+          SEC_SCENE.SOCIAL,
+        )
         const row = await sendDirectMessage(this.threadId, payload)
         const realId = row?.messageId
         const idx = this.messages.findIndex((m) => m.id === tempId)
@@ -480,6 +485,7 @@ export default {
       this.scrollToBottom()
 
       try {
+        await ensureTextContentSafe(text, SEC_SCENE.SOCIAL)
         const row = await sendDirectMessage(this.threadId, { msgType: 'text', text })
         const realId = row?.messageId
         const idx = this.messages.findIndex((m) => m.id === tempId)

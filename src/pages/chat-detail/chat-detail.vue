@@ -159,6 +159,7 @@ import {
   mergeMessageLists,
   saveActivityChatCache,
 } from '@/utils/activityChatCache'
+import { ensureTextContentSafe, ensureTextFieldsSafe, SEC_SCENE } from '@/utils/contentSecurity'
 
 const POLL_INTERVAL_MS = 4000
 const DEFAULT_LIMIT = 50
@@ -705,6 +706,10 @@ export default {
       this.messageIds[tempId] = true
       this.scrollToBottom()
       try {
+        await ensureTextFieldsSafe(
+          { locationName: payload.locationName, address: payload.address },
+          SEC_SCENE.SOCIAL,
+        )
         const row = await sendActivityMessage(this.chatId, payload)
         const realId = row?.messageId
         const idx = this.messages.findIndex((m) => m.id === tempId)
@@ -755,6 +760,7 @@ export default {
       this.draft = ''
       this.scrollToBottom()
       try {
+        await ensureTextContentSafe(text, SEC_SCENE.SOCIAL)
         const row = await sendActivityMessage(this.chatId, { msgType: 'text', text })
         const realId = row?.messageId
         const idx = this.messages.findIndex((m) => m.id === tempId)

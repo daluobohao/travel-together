@@ -37,6 +37,7 @@ import {
   isLoggedIn,
   redirectToLogin,
 } from '@/api'
+import { ensureTextContentSafe, SEC_SCENE } from '@/utils/contentSecurity'
 
 export default {
   components: { WmIcon, FeedPostCard },
@@ -86,6 +87,7 @@ export default {
       if (!text || this.commenting) return
       this.commenting = true
       try {
+        await ensureTextContentSafe(text, SEC_SCENE.COMMENT)
         await createFeedComment(this.postId, { content: text })
         this.commentDraft = ''
         await Promise.all([this.load(), this.loadComments()])

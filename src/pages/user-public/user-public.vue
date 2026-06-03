@@ -128,6 +128,7 @@ import {
   cancelDmRequest,
   unfollowUser,
 } from '@/api'
+import { ensureTextContentSafe, SEC_SCENE } from '@/utils/contentSecurity'
 
 export default {
   components: { WmIcon, FeedPostCard },
@@ -246,6 +247,9 @@ export default {
     async submitDmRequest() {
       const introText = (this.introDraft || '').trim() || undefined
       try {
+        if (introText) {
+          await ensureTextContentSafe(introText, SEC_SCENE.SOCIAL)
+        }
         await createDmRequest(this.activityIdNorm, {
           toUserId: this.targetUserId,
           introText,

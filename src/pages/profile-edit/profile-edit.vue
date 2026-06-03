@@ -5,7 +5,7 @@
         <wm-icon name="chevronLeft" :size="34" color="#0f172a" />
       </view>
       <text class="profile-edit__title">{{ firstCompleteHint ? '完善资料' : '编辑个人信息' }}</text>
-      <view class="profile-edit__header-sp" />
+      <text class="profile-edit__save" @click="saveProfile">{{ firstCompleteHint ? '进入去旅聚' : '保存' }}</text>
     </view>
 
     <view class="profile-edit__content">
@@ -45,38 +45,24 @@
       <view class="field-card">
         <text class="field-card__label">昵称</text>
         <input
-          :value="form.name"
+          v-model="form.name"
           class="field-card__input"
           placeholder="请输入昵称"
           placeholder-class="field-card__placeholder"
           maxlength="12"
-          confirm-type="done"
-          :cursor-spacing="24"
-          @input="onNameInput"
-          @blur="onNameBlur"
         />
       </view>
 
       <view v-if="!firstCompleteHint" class="field-card">
         <text class="field-card__label">个人简介</text>
         <textarea
-          :value="form.bio"
+          v-model="form.bio"
           class="field-card__textarea"
           placeholder="介绍一下你自己..."
           placeholder-class="field-card__placeholder"
           maxlength="80"
-          :show-confirm-bar="false"
-          :cursor-spacing="24"
-          @input="onBioInput"
-          @blur="onBioBlur"
         />
         <text class="field-card__count">{{ (form.bio || '').length }}/80</text>
-      </view>
-    </view>
-
-    <view class="profile-edit__footer">
-      <view class="profile-edit__save-btn" @click="saveProfile">
-        <text>{{ firstCompleteHint ? '进入去旅聚' : '保存' }}</text>
       </view>
     </view>
   </view>
@@ -85,6 +71,7 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import { formatUserGenderLabel, getMe, updateMe } from '@/api'
+import { ensureTextFieldsSafe, SEC_SCENE } from '@/utils/contentSecurity'
 import { chooseAndUploadAvatar } from '@/utils/avatarPicker'
 import { displayAvatarUrl } from '@/utils/avatarDisplay'
 
@@ -166,23 +153,6 @@ export default {
       if (this.genderLocked) return
       this.form.gender = value
     },
-    syncField(key, e) {
-      const value = e?.detail?.value
-      if (typeof value !== 'string') return
-      this.form[key] = value
-    },
-    onNameInput(e) {
-      this.syncField('name', e)
-    },
-    onNameBlur(e) {
-      this.syncField('name', e)
-    },
-    onBioInput(e) {
-      this.syncField('bio', e)
-    },
-    onBioBlur(e) {
-      this.syncField('bio', e)
-    },
     goToAfterSave() {
       if (this.firstCompleteHint) {
         uni.reLaunch({ url: '/pages/home/home' })
@@ -206,11 +176,6 @@ export default {
       })
     },
     saveProfile() {
-      // 先收起键盘，让五笔/拼音等 IME 在 blur 时提交候选字，再读取表单
-      uni.hideKeyboard()
-      setTimeout(() => this.doSaveProfile(), 80)
-    },
-    doSaveProfile() {
       const name = (this.form.name || '').trim()
       if (!name) {
         uni.showToast({ title: '昵称不能为空', icon: 'none' })
@@ -240,7 +205,14 @@ export default {
         payload.completeOnboarding = true
       }
 
-      updateMe(payload)
+      ensureTextFieldsSafe(
+        {
+          nickname: payload.nickname,
+          bio: payload.bio,
+        },
+        SEC_SCENE.PROFILE,
+      )
+        .then(() => updateMe(payload))
         .then(() => {
           this.serverGender = nextProfile.gender || this.serverGender
           uni.setStorageSync('user_profile', nextProfile)
@@ -261,15 +233,11 @@ export default {
 .profile-edit {
   min-height: 100vh;
   background: transparent;
-  padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
-  box-sizing: border-box;
 
   &__header {
-    position: fixed;
+    position: sticky;
     top: 0;
-    left: 0;
-    right: 0;
-    z-index: 30;
+    z-index: 10;
     height: calc(96rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top));
     padding: calc(var(--status-bar-height, 0px) + env(safe-area-inset-top)) 24rpx 0;
     background: $wm-sticky-header-gradient;
@@ -280,14 +248,12 @@ export default {
     justify-content: space-between;
   }
 
-  &__back,
-  &__header-sp {
+  &__back {
     width: 72rpx;
     height: 72rpx;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
   }
 
   &__title {
@@ -296,40 +262,19 @@ export default {
     color: $wm-text-1;
   }
 
+  &__save {
+    min-width: 72rpx;
+    text-align: right;
+    font-size: 30rpx;
+    color: $wm-primary;
+    font-weight: 700;
+  }
+
   &__content {
-    padding: calc(28rpx + 96rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 24rpx 28rpx;
+    padding: 28rpx 24rpx;
     display: flex;
     flex-direction: column;
     gap: 20rpx;
-  }
-
-  &__footer {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 30;
-    padding: 16rpx 24rpx calc(24rpx + env(safe-area-inset-bottom));
-    background: rgba(255, 255, 255, 0.96);
-    border-top: 1rpx solid rgba(0, 0, 0, 0.06);
-  }
-
-  &__save-btn {
-    height: 92rpx;
-    border-radius: 999rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 32rpx;
-    font-weight: 700;
-    color: #fff;
-    background: $wm-gradient-primary;
-    box-shadow: $wm-shadow-glow;
-
-    &:active {
-      opacity: 0.9;
-      transform: scale(0.98);
-    }
   }
 }
 

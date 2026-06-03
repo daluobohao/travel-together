@@ -330,6 +330,8 @@ export default {
           startAt: detail.startAt,
           endAt: detail.endAt,
           location: detail.locationName,
+          lat: detail.lat != null ? Number(detail.lat) : null,
+          lng: detail.lng != null ? Number(detail.lng) : null,
           distance: detail.distanceMeters ? `${(detail.distanceMeters / 1000).toFixed(1)}km` : '',
           joined: Number(detail.enrolledCount || 0),
           total: Number(detail.maxMembers || 0),
@@ -372,8 +374,15 @@ export default {
         uni.showToast({ title: '当前不在活动动态发布时间', icon: 'none' })
         return
       }
+      const q = [`activityId=${encodeURIComponent(this.activityId)}`]
+      const a = this.activity
+      if (a?.location && a.lat != null && a.lng != null) {
+        q.push(`locationName=${encodeURIComponent(a.location)}`)
+        q.push(`lat=${encodeURIComponent(String(a.lat))}`)
+        q.push(`lng=${encodeURIComponent(String(a.lng))}`)
+      }
       uni.navigateTo({
-        url: `/pages/feed-publish/feed-publish?activityId=${encodeURIComponent(this.activityId)}`,
+        url: `/pages/feed-publish/feed-publish?${q.join('&')}`,
       })
     },
     openFeedDetail(item) {

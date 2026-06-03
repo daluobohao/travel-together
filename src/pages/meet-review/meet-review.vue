@@ -52,6 +52,7 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import { getMeetReviewCandidates, submitMeetReview } from '@/api'
+import { ensureTextContentSafe, SEC_SCENE } from '@/utils/contentSecurity'
 import { MEET_REVIEW_TAGS } from '@/constants/growthTrust'
 
 export default {
@@ -110,6 +111,9 @@ export default {
       if (this.met === null || this.submitting || !this.candidate) return
       this.submitting = true
       try {
+        if (this.comment?.trim()) {
+          await ensureTextContentSafe(this.comment.trim(), SEC_SCENE.COMMENT)
+        }
         await submitMeetReview(this.activityId, {
           toUserId: this.candidate.userId,
           met: this.met,

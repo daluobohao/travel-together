@@ -80,6 +80,8 @@ export function mockCreateFeedPost(payload) {
     content: payload.content || '',
     images: payload.images || [],
     locationName: payload.locationName || null,
+    lat: payload.lat != null ? Number(payload.lat) : null,
+    lng: payload.lng != null ? Number(payload.lng) : null,
     topicTags: payload.topicTags || [],
     likeCount: 0,
     commentCount: 0,
