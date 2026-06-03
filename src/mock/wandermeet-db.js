@@ -1,3 +1,5 @@
+import { FALLBACK_ACTIVITY_CATEGORIES } from '@/constants/activityCategories'
+
 const now = () => new Date().toISOString()
 
 export const wmDB = {
@@ -67,26 +69,14 @@ export const wmDB = {
       verificationBadge: true,
     },
   },
-  categories: [
-    { categoryId: 'coffee', name: '咖啡', icon: null },
-    { categoryId: 'citywalk', name: 'Citywalk', icon: null },
-    { categoryId: 'hiking', name: '徒步', icon: null },
-    { categoryId: 'boardgame', name: '桌游', icon: null },
-    { categoryId: 'coworking', name: '联合办公·共创', icon: null },
-    { categoryId: 'indie', name: '副业·独立开发', icon: null },
-    { categoryId: 'language', name: '语言交换', icon: null },
-    { categoryId: 'dining', name: '约饭·探店', icon: null },
-    { categoryId: 'photography', name: '摄影扫街', icon: null },
-    { categoryId: 'other', name: '其他', icon: null },
-    { categoryId: 'exhibit', name: '展览', icon: null },
-    { categoryId: 'night_run', name: '夜跑', icon: null },
-  ],
+  categories: FALLBACK_ACTIVITY_CATEGORIES,
   activities: [
     {
       activityId: '1',
       title: '三里屯咖啡局',
       description: '轻松组局，聊旅行、聊生活。',
-      categoryId: 'coffee',
+      categoryId: 'social',
+      subCategoryId: 'coffee',
       startAt: '2026-06-20T15:00:00+08:00',
       endAt: null,
       cityCode: '110000',
@@ -110,6 +100,7 @@ export const wmDB = {
       title: '周末故宫 Citywalk',
       description: '中轴线漫步与拍照打卡。',
       categoryId: 'citywalk',
+      subCategoryId: 'walk',
       startAt: '2026-06-21T10:00:00+08:00',
       endAt: null,
       cityCode: '110000',
@@ -131,7 +122,8 @@ export const wmDB = {
       activityId: '3',
       title: '朝阳公园夜跑',
       description: '5km 轻松夜跑，新手友好。',
-      categoryId: 'night_run',
+      categoryId: 'sports',
+      subCategoryId: 'running',
       startAt: '2026-06-21T19:00:00+08:00',
       endAt: null,
       cityCode: '110000',
@@ -153,7 +145,8 @@ export const wmDB = {
       activityId: '4',
       title: '国贸狼人杀之夜',
       description: '桌游局，适合新老玩家。',
-      categoryId: 'boardgame',
+      categoryId: 'games',
+      subCategoryId: 'boardgame',
       startAt: '2026-04-19T20:00:00+08:00',
       endAt: null,
       cityCode: '110000',
@@ -291,6 +284,8 @@ export function toActivityCard(activity) {
     enrolledCount: activity.enrolledCount,
     maxMembers: activity.maxMembers,
     categoryId: activity.categoryId,
+    subCategoryId: activity.subCategoryId || '',
+    categoryLabel: activity.categoryLabel || '',
     organizer: activity.organizer,
     activityStatus: activity.activityStatus,
     enrollmentStatus: activity.myEnrollment?.status || null,

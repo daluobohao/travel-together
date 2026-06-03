@@ -74,23 +74,27 @@ export default {
   data() {
     return {
       categoryKey: '',
+      subCategoryKey: '',
       pageTitle: '分类活动',
       filteredActivities: [],
     }
   },
   onLoad(query) {
     this.categoryKey = query.key || ''
+    this.subCategoryKey = query.subKey || ''
     this.pageTitle = decodeURIComponent(query.label || '分类活动')
     this.loadActivities()
   },
   methods: {
     async loadActivities() {
-      const data = await getActivities({
+      const query = {
         cityCode: '110000',
         categoryId: this.categoryKey,
         page: 1,
         pageSize: 50,
-      })
+      }
+      if (this.subCategoryKey) query.subCategoryId = this.subCategoryKey
+      const data = await getActivities(query)
       this.filteredActivities = (data?.list || []).map((item) => {
         const card = mapActivityCard(item)
         return {

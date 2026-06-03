@@ -159,6 +159,7 @@ import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import FeaturedColorPickerModal from '@/components/FeaturedColorPickerModal/FeaturedColorPickerModal.vue'
 import { getActivities, getActivityCategories, mapActivityCard } from '@/api'
+import { ACTIVITY_CATEGORY_VISUAL } from '@/constants/activityCategories'
 import {
   buildDiscoverShareClipboardText,
   buildDiscoverShareMessage,
@@ -323,20 +324,7 @@ export default {
           acc[item.categoryId] = (acc[item.categoryId] || 0) + 1
           return acc
         }, {})
-        const iconMap = {
-          coffee: { icon: 'coffee', bg: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', color: '#b45309' },
-          citywalk: { icon: 'walk', bg: 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)', color: '#4f46e5' },
-          hiking: { icon: 'hike', bg: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)', color: '#047857' },
-          boardgame: { icon: 'dice', bg: 'linear-gradient(135deg, #e7e5e4 0%, #d6d3d1 100%)', color: '#44403c' },
-          coworking: { icon: 'laptop', bg: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)', color: '#0284c7' },
-          indie: { icon: 'rocket', bg: 'linear-gradient(135deg, #fef9c3 0%, #fde68a 100%)', color: '#b45309' },
-          language: { icon: 'globe', bg: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)', color: '#1d4ed8' },
-          dining: { icon: 'utensil', bg: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)', color: '#0369a1' },
-          photography: { icon: 'camera', bg: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', color: '#7c3aed' },
-          exhibit: { icon: 'palette', bg: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)', color: '#dc2626' },
-          night_run: { icon: 'moon', bg: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', color: '#6d28d9' },
-          other: { icon: 'tag', bg: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)', color: '#475569' },
-        }
+        const iconMap = ACTIVITY_CATEGORY_VISUAL
         this.categories = (categoryData?.categories || []).map((c) => ({
           key: c.categoryId,
           label: c.name,

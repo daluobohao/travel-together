@@ -14,22 +14,46 @@
         <input
           v-model="form.title"
           class="field__input"
-          placeholder="给活动起个吸引人的名字"
+          :placeholder="titlePlaceholder"
           placeholder-class="field__placeholder"
         />
       </view>
 
       <view class="field field--category">
         <text class="field__label">活动分类 <text class="field__req">*</text></text>
-        <picker mode="selector" :range="categories" :value="categoryIndex" @change="onCategoryChange">
-          <view class="field__select field__select--category">
-            <wm-icon name="hash" :size="32" color="#94a3b8" />
-            <text :class="['field__select-text', { 'field__placeholder': !form.category }]">
-              {{ form.category || '请选择活动分类' }}
-            </text>
-            <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
+        <view class="cat-grid">
+          <view
+            v-for="c in categoryTree"
+            :key="c.categoryId"
+            class="cat-chip"
+            :class="{ 'cat-chip--on': form.categoryId === c.categoryId }"
+            @click="selectCategory(c.categoryId)"
+          >
+            <text>{{ c.name }}</text>
           </view>
-        </picker>
+        </view>
+        <view v-if="currentSubcategories.length" class="cat-sub">
+          <text class="cat-sub__label">细分类型（可选）</text>
+          <view class="cat-sub__row">
+            <view
+              class="cat-chip cat-chip--sub"
+              :class="{ 'cat-chip--on': !form.subCategoryId }"
+              @click="selectSubCategory('')"
+            >
+              <text>不限</text>
+            </view>
+            <view
+              v-for="s in currentSubcategories"
+              :key="s.subCategoryId"
+              class="cat-chip cat-chip--sub"
+              :class="{ 'cat-chip--on': form.subCategoryId === s.subCategoryId }"
+              @click="selectSubCategory(s.subCategoryId)"
+            >
+              <text>{{ s.name }}</text>
+            </view>
+          </view>
+        </view>
+        <text v-if="categoryDisplayPreview" class="field__hint">将展示为：{{ categoryDisplayPreview }}</text>
       </view>
 
       <view v-if="isOtherCategory" class="field">
@@ -182,34 +206,23 @@ import { ensureTextFieldsSafe, SEC_SCENE } from '@/utils/contentSecurity'
 import { loadPublishPayConfig, payBeforePublishActivity } from '@/pay/publishPay'
 import { PUBLISH_FEE_YUAN, publishFeeLabel } from '@/pay/constants'
 
-const FALLBACK_CATEGORIES = [
-  { categoryId: 'coffee', name: '咖啡' },
-  { categoryId: 'citywalk', name: 'Citywalk' },
-  { categoryId: 'hiking', name: '徒步' },
-  { categoryId: 'boardgame', name: '桌游' },
-  { categoryId: 'coworking', name: '联合办公·共创' },
-  { categoryId: 'indie', name: '副业·独立开发' },
-  { categoryId: 'language', name: '语言交换' },
-  { categoryId: 'dining', name: '约饭·探店' },
-  { categoryId: 'photography', name: '摄影扫街' },
-  { categoryId: 'other', name: '其他' },
-]
+import {
+  ACTIVITY_CATEGORY_OTHER,
+  FALLBACK_ACTIVITY_CATEGORIES,
+  formatActivityCategoryDisplay,
+  normalizeCategoryList,
+  publishTitlePlaceholder,
+} from '@/constants/activityCategories'
 
 export default {
   components: { WmIcon, WmTabBar, PublishPayModal },
   data() {
-    const initialCategories = FALLBACK_CATEGORIES.map((x) => x.name)
-    const initialCategoryMap = FALLBACK_CATEGORIES.reduce((acc, item) => {
-      acc[item.name] = item.categoryId
-      return acc
-    }, {})
     return {
-      categories: initialCategories,
-      categoryMap: initialCategoryMap,
-      categoryIndex: 0,
+      categoryTree: normalizeCategoryList(FALLBACK_ACTIVITY_CATEGORIES),
       form: {
         title: '',
-        category: initialCategories[0] || '',
+        categoryId: 'sports',
+        subCategoryId: '',
         categoryTheme: '',
         startTime: '',
         startDate: '',
@@ -252,8 +265,23 @@ export default {
       return '发布即表示同意《旅聚社区规范》，请确保活动信息真实有效。'
     },
     isOtherCategory() {
-      const cid = this.categoryMap[this.form.category] || ''
-      return cid === 'other'
+      return this.form.categoryId === ACTIVITY_CATEGORY_OTHER
+    },
+    currentSubcategories() {
+      if (this.isOtherCategory) return []
+      const cur = this.categoryTree.find((c) => c.categoryId === this.form.categoryId)
+      return cur?.subcategories || []
+    },
+    categoryDisplayPreview() {
+      if (!this.form.categoryId) return ''
+      return formatActivityCategoryDisplay(
+        this.form.categoryId,
+        this.form.subCategoryId,
+        this.form.categoryTheme,
+      )
+    },
+    titlePlaceholder() {
+      return publishTitlePlaceholder(this.form.categoryId, this.form.subCategoryId)
     },
   },
   async onShow() {
@@ -295,19 +323,19 @@ export default {
       } catch (e) {
         list = []
       }
-      if (!list.length) list = FALLBACK_CATEGORIES
-      this.categories = list.map((x) => x.name)
-      this.categoryMap = list.reduce((acc, item) => {
-        acc[item.name] = item.categoryId
-        return acc
-      }, {})
-      if (!this.form.category && this.categories.length) {
-        this.form.category = this.categories[0]
-        this.categoryIndex = 0
-      } else {
-        const idx = this.categories.findIndex((name) => name === this.form.category)
-        this.categoryIndex = idx >= 0 ? idx : 0
+      this.categoryTree = normalizeCategoryList(list.length ? list : FALLBACK_ACTIVITY_CATEGORIES)
+      if (!this.categoryTree.some((c) => c.categoryId === this.form.categoryId)) {
+        this.form.categoryId = this.categoryTree[0]?.categoryId || 'sports'
+        this.form.subCategoryId = ''
       }
+    },
+    selectCategory(categoryId) {
+      this.form.categoryId = categoryId
+      this.form.subCategoryId = ''
+      if (categoryId !== ACTIVITY_CATEGORY_OTHER) this.form.categoryTheme = ''
+    },
+    selectSubCategory(subCategoryId) {
+      this.form.subCategoryId = subCategoryId || ''
     },
     onCancel() {
       uni.reLaunch({ url: '/pages/home/home' })
@@ -356,22 +384,19 @@ export default {
     onCategoryChange(e) {
       const idx = Number(e?.detail?.value)
       if (Number.isNaN(idx) || idx < 0) return
-      this.categoryIndex = idx
-      this.form.category = this.categories[idx] || ''
-      if (!this.isOtherCategory) this.form.categoryTheme = ''
+      this.selectCategory(this.categoryTree[idx]?.categoryId || '')
     },
     validatePublishForm() {
       if (!this.form.title.trim()) {
         uni.showToast({ title: '请填写活动标题', icon: 'none' })
         return null
       }
-      if (!this.form.category) {
+      if (!this.form.categoryId) {
         uni.showToast({ title: '请选择活动分类', icon: 'none' })
         return null
       }
-      const categoryId = this.categoryMap[this.form.category] || ''
       const categoryTheme = String(this.form.categoryTheme || '').trim()
-      if (categoryId === 'other') {
+      if (this.isOtherCategory) {
         if (categoryTheme.length < 2) {
           uni.showToast({ title: '请填写活动主题（2～16 字）', icon: 'none' })
           return null
@@ -418,7 +443,8 @@ export default {
         return null
       }
       return {
-        categoryId,
+        categoryId: this.form.categoryId,
+        subCategoryId: this.form.subCategoryId || null,
         categoryTheme,
         startAt,
         endAt,
@@ -439,8 +465,9 @@ export default {
         await createActivity({
           title: this.form.title.trim(),
           description: (this.form.description || '').trim() || '暂无说明',
-          categoryId: payload.categoryId || 'coffee',
-          categoryLabel: payload.categoryId === 'other' ? payload.categoryTheme : null,
+          categoryId: payload.categoryId || 'sports',
+          subCategoryId: payload.subCategoryId || undefined,
+          categoryLabel: payload.categoryId === ACTIVITY_CATEGORY_OTHER ? payload.categoryTheme : null,
           startAt: payload.startAt,
           endAt: payload.endAt,
           cityCode: this.form.cityCode.trim(),
@@ -639,7 +666,7 @@ export default {
   }
 
   &--category {
-    padding-right: 28px;
+    padding-right: 0;
   }
 
   &__label {
@@ -767,6 +794,45 @@ export default {
     font-size: 22rpx;
     color: $wm-text-3;
     font-weight: 500;
+  }
+}
+
+.cat-grid,
+.cat-sub__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.cat-sub {
+  margin-top: 16rpx;
+
+  &__label {
+    display: block;
+    font-size: 24rpx;
+    color: $wm-text-3;
+    margin-bottom: 10rpx;
+  }
+}
+
+.cat-chip {
+  padding: 12rpx 22rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  color: $wm-text-2;
+  background: #f8fafc;
+  border: 1rpx solid #e2e8f0;
+
+  &--sub {
+    font-size: 22rpx;
+    padding: 10rpx 18rpx;
+  }
+
+  &--on {
+    color: $wm-primary;
+    background: $wm-primary-soft;
+    border-color: rgba(2, 132, 199, 0.35);
+    font-weight: 700;
   }
 }
 </style>

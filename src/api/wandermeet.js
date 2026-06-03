@@ -1,3 +1,7 @@
+import {
+  ACTIVITY_CATEGORY_COLOR_MAP,
+  formatActivityCategoryDisplay,
+} from '@/constants/activityCategories'
 import { wmRequest, paginate } from './client'
 import { clearWmAuthTokens, getMockEnabled, setAccessToken, setRefreshToken } from './config'
 import cityHallPrefectures from './city_hall_prefectures.json'
@@ -687,6 +691,7 @@ export const getActivities = (query = {}) =>
         list = list.filter((x) => activityCityMatchesPlaceFilter(String(q.cityCode), x.cityCode))
       }
       if (q.categoryId) list = list.filter((x) => x.categoryId === q.categoryId)
+      if (q.subCategoryId) list = list.filter((x) => x.subCategoryId === q.subCategoryId)
       list = normalizeDateRange(list, q.dateRange)
       return ok(paginate(list.map(toActivityCard), q.page, q.pageSize))
     },
@@ -758,6 +763,7 @@ export const getNearbyActivities = (query = {}) =>
         list = list.filter((x) => activityCityMatchesPlaceFilter(String(q.cityCode), x.cityCode))
       }
       if (q.categoryId) list = list.filter((x) => x.categoryId === q.categoryId)
+      if (q.subCategoryId) list = list.filter((x) => x.subCategoryId === q.subCategoryId)
       list = normalizeDateRange(list, q.dateRange || 'all')
 
       list = list
@@ -863,6 +869,7 @@ export const createActivity = (payload) =>
         title: data.title,
         description: data.description,
         categoryId: data.categoryId,
+        subCategoryId: data.subCategoryId || '',
         categoryLabel: data.categoryLabel || '',
         startAt: data.startAt,
         endAt: data.endAt || null,
@@ -1688,25 +1695,22 @@ export const adminRejectPhotoVerification = (verificationId, reason) =>
   })
 
 // ===== Frontend-friendly aggregate helpers =====
-const categoryColorMap = {
-  coffee: { color: '#0f7669', bg: '#ecfdf5', label: '咖啡' },
-  citywalk: { color: '#0ea5e9', bg: '#e0f2fe', label: 'Citywalk' },
-  hiking: { color: '#10b981', bg: '#ecfdf5', label: '徒步' },
-  boardgame: { color: '#0d9488', bg: '#ecfdf5', label: '桌游' },
-  coworking: { color: '#0284c7', bg: '#e0f2fe', label: '联合办公·共创' },
-  indie: { color: '#ca8a04', bg: '#fef9c3', label: '副业·独立开发' },
-  language: { color: '#2563eb', bg: '#dbeafe', label: '语言交换' },
-  dining: { color: '#0d9488', bg: '#ccfbf1', label: '约饭·探店' },
-  photography: { color: '#7c3aed', bg: '#ede9fe', label: '摄影扫街' },
-  exhibit: { color: '#ef4444', bg: '#fef2f2', label: '展览' },
-  night_run: { color: '#ef4444', bg: '#fef2f2', label: '夜跑' },
-  other: { color: '#64748b', bg: '#f1f5f9', label: '其他' },
-  movie: { color: '#6366f1', bg: '#eef2ff', label: '电影' },
-  badminton: { color: '#0ea5a4', bg: '#ccfbf1', label: '羽毛球' },
-  food: { color: '#0284c7', bg: '#e0f2fe', label: '美食' },
-  mountaineering: { color: '#16a34a', bg: '#dcfce7', label: '登山' },
-  cycling: { color: '#0284c7', bg: '#e0f2fe', label: '骑行' },
-  camping: { color: '#a16207', bg: '#fef9c3', label: '露营' },
+const categoryColorMap = ACTIVITY_CATEGORY_COLOR_MAP
+
+export function resolveActivityCategoryTag(card) {
+  const display = formatActivityCategoryDisplay(
+    card.categoryId,
+    card.subCategoryId,
+    card.categoryLabel,
+    card.categoryDisplay,
+  )
+  const base =
+    categoryColorMap[card.categoryId] || {
+      color: '#64748b',
+      bg: '#f1f5f9',
+      label: card.categoryId || '活动',
+    }
+  return { ...base, label: display }
 }
 
 /**
@@ -1848,20 +1852,6 @@ export function isActivityPostWindowOpen(raw, nowMs = Date.now()) {
   return nowMs >= startMs && nowMs <= windowEndMs
 }
 
-export function resolveActivityCategoryTag(card) {
-  const base =
-    categoryColorMap[card.categoryId] || {
-      color: '#64748b',
-      bg: '#f1f5f9',
-      label: card.categoryId || '活动',
-    }
-  const theme = String(card.categoryLabel || '').trim()
-  if (card.categoryId === 'other' && theme) {
-    return { ...base, label: `其他 · ${theme}` }
-  }
-  return base
-}
-
 export function mapActivityCard(card) {
   const tag = resolveActivityCategoryTag(card)
   const safeActivityId =
@@ -1884,6 +1874,7 @@ export function mapActivityCard(card) {
     organizer: card.organizer?.nickname || '',
     organizerId: card.organizer?.userId || '',
     categoryId: card.categoryId,
+    subCategoryId: card.subCategoryId || '',
     enrollmentStatus: card.enrollmentStatus || card.myEnrollment?.status || null,
     ...status,
   }

@@ -25,9 +25,13 @@
       <wm-icon name="mapPin" :size="24" color="#0d9488" />
       <text class="feed-card__location-text">{{ item.locationName }}</text>
     </view>
-    <view v-if="item.images?.length" class="feed-card__imgs">
+    <view
+      v-if="displayImages.length"
+      class="feed-card__imgs"
+      :class="'feed-card__imgs--' + imgGridMode"
+    >
       <image
-        v-for="(img, i) in item.images.slice(0, 3)"
+        v-for="(img, i) in displayImages"
         :key="i"
         class="feed-card__img"
         :src="img"
@@ -61,6 +65,16 @@ export default {
     },
     timeText() {
       return formatActivityTime(this.item.createdAt) || ''
+    },
+    displayImages() {
+      return (this.item.images || []).slice(0, 9)
+    },
+    imgGridMode() {
+      const n = this.displayImages.length
+      if (n === 1) return 'single'
+      if (n === 2) return 'double'
+      if (n === 4) return 'quad'
+      return 'grid'
     },
   },
   methods: {
@@ -158,13 +172,40 @@ export default {
     white-space: nowrap;
   }
   &__imgs {
-    display: flex;
-    gap: 12rpx;
     margin-top: 16rpx;
+    display: grid;
+    gap: 8rpx;
+    &--single {
+      grid-template-columns: 1fr;
+      .feed-card__img {
+        width: 100%;
+        max-width: 480rpx;
+        height: 360rpx;
+      }
+    }
+    &--double {
+      grid-template-columns: repeat(2, 1fr);
+      .feed-card__img {
+        width: 100%;
+        height: 220rpx;
+      }
+    }
+    &--quad {
+      grid-template-columns: repeat(2, 1fr);
+      .feed-card__img {
+        width: 100%;
+        height: 200rpx;
+      }
+    }
+    &--grid {
+      grid-template-columns: repeat(3, 1fr);
+      .feed-card__img {
+        width: 100%;
+        height: 200rpx;
+      }
+    }
   }
   &__img {
-    width: 200rpx;
-    height: 200rpx;
     border-radius: 12rpx;
     background: #f1f5f9;
   }
