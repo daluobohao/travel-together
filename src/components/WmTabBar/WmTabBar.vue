@@ -48,7 +48,7 @@ export default {
     return {
       tabs: [
         { key: 'home', label: '首页', icon: 'home', path: '/pages/home/home' },
-        { key: 'discover', label: '动态', icon: 'message', path: '/pages/discover/discover' },
+        { key: 'discover', label: '动态', icon: 'globe', path: '/pages/discover/discover' },
         { key: 'publish', label: '发活动', icon: 'plus', center: true },
         { key: 'messages', label: '消息', icon: 'message', path: '/pages/messages/messages' },
         { key: 'profile', label: '我的', icon: 'user', path: '/pages/profile/profile' },

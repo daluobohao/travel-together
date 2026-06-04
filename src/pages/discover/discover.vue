@@ -459,7 +459,7 @@ export default {
   }
 
   &__body {
-    padding: 16rpx 0 0;
+    padding: 16rpx 32rpx 0;
   }
 }
 </style>

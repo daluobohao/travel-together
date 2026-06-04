@@ -99,25 +99,55 @@
     </scroll-view>
 
     <view class="chat-detail__composer">
-      <view class="chat-detail__emoji-btn" @click="toggleEmojiPanel">
-        <text class="chat-detail__emoji-icon">😊</text>
-      </view>
-      <view class="chat-detail__image-btn" @click="sendImageMessage">
-        <wm-icon name="camera" :size="36" color="#64748b" />
-      </view>
-      <view class="chat-detail__loc-btn" @click="openLocationPicker">
-        <wm-icon name="mapPin" :size="36" color="#64748b" />
-      </view>
       <input
         v-model="draft"
         class="chat-detail__input"
         placeholder="输入消息..."
         placeholder-class="chat-detail__input-placeholder"
         confirm-type="send"
+        hold-keyboard
+        confirm-hold
+        @focus="closeComposerPanels"
         @confirm="sendMessage"
       />
-      <view class="chat-detail__send" @click="sendMessage">
+      <view
+        class="chat-detail__tool-btn"
+        :class="{ 'chat-detail__tool-btn--active': showEmojiPanel }"
+        @click="toggleEmojiPanel"
+      >
+        <text class="chat-detail__emoji-icon">😊</text>
+      </view>
+      <view
+        v-if="hasDraft"
+        class="chat-detail__send"
+        @touchend.prevent="sendMessage"
+      >
         <text>发送</text>
+      </view>
+      <view
+        v-else
+        class="chat-detail__tool-btn"
+        :class="{ 'chat-detail__tool-btn--active': showAttachPanel }"
+        @click="toggleAttachPanel"
+      >
+        <wm-icon v-if="showAttachPanel" name="close" :size="36" color="#64748b" />
+        <wm-icon v-else name="plus" :size="36" color="#64748b" />
+      </view>
+    </view>
+    <view v-if="showAttachPanel" class="chat-detail__attach-panel">
+      <view class="chat-detail__attach-grid">
+        <view class="chat-detail__attach-item" @click="onAttachCamera">
+          <view class="chat-detail__attach-icon">
+            <wm-icon name="camera" :size="44" color="#64748b" />
+          </view>
+          <text class="chat-detail__attach-label">拍照</text>
+        </view>
+        <view class="chat-detail__attach-item" @click="onAttachLocation">
+          <view class="chat-detail__attach-icon">
+            <wm-icon name="mapPin" :size="44" color="#64748b" />
+          </view>
+          <text class="chat-detail__attach-label">位置</text>
+        </view>
       </view>
     </view>
     <chat-emoji-panel
@@ -224,9 +254,13 @@ export default {
       sendingImage: false,
       sendingLocation: false,
       showEmojiPanel: false,
+      showAttachPanel: false,
     }
   },
   computed: {
+    hasDraft() {
+      return !!(this.draft || '').trim()
+    },
     displayItems() {
       const items = []
       let prevCreatedAt = ''
@@ -537,13 +571,36 @@ export default {
       copyTextToClipboard(text)
     },
     toggleEmojiPanel() {
+      this.showAttachPanel = false
       this.showEmojiPanel = !this.showEmojiPanel
+      if (this.showEmojiPanel) {
+        uni.hideKeyboard()
+      }
+    },
+    toggleAttachPanel() {
+      this.showEmojiPanel = false
+      this.showAttachPanel = !this.showAttachPanel
+      if (this.showAttachPanel) {
+        uni.hideKeyboard()
+      }
+    },
+    closeComposerPanels() {
+      this.showEmojiPanel = false
+      this.showAttachPanel = false
+    },
+    onAttachCamera() {
+      this.closeComposerPanels()
+      this.sendImageMessage()
+    },
+    onAttachLocation() {
+      this.closeComposerPanels()
+      this.openLocationPicker()
     },
     onPickEmoji(emoji) {
       this.draft = `${this.draft || ''}${emoji}`
     },
     onPickSticker(stickerId) {
-      this.showEmojiPanel = false
+      this.closeComposerPanels()
       this.sendStickerMessage(stickerId)
     },
     async sendStickerMessage(stickerId) {
@@ -608,7 +665,7 @@ export default {
     },
     async sendImageMessage() {
       if (this.sendingImage || !this.chatId) return
-      this.showEmojiPanel = false
+      this.closeComposerPanels()
       this.sendingImage = true
       let tempId = ''
       try {
@@ -673,7 +730,7 @@ export default {
       }
     },
     openLocationPicker() {
-      this.showEmojiPanel = false
+      this.closeComposerPanels()
       uni.navigateTo({ url: '/pages/location-picker/location-picker?from=chat' })
     },
     trySendPickedLocation() {
@@ -687,7 +744,7 @@ export default {
     },
     async sendLocationMessage(loc) {
       if (this.sendingLocation || !loc) return
-      this.showEmojiPanel = false
+      this.closeComposerPanels()
       this.sendingLocation = true
       const payload = buildLocationMessagePayload(loc)
       const tempId = `temp_loc_${Date.now()}`
@@ -742,7 +799,7 @@ export default {
     async sendMessage() {
       const text = (this.draft || '').trim()
       if (!text) return
-      this.showEmojiPanel = false
+      this.closeComposerPanels()
       // 群聊：走真实接口，乐观渲染
       const tempId = `temp_${Date.now()}`
       const nowIso = new Date().toISOString()
@@ -880,9 +937,7 @@ export default {
     border-top: 1rpx solid #e5e7eb;
   }
 
-  &__emoji-btn,
-  &__image-btn,
-  &__loc-btn {
+  &__tool-btn {
     width: 72rpx;
     height: 72rpx;
     border-radius: 14rpx;
@@ -891,11 +946,56 @@ export default {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+
+    &--active {
+      background: #eef2ff;
+    }
   }
 
   &__emoji-icon {
     font-size: 40rpx;
     line-height: 1;
+  }
+
+  &__attach-panel {
+    border-top: 1rpx solid #e5e7eb;
+    background: #f8fafc;
+    padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  }
+
+  &__attach-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32rpx 48rpx;
+  }
+
+  &__attach-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12rpx;
+    width: 120rpx;
+
+    &:active {
+      opacity: 0.7;
+    }
+  }
+
+  &__attach-icon {
+    width: 112rpx;
+    height: 112rpx;
+    border-radius: 24rpx;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.06);
+  }
+
+  &__attach-label {
+    font-size: 24rpx;
+    color: #64748b;
+    line-height: 1.2;
   }
 
   &__input {

@@ -62,9 +62,9 @@ const ICONS = {
   locate: '<circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="2 3"/>',
   search: '<circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m20 20-4.3-4.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
   shareForward:
-    '<circle cx="18" cy="5" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 11h8l4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 21a6 6 0 0 1 6-6h2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+    '<circle cx="16.5" cy="6.5" r="2.3" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="7.5" cy="12" r="2.3" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="16.5" cy="17.5" r="2.3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9.4 12.8 14.8 16.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M14.7 7.5 9.4 11.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
   link2:
-    '<path d="M9 12h6M11 9l-2.5 2.5a4 4 0 1 0 5.7 5.7L17 15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M15 15l2.5-2.5a4 4 0 1 0-5.7-5.7L10 9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+    '<path d="M13.2 10.3a3.2 3.2 0 0 0-4.5 0l-3.2 3.2a3.2 3.2 0 1 0 4.5 4.5l.9-.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.8 13.7a3.2 3.2 0 0 0 4.5 0l3.2-3.2a3.2 3.2 0 1 0-4.5-4.5l-.9.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
 }
 
 export default {
