@@ -38,7 +38,9 @@ import {
 import {
   mockCreateFeedComment,
   mockCreateFeedPost,
+  mockDeleteFeedPost,
   mockFollowUser,
+  mockGetFeedPost,
   mockGetFeedTopics,
   mockGetFollowStatus,
   mockListActivityPosts,
@@ -1494,9 +1496,24 @@ export const getFeedPost = (postId) =>
   wmRequest({
     method: 'GET',
     path: `/feed/posts/${postId}`,
+    needAuth: false,
+    tokenIfPresent: true,
     mockHandler: () => {
-      const d = mockListFeed({ page: 1, pageSize: 100 }).list.find((x) => x.postId === postId)
+      const d = mockGetFeedPost(postId)
       return d ? ok(d) : { code: 404, message: 'not found', data: null }
+    },
+  })
+
+export const deleteFeedPost = (postId) =>
+  wmRequest({
+    method: 'DELETE',
+    path: `/me/feed/posts/${postId}`,
+    mockHandler: () => {
+      try {
+        return ok(mockDeleteFeedPost(postId))
+      } catch (e) {
+        return { code: 404, message: e.message || '删除失败', data: null }
+      }
     },
   })
 

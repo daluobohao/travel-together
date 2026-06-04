@@ -106,6 +106,28 @@ export function mockListActivityPosts(activityId, query = {}) {
   return { list, total: list.length, page: 1, pageSize: 20 }
 }
 
+export function mockDeleteFeedPost(postId) {
+  ensureFeed()
+  const uid = String(wmDB.profile.userId)
+  const post = wmDB.feedPosts.find((p) => p.postId === postId)
+  if (!post || post.status === 'deleted') throw new Error('动态不存在')
+  if (String(post.userId) !== uid) throw new Error('无权删除')
+  post.status = 'deleted'
+  return { ok: true }
+}
+
+export function mockGetFeedPost(postId) {
+  ensureFeed()
+  const uid = String(wmDB.profile.userId)
+  const post = wmDB.feedPosts.find((p) => p.postId === postId && p.status === 'published')
+  if (!post) return null
+  return {
+    ...post,
+    likedByMe: wmDB.feedLikes.some((l) => l.postId === post.postId && l.userId === uid),
+    author: mockAuthor(post.userId),
+  }
+}
+
 export function mockToggleLike(postId) {
   ensureFeed()
   const uid = String(wmDB.profile.userId)

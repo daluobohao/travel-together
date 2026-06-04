@@ -3,7 +3,16 @@
     <view class="sub__header">
       <view class="sub__back" @click="goBack"><wm-icon name="chevronLeft" :size="36" color="#0f172a" /></view>
       <text class="sub__title">动态详情</text>
-      <text class="sub__sp feed-detail__report" @click="onReport">举报</text>
+      <text
+        v-if="isMine"
+        class="sub__sp feed-detail__delete"
+        @click="onDelete"
+      >删除</text>
+      <text
+        v-else
+        class="sub__sp feed-detail__report"
+        @click="onReport"
+      >举报</text>
     </view>
     <view v-if="loading" class="sub__state"><text>加载中…</text></view>
     <view v-else-if="item" class="sub__body">
@@ -32,8 +41,10 @@ import FeedPostCard from '@/components/FeedPostCard/FeedPostCard.vue'
 import {
   createFeedComment,
   createReport,
+  deleteFeedPost,
   getFeedComments,
   getFeedPost,
+  getMe,
   isLoggedIn,
   redirectToLogin,
 } from '@/api'
@@ -44,7 +55,9 @@ export default {
   data() {
     return {
       postId: '',
+      myUserId: '',
       loading: true,
+      deleting: false,
       item: null,
       comments: [],
       commentTotal: 0,
@@ -52,10 +65,28 @@ export default {
       commenting: false,
     }
   },
+  computed: {
+    isMine() {
+      if (!this.myUserId || !this.item?.author?.userId) return false
+      return String(this.item.author.userId) === String(this.myUserId)
+    },
+  },
   methods: {
     isLoggedIn,
     goBack() {
       uni.navigateBack()
+    },
+    async loadMyUserId() {
+      if (!isLoggedIn()) {
+        this.myUserId = ''
+        return
+      }
+      try {
+        const me = await getMe()
+        this.myUserId = me?.userId || ''
+      } catch (_) {
+        this.myUserId = ''
+      }
     },
     async load() {
       this.loading = true
@@ -97,6 +128,31 @@ export default {
         this.commenting = false
       }
     },
+    onDelete() {
+      if (this.deleting) return
+      uni.showModal({
+        title: '删除动态',
+        content: '删除后不可恢复，确认删除这条动态？',
+        confirmColor: '#ef4444',
+        success: async (res) => {
+          if (!res.confirm) return
+          this.deleting = true
+          try {
+            await deleteFeedPost(this.postId)
+            uni.showToast({ title: '已删除', icon: 'success' })
+            setTimeout(() => {
+              uni.navigateBack({
+                fail: () => uni.redirectTo({ url: '/pages/my-feed-posts/my-feed-posts' }),
+              })
+            }, 400)
+          } catch (e) {
+            uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+          } finally {
+            this.deleting = false
+          }
+        },
+      })
+    },
     onReport() {
       if (!isLoggedIn()) {
         redirectToLogin(`/pages/feed-detail/feed-detail?postId=${encodeURIComponent(this.postId)}`)
@@ -122,8 +178,9 @@ export default {
       })
     },
   },
-  onLoad(options) {
+  async onLoad(options) {
     this.postId = options?.postId || ''
+    await this.loadMyUserId()
     this.load()
   },
 }
@@ -134,6 +191,12 @@ export default {
 .feed-detail__report {
   font-size: 26rpx;
   color: #64748b;
+  width: auto;
+  padding: 0 8rpx;
+}
+.feed-detail__delete {
+  font-size: 26rpx;
+  color: #ef4444;
   width: auto;
   padding: 0 8rpx;
 }

@@ -141,6 +141,7 @@ export default {
       adminPendingCount: 0,
       menus: [
         { key: 'bindPhone', icon: 'bell', color: '#0284c7', bg: '#e0f2fe', label: '绑定手机号', hint: '' },
+        { key: 'myFeed', icon: 'edit', color: '#0d9488', bg: '#f0fdfa', label: '我的动态' },
         { key: 'history', icon: 'history', color: '#0ea5e9', bg: '#e0f2fe', label: '历史活动' },
         { key: 'feedback', icon: 'message', color: '#f59e0b', bg: '#fffbeb', label: '意见与建议' },
         { key: 'rules', icon: 'book', color: '#10b981', bg: '#ecfdf5', label: '社区规范' },
@@ -223,7 +224,7 @@ export default {
         return
       }
       if (
-        ['bindPhone', 'history', 'feedback', 'adminPhotoReview'].includes(m.key) &&
+        ['bindPhone', 'history', 'myFeed', 'feedback', 'adminPhotoReview'].includes(m.key) &&
         !this.ensureLoggedIn()
       ) {
         return
@@ -240,6 +241,10 @@ export default {
         uni.navigateTo({
           url: '/pages/history-activity-list/history-activity-list',
         })
+        return
+      }
+      if (m.key === 'myFeed') {
+        uni.navigateTo({ url: '/pages/my-feed-posts/my-feed-posts' })
         return
       }
       if (m.key === 'feedback') {

@@ -157,6 +157,13 @@
 			}
 		},
 		{
+			"path": "pages/my-feed-posts/my-feed-posts",
+			"style": {
+				"navigationBarTitleText": "我的动态",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/place-activities/place-activities",
 			"style": {
 				"navigationBarTitleText": "搜地点找活动",
