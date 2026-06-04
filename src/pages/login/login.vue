@@ -1,7 +1,7 @@
 <template>
   <view class="page login">
     <view class="login__header">
-      <text class="login__title">登录去旅聚</text>
+      <text class="login__title">登录旅聚</text>
       <text class="login__subtitle">登录后即可查看活动并发布组局</text>
     </view>
 

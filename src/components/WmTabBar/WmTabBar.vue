@@ -29,17 +29,22 @@
       </template>
     </view>
   </view>
+
+  <publish-picker-sheet
+    :visible="publishPickerVisible"
+    @update:visible="publishPickerVisible = $event"
+    @pick="onPublishPick"
+  />
 </template>
 
 <script>
 import WmIcon from '../WmIcon/WmIcon.vue'
+import PublishPickerSheet from '../PublishPickerSheet/PublishPickerSheet.vue'
 import { isLoggedIn, redirectToLogin } from '@/api'
-
-const LOGIN_REQUIRED_KEYS = ['publish']
 
 export default {
   name: 'WmTabBar',
-  components: { WmIcon },
+  components: { WmIcon, PublishPickerSheet },
   props: {
     active: {
       type: String,
@@ -48,10 +53,11 @@ export default {
   },
   data() {
     return {
+      publishPickerVisible: false,
       tabs: [
         { key: 'home', label: '首页', icon: 'home', path: '/pages/home/home' },
         { key: 'discover', label: '发现', icon: 'compass', path: '/pages/discover/discover' },
-        { key: 'publish', label: '发布', icon: 'plus', path: '/pages/publish/publish', center: true },
+        { key: 'publish', label: '发布', icon: 'plus', center: true },
         { key: 'messages', label: '消息', icon: 'message', path: '/pages/messages/messages' },
         { key: 'profile', label: '我的', icon: 'user', path: '/pages/profile/profile' },
       ],
@@ -59,12 +65,28 @@ export default {
   },
   methods: {
     onSwitch(item) {
-      if (item.key === this.active) return
-      if (LOGIN_REQUIRED_KEYS.includes(item.key) && !isLoggedIn()) {
-        redirectToLogin(item.path)
+      if (item.center) {
+        this.onPublishTap()
         return
       }
+      if (item.key === this.active) return
       uni.reLaunch({ url: item.path })
+    },
+    onPublishTap() {
+      if (!isLoggedIn()) {
+        redirectToLogin()
+        return
+      }
+      this.publishPickerVisible = true
+    },
+    onPublishPick(type) {
+      if (type === 'activity') {
+        uni.navigateTo({ url: '/pages/publish/publish' })
+        return
+      }
+      if (type === 'feed') {
+        uni.navigateTo({ url: '/pages/feed-publish/feed-publish' })
+      }
     },
   },
 }

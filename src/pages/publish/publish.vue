@@ -193,13 +193,11 @@
       @cancel="onPayCancel"
     />
 
-    <wm-tab-bar active="publish" />
   </view>
 </template>
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
-import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import PublishPayModal from '@/components/PublishPayModal/PublishPayModal.vue'
 import { createActivity, getActivityCategories, isLoggedIn, redirectToLogin } from '@/api'
 import { ensureTextFieldsSafe, SEC_SCENE } from '@/utils/contentSecurity'
@@ -215,7 +213,7 @@ import {
 } from '@/constants/activityCategories'
 
 export default {
-  components: { WmIcon, WmTabBar, PublishPayModal },
+  components: { WmIcon, PublishPayModal },
   data() {
     return {
       categoryTree: normalizeCategoryList(FALLBACK_ACTIVITY_CATEGORIES),
@@ -338,7 +336,9 @@ export default {
       this.form.subCategoryId = subCategoryId || ''
     },
     onCancel() {
-      uni.reLaunch({ url: '/pages/home/home' })
+      uni.navigateBack({
+        fail: () => uni.reLaunch({ url: '/pages/home/home' }),
+      })
     },
     onStartDateChange(e) {
       this.form.startDate = e?.detail?.value || ''
@@ -547,7 +547,7 @@ export default {
 .publish {
   min-height: 100vh;
   background: transparent;
-  padding-bottom: 220rpx;
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
 
   &__nav {
     position: sticky;
