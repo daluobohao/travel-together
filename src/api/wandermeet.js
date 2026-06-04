@@ -2163,6 +2163,18 @@ export const listDmRequests = (query = {}) =>
     },
   })
 
+/** 按 requestId 查找私聊申请（系统通知跳转等） */
+export async function findDmRequest(requestId) {
+  const id = String(requestId || '').trim()
+  if (!id) return null
+  const [incoming, outgoing] = await Promise.all([
+    listDmRequests({ direction: 'incoming', status: 'all', page: 1, pageSize: 50 }),
+    listDmRequests({ direction: 'outgoing', status: 'all', page: 1, pageSize: 50 }),
+  ])
+  const all = [...(incoming?.list || []), ...(outgoing?.list || [])]
+  return all.find((r) => r.requestId === id) || null
+}
+
 export const acceptDmRequest = (requestId) =>
   wmRequest({
     method: 'POST',

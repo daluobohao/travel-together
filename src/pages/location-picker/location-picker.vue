@@ -102,6 +102,7 @@ import {
   HOME_SEARCH_ANCHOR_KEY,
   resolveCoordsToListCityCode,
   resolveHomeCityForActivities,
+  setFeedCityAnchor,
 } from '@/utils/homeCity'
 
 const AMAP_WEB_KEY = '15fb84dbcfd7a884bbb4133135d0d05f'
@@ -267,20 +268,30 @@ export default {
     async onUseMyLocation() {
       if (this.locating) return
       if (this.pickerFrom === 'home' || this.pickerFrom === 'discover') {
-        clearHomeSearchAnchor()
-        uni.removeStorageSync(HOME_LOCATION_KEY)
-        uni.removeStorageSync(HOME_CITY_CODE_KEY)
-        uni.removeStorageSync(HOME_CITY_NAME_KEY)
+        if (this.pickerFrom === 'home') {
+          clearHomeSearchAnchor()
+          uni.removeStorageSync(HOME_LOCATION_KEY)
+          uni.removeStorageSync(HOME_CITY_CODE_KEY)
+          uni.removeStorageSync(HOME_CITY_NAME_KEY)
+        }
         uni.showLoading({ title: '定位中…', mask: true })
         try {
-          await resolveHomeCityForActivities({ forceRefresh: true })
+          const gps = await resolveHomeCityForActivities({ forceRefresh: true })
+          if (this.pickerFrom === 'discover') {
+            setFeedCityAnchor({
+              lat: gps.lat,
+              lng: gps.lng,
+              cityCode: gps.cityCode,
+              displayName: gps.cityName || gps.cityCode,
+            })
+          }
         } catch (_) {
-          /* 首页 onShow 会再拉列表 */
+          /* 列表页 onShow 会再拉数据 */
         } finally {
           uni.hideLoading()
         }
         if (this.pickerFrom === 'discover') {
-          uni.reLaunch({ url: '/pages/home/home' })
+          uni.reLaunch({ url: '/pages/discover/discover' })
           return
         }
         uni.navigateBack()
@@ -531,18 +542,25 @@ export default {
           uni.showToast({ title: '无法识别该地区，请换一条结果', icon: 'none' })
           return
         }
+        const displayName = (item.name || item.district || cityLabel || '').trim() || listCityCode
+        if (this.pickerFrom === 'discover') {
+          setFeedCityAnchor({
+            lat,
+            lng,
+            cityCode: listCityCode,
+            displayName,
+          })
+          uni.reLaunch({ url: '/pages/discover/discover' })
+          return
+        }
         uni.setStorageSync(HOME_SEARCH_ANCHOR_KEY, {
           lat,
           lng,
           cityCode: listCityCode,
-          displayName: (item.name || item.district || cityLabel || '').trim() || listCityCode,
+          displayName,
           address: item.address || '',
           updatedAt: Date.now(),
         })
-        if (this.pickerFrom === 'discover') {
-          uni.reLaunch({ url: '/pages/home/home' })
-          return
-        }
       } else if (this.pickerFrom === 'chat') {
         uni.setStorageSync(CHAT_LOCATION_PICK_KEY, {
           name: item.name || '',

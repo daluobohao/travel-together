@@ -66,6 +66,13 @@
 			}
 		},
 		{
+			"path": "pages/friend-list/friend-list",
+			"style": {
+				"navigationBarTitleText": "好友列表",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/hosted-activity-list/hosted-activity-list",
 			"style": {
 				"navigationBarTitleText": "发起活动列表",
@@ -129,7 +136,7 @@
 		{
 			"path": "pages/discover/discover",
 			"style": {
-				"navigationBarTitleText": "发现",
+				"navigationBarTitleText": "同城动态",
 				"navigationStyle": "custom",
 				"enableShareAppMessage": true,
 				"enableShareTimeline": true

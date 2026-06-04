@@ -62,19 +62,23 @@ export function buildHomeShareMessage(cityName) {
   return { title, path: DEFAULT_MINI_PROGRAM_SHARE.path }
 }
 
-/** 发现 Tab 分享 */
+/** 同城动态 Tab 分享 */
 export const DISCOVER_PAGE_SHARE = {
-  title: '去旅聚 · 发现活动与分类',
+  title: '去旅聚 · 同城动态',
   path: '/pages/discover/discover',
 }
 
-export function buildDiscoverShareMessage() {
-  return { ...DISCOVER_PAGE_SHARE }
+export function buildDiscoverShareMessage(cityName) {
+  const city = (cityName && String(cityName).trim()) || ''
+  const title = city ? `去旅聚 · ${city}同城动态` : DISCOVER_PAGE_SHARE.title
+  return { title, path: DISCOVER_PAGE_SHARE.path }
 }
 
-export function buildDiscoverShareClipboardText() {
+export function buildDiscoverShareClipboardText(cityName) {
+  const city = (cityName && String(cityName).trim()) || ''
+  const headline = city ? `【去旅聚】${city}同城动态` : '【去旅聚】同城动态'
   return [
-    '【去旅聚】发现活动与分类',
+    headline,
     '在微信中打开「去旅聚」小程序：可点右上角「···」转发；或把下方页面路径发给已安装该小程序的朋友。',
     `页面路径：${DISCOVER_PAGE_SHARE.path}`,
   ].join('\n')

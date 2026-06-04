@@ -13,7 +13,7 @@
         <view class="wm-tabbar__fab">
           <wm-icon name="plus" :size="44" color="#ffffff" />
         </view>
-        <text class="wm-tabbar__label wm-tabbar__label--center">{{ item.label }}</text>
+        <text class="wm-tabbar__label wm-tabbar__label--center">发活动</text>
       </template>
       <template v-else>
         <view class="wm-tabbar__icon-wrapper">
@@ -29,22 +29,15 @@
       </template>
     </view>
   </view>
-
-  <publish-picker-sheet
-    :visible="publishPickerVisible"
-    @update:visible="publishPickerVisible = $event"
-    @pick="onPublishPick"
-  />
 </template>
 
 <script>
 import WmIcon from '../WmIcon/WmIcon.vue'
-import PublishPickerSheet from '../PublishPickerSheet/PublishPickerSheet.vue'
 import { isLoggedIn, redirectToLogin } from '@/api'
 
 export default {
   name: 'WmTabBar',
-  components: { WmIcon, PublishPickerSheet },
+  components: { WmIcon },
   props: {
     active: {
       type: String,
@@ -53,11 +46,10 @@ export default {
   },
   data() {
     return {
-      publishPickerVisible: false,
       tabs: [
         { key: 'home', label: '首页', icon: 'home', path: '/pages/home/home' },
-        { key: 'discover', label: '发现', icon: 'compass', path: '/pages/discover/discover' },
-        { key: 'publish', label: '发布', icon: 'plus', center: true },
+        { key: 'discover', label: '动态', icon: 'message', path: '/pages/discover/discover' },
+        { key: 'publish', label: '发活动', icon: 'plus', center: true },
         { key: 'messages', label: '消息', icon: 'message', path: '/pages/messages/messages' },
         { key: 'profile', label: '我的', icon: 'user', path: '/pages/profile/profile' },
       ],
@@ -77,16 +69,7 @@ export default {
         redirectToLogin()
         return
       }
-      this.publishPickerVisible = true
-    },
-    onPublishPick(type) {
-      if (type === 'activity') {
-        uni.navigateTo({ url: '/pages/publish/publish' })
-        return
-      }
-      if (type === 'feed') {
-        uni.navigateTo({ url: '/pages/feed-publish/feed-publish' })
-      }
+      uni.navigateTo({ url: '/pages/publish/publish' })
     },
   },
 }
@@ -187,6 +170,8 @@ export default {
       color: $wm-primary;
       font-weight: 700;
       transform: scale(1.05);
+      font-size: 20rpx;
+      white-space: nowrap;
     }
   }
 }

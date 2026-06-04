@@ -149,7 +149,7 @@
           :key="item.id"
           class="system"
           :class="{ 'system--unread': !item.read }"
-          @click="onReadNotif(item)"
+          @click="onTapNotif(item)"
         >
           <view class="system__icon" :style="{ background: item.bg, color: item.color }">
             <wm-icon :name="item.icon" :size="36" :color="item.color" />
@@ -189,7 +189,7 @@
             :key="item.id"
             class="system system--compact"
             :class="{ 'system--unread': !item.read }"
-            @click="onReadNotif(item)"
+            @click="onTapNotif(item)"
           >
             <view class="system__icon" :style="{ background: item.bg, color: item.color }">
               <wm-icon :name="item.icon" :size="32" :color="item.color" />
@@ -208,12 +208,21 @@
     </template>
 
     <wm-tab-bar active="messages" />
+
+    <dm-request-action-sheet
+      :visible="dmRequestSheetVisible"
+      :request="dmRequestSheetRequest"
+      :current-user-id="currentUserId"
+      @update:visible="dmRequestSheetVisible = $event"
+      @done="onDmRequestDone"
+    />
   </view>
 </template>
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
+import DmRequestActionSheet from '@/components/DmRequestActionSheet/DmRequestActionSheet.vue'
 import {
   getMyChats,
   getDirectChats,
@@ -221,6 +230,8 @@ import {
   getNotifications,
   readAllNotifications,
   readNotification,
+  findDmRequest,
+  getMe,
   isLoggedIn,
   redirectToLogin,
 } from '@/api'
@@ -244,6 +255,8 @@ const NOTIF_ICON_MAP = {
   activity_full: { icon: 'users', bg: '#ecfeff', color: '#0d9488' },
   activity_changed: { icon: 'bell', bg: '#eef2ff', color: '#6366f1' },
   activity_cancelled: { icon: 'bell', bg: '#fef2f2', color: '#ef4444' },
+  dm_request: { icon: 'message', bg: '#eef2ff', color: '#6366f1' },
+  dm_request_accepted: { icon: 'check', bg: '#ecfdf5', color: '#10b981' },
   default: { icon: 'bell', bg: '#eef2ff', color: '#6366f1' },
 }
 
@@ -251,6 +264,8 @@ function mapNotif(x) {
   const style = NOTIF_ICON_MAP[x.type] || NOTIF_ICON_MAP.default
   return {
     id: x.notificationId,
+    type: x.type,
+    payload: x.payload || {},
     icon: style.icon,
     bg: style.bg,
     color: style.color,
@@ -284,6 +299,7 @@ function mapPrivateChat(item) {
   return {
     id: String(item.threadId),
     threadId: item.threadId,
+    peerUserId: item.peerUserId || '',
     peerNickname: name,
     peerAvatarUrl: item.peerAvatarUrl || '',
     initial: String(name).slice(0, 1),
@@ -295,7 +311,7 @@ function mapPrivateChat(item) {
 }
 
 export default {
-  components: { WmIcon, WmTabBar },
+  components: { WmIcon, WmTabBar, DmRequestActionSheet },
   data() {
     return {
       activeTab: 'group',
@@ -321,6 +337,9 @@ export default {
       notifHasMore: false,
       notifLoadingMore: false,
       loggedIn: false,
+      currentUserId: '',
+      dmRequestSheetVisible: false,
+      dmRequestSheetRequest: null,
     }
   },
   computed: {
@@ -360,11 +379,13 @@ export default {
       this.privatePage = 1
       this.notifPage = 1
       try {
-        const [convData, dmData, notifData] = await Promise.all([
+        const [convData, dmData, notifData, me] = await Promise.all([
           getMyChats({ page: 1, pageSize: LIST_PAGE_SIZE }),
           getDirectChats({ page: 1, pageSize: LIST_PAGE_SIZE }),
           getNotifications({ page: 1, pageSize: LIST_PAGE_SIZE }),
+          getMe().catch(() => null),
         ])
+        this.currentUserId = me?.userId || ''
         this.groupChats = (convData?.list || []).map((item, idx) => mapGroupChat(item, idx))
         this.privateChats = (dmData?.list || []).map(mapPrivateChat)
         this.systemNotifs = (notifData?.list || []).map(mapNotif)
@@ -454,6 +475,7 @@ export default {
         encodeURIComponent(chat.threadId) +
         '&peerNickname=' +
         encodeURIComponent(chat.peerNickname || chat.name || '') +
+        (chat.peerUserId ? '&peerUserId=' + encodeURIComponent(chat.peerUserId) : '') +
         (chat.peerAvatarUrl ? '&peerAvatarUrl=' + encodeURIComponent(chat.peerAvatarUrl) : '')
       uni.navigateTo({ url: '/pages/direct-chat-detail/direct-chat-detail?' + q })
     },
@@ -473,7 +495,7 @@ export default {
         url: `/pages/chat-detail/chat-detail?id=${activityId || chat.id}`,
       })
     },
-    async onReadNotif(item) {
+    async markNotifRead(item) {
       if (!item || item.read) return
       item.read = true
       try {
@@ -482,6 +504,39 @@ export default {
         item.read = false
         uni.showToast({ title: e?.message || '标记已读失败', icon: 'none' })
       }
+    },
+    async onTapNotif(item) {
+      if (!item) return
+      if (item.type === 'dm_request' && item.payload?.dmRequestId) {
+        uni.showLoading({ title: '加载中…', mask: true })
+        try {
+          if (!this.currentUserId) {
+            const me = await getMe().catch(() => null)
+            this.currentUserId = me?.userId || ''
+          }
+          const req = await findDmRequest(item.payload.dmRequestId)
+          if (!req) {
+            uni.showToast({ title: '申请不存在或已处理', icon: 'none' })
+            await this.markNotifRead(item)
+            return
+          }
+          this.dmRequestSheetRequest = req
+          this.dmRequestSheetVisible = true
+          await this.markNotifRead(item)
+        } catch (e) {
+          uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+        } finally {
+          uni.hideLoading()
+        }
+        return
+      }
+      await this.markNotifRead(item)
+    },
+    onDmRequestDone() {
+      this.loadMessages()
+    },
+    async onReadNotif(item) {
+      await this.markNotifRead(item)
     },
     async onReadAll() {
       if (!this.hasUnreadNotif) return

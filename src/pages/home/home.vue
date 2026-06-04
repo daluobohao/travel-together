@@ -428,7 +428,7 @@ export default {
       if (!list.length && skipCrossCityFallback) {
         const place =
           (anchor.displayName && String(anchor.displayName).trim()) || '该地'
-        hint = `${place}暂无符合条件的活动，可切换「全部」或去「发现」看看`
+        hint = `${place}暂无符合条件的活动，可切换「全部」或去「动态」看看`
       }
       return { list, hint }
     },

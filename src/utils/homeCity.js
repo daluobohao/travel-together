@@ -200,6 +200,53 @@ export function buildCityHallCatalogUrl(anchor) {
   return q.length ? `/pages/city-hall/city-hall?${q.join('&')}` : '/pages/city-hall/city-hall'
 }
 
+/** 同城动态 Tab 城市锚点（与首页搜地点独立） */
+export const FEED_CITY_ANCHOR_KEY = 'FEED_CITY_ANCHOR'
+
+export function getFeedCityAnchorSync() {
+  const raw = uni.getStorageSync(FEED_CITY_ANCHOR_KEY)
+  if (!raw) return null
+  const cityCode = String(raw.cityCode || '').trim()
+  if (!cityCode) return null
+  return {
+    lat: raw.lat != null ? Number(raw.lat) : null,
+    lng: raw.lng != null ? Number(raw.lng) : null,
+    cityCode,
+    displayName: String(raw.displayName || raw.cityName || cityCode).trim(),
+    updatedAt: raw.updatedAt,
+  }
+}
+
+export function setFeedCityAnchor(anchor) {
+  const cityCode = String(anchor?.cityCode || '').trim()
+  if (!cityCode) return
+  uni.setStorageSync(FEED_CITY_ANCHOR_KEY, {
+    lat: anchor.lat != null ? Number(anchor.lat) : null,
+    lng: anchor.lng != null ? Number(anchor.lng) : null,
+    cityCode,
+    displayName: String(anchor.displayName || anchor.cityName || cityCode).trim(),
+    updatedAt: Date.now(),
+  })
+}
+
+export function clearFeedCityAnchor() {
+  uni.removeStorageSync(FEED_CITY_ANCHOR_KEY)
+}
+
+/** 同城动态列表用：动态 Tab 已选城市优先，否则跟随首页锚点 / GPS */
+export async function resolveFeedCityAnchor() {
+  const cached = getFeedCityAnchorSync()
+  if (cached) return { ...cached, source: 'feed' }
+  const home = await getHomeActivityAnchor()
+  return {
+    lat: home.lat,
+    lng: home.lng,
+    cityCode: home.cityCode,
+    displayName: home.displayName,
+    source: home.source || 'default',
+  }
+}
+
 export async function resolveHomeCityForActivities(options = {}) {
   const forceRefresh = !!options.forceRefresh
   if (getMockEnabled()) {

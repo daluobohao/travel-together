@@ -246,6 +246,15 @@ export const wmDB = {
     { notificationId: 'ntf_1', type: 'activity_changed', title: '活动提醒', body: '你报名的「三里屯咖啡局」即将在 1 小时后开始', payload: { activityId: '1' }, readAt: null, createdAt: now() },
     { notificationId: 'ntf_2', type: 'enrollment_ok', title: '报名成功', body: '你已成功加入「周末故宫 Citywalk」，出发前 30 分钟请查看群公告', payload: { activityId: '2' }, readAt: null, createdAt: now() },
     { notificationId: 'ntf_3', type: 'activity_cancelled', title: '活动已取消', body: '很遗憾，「朝阳公园夜跑」因天气原因被发起人取消', payload: { activityId: '3' }, readAt: new Date(Date.now() - 3600 * 1000).toISOString(), createdAt: new Date(Date.now() - 3600 * 1000).toISOString() },
+    {
+      notificationId: 'ntf_dm_1',
+      type: 'dm_request',
+      title: '私聊申请',
+      body: '阿文 申请与你私聊',
+      payload: { dmRequestId: 'dmreq_1', activityId: 'act_1', fromUserId: 'u_10002' },
+      readAt: null,
+      createdAt: now(),
+    },
   ],
   reviews: [
     { id: 'r1', user: 'Mia', activityId: '1', content: '氛围很轻松，组织也很顺畅。', createdAt: now() },

@@ -4,7 +4,7 @@
       <view class="dm-chat__back" @click="goBack">
         <wm-icon name="chevronLeft" :size="34" color="#0f172a" />
       </view>
-      <view class="dm-chat__title-wrap">
+      <view class="dm-chat__title-wrap" @click="openPeerProfile()">
         <text class="dm-chat__title">{{ peerNickname || '私聊' }}</text>
       </view>
       <view class="dm-chat__placeholder" />
@@ -24,7 +24,12 @@
             class="msg-row"
             :class="item.mine ? 'msg-row--mine' : 'msg-row--other'"
           >
-            <view v-if="!item.mine" class="msg-row__avatar">
+            <view
+              v-if="!item.mine"
+              class="msg-row__avatar"
+              :class="{ 'msg-row__avatar--tap': item.openProfile }"
+              @click.stop="item.openProfile && openPeerProfile(item)"
+            >
               <image
                 v-if="item.avatarUrl"
                 class="msg-row__avatar-img"
@@ -157,6 +162,7 @@ export default {
   data() {
     return {
       threadId: '',
+      peerUserId: '',
       peerNickname: '',
       peerAvatarUrl: '',
       messages: [],
@@ -188,6 +194,7 @@ export default {
   },
   onLoad(query) {
     this.threadId = query?.threadId ? decodeURIComponent(query.threadId) : ''
+    this.peerUserId = query?.peerUserId ? decodeURIComponent(query.peerUserId) : ''
     this.peerNickname = query?.peerNickname ? decodeURIComponent(query.peerNickname) : ''
     this.peerAvatarUrl = query?.peerAvatarUrl ? decodeURIComponent(query.peerAvatarUrl) : ''
     this.bootstrap()
@@ -231,12 +238,18 @@ export default {
       if (!mine && raw.sender?.avatarUrl && !this.peerAvatarUrl) {
         this.peerAvatarUrl = raw.sender.avatarUrl
       }
+      if (!mine && sid && !this.peerUserId) {
+        this.peerUserId = sid
+      }
 
       return {
         id,
         ...parseChatMessageFields(raw),
         mine,
         createdAt: raw.createdAt || new Date().toISOString(),
+        sender: nickname,
+        userId: sid || '',
+        openProfile: !mine && !!sid,
         avatarUrl: avatarUrl || '',
         avatarLetter: String(nickname || '?').slice(0, 1),
         pending: false,
@@ -518,6 +531,19 @@ export default {
     goBack() {
       uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/messages/messages' }) })
     },
+    openPeerProfile(msg) {
+      const userId = msg?.userId || this.peerUserId
+      if (!userId) {
+        uni.showToast({ title: '暂无法查看对方资料', icon: 'none' })
+        return
+      }
+      const q = ['userId=' + encodeURIComponent(userId)]
+      const nick = msg?.sender || this.peerNickname
+      if (nick) q.push('nick=' + encodeURIComponent(nick))
+      const ava = msg?.avatarUrl || this.peerAvatarUrl
+      if (ava) q.push('ava=' + encodeURIComponent(ava))
+      uni.navigateTo({ url: '/pages/user-public/user-public?' + q.join('&') })
+    },
   },
 }
 </script>
@@ -692,6 +718,10 @@ export default {
 
     &--mine {
       background: linear-gradient(135deg, #7dd3fc, #38bdf8);
+    }
+
+    &--tap:active {
+      opacity: 0.85;
     }
   }
 

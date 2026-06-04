@@ -84,6 +84,9 @@ export default {
         const data = await acceptDmRequest(it.requestId)
         uni.showToast({ title: '已同意', icon: 'success' })
         const nick = it.fromUser?.nickname || ''
+        const uid = it.fromUser?.userId
+          ? '&peerUserId=' + encodeURIComponent(it.fromUser.userId)
+          : ''
         const ava = it.fromUser?.avatarUrl
           ? '&peerAvatarUrl=' + encodeURIComponent(it.fromUser.avatarUrl)
           : ''
@@ -93,6 +96,7 @@ export default {
             encodeURIComponent(data.threadId) +
             '&peerNickname=' +
             encodeURIComponent(nick) +
+            uid +
             ava,
         })
       } catch (e) {

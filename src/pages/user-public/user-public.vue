@@ -234,6 +234,7 @@ export default {
     },
     openDirectChat(threadId) {
       const nick = encodeURIComponent(this.profile?.nickname || '')
+      const uid = this.targetUserId ? '&peerUserId=' + encodeURIComponent(this.targetUserId) : ''
       const ava = this.profile?.avatarUrl ? '&peerAvatarUrl=' + encodeURIComponent(this.profile.avatarUrl) : ''
       uni.navigateTo({
         url:
@@ -241,6 +242,7 @@ export default {
           encodeURIComponent(threadId) +
           '&peerNickname=' +
           nick +
+          uid +
           ava,
       })
     },
