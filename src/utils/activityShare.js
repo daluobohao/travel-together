@@ -1,11 +1,21 @@
-/** 非活动详情页：分享统一落到首页，避免好友打开到登录/半完成引导页 */
+/** 非活动详情页：分享统一落到 entry 归因页，避免好友打开到登录/半完成引导页 */
+import {
+  SHARE_SRC_FRIEND,
+  SHARE_SRC_TIMELINE,
+  appendShareSrcToPath,
+  appendShareSrcToQuery,
+} from '@/utils/acquisitionSource'
+
 export const DEFAULT_MINI_PROGRAM_SHARE = {
   title: '去旅聚 · 发现身边的活动',
-  path: '/pages/home/home',
+  path: appendShareSrcToPath('/pages/entry/entry', SHARE_SRC_FRIEND),
 }
 
 export function buildDefaultTimelineShare() {
-  return { title: DEFAULT_MINI_PROGRAM_SHARE.title }
+  return {
+    title: DEFAULT_MINI_PROGRAM_SHARE.title,
+    query: appendShareSrcToQuery('', SHARE_SRC_TIMELINE),
+  }
 }
 
 /** 登录/引导等页面不宜作为分享落地页，统一回首页 */
@@ -39,9 +49,10 @@ export function buildCurrentPageShareMessage(title = DEFAULT_MINI_PROGRAM_SHARE.
     return { ...DEFAULT_MINI_PROGRAM_SHARE }
   }
   const query = buildPageQuery(options)
+  const path = query ? `/${route}?${query}` : `/${route}`
   return {
     title,
-    path: query ? `/${route}?${query}` : `/${route}`,
+    path: appendShareSrcToPath(path, SHARE_SRC_FRIEND),
   }
 }
 
@@ -52,7 +63,8 @@ export function buildCurrentPageTimelineShare(title = DEFAULT_MINI_PROGRAM_SHARE
     return { title }
   }
   const query = buildPageQuery(options)
-  return query ? { title, query } : { title }
+  const q = appendShareSrcToQuery(query, SHARE_SRC_TIMELINE)
+  return q ? { title, query: q } : buildDefaultTimelineShare()
 }
 
 /** 首页分享标题（可带城市） */
@@ -65,7 +77,7 @@ export function buildHomeShareMessage(cityName) {
 /** 同城动态 Tab 分享 */
 export const DISCOVER_PAGE_SHARE = {
   title: '去旅聚 · 同城动态',
-  path: '/pages/discover/discover',
+  path: appendShareSrcToPath('/pages/discover/discover', SHARE_SRC_FRIEND),
 }
 
 export function buildDiscoverShareMessage(cityName) {
@@ -105,18 +117,19 @@ export function buildActivityDetailPath(activityId) {
 /** 供 ``onShareAppMessage`` 使用 */
 export function buildActivityShareMessage(activity) {
   if (!activity?.id) {
-    return { title: '去旅聚 · 发现身边的活动', path: '/pages/home/home' }
+    return { title: '去旅聚 · 发现身边的活动', path: DEFAULT_MINI_PROGRAM_SHARE.path }
   }
   const title = (activity.title && String(activity.title).trim().slice(0, 64)) || '去旅聚活动'
   return {
     title,
-    path: buildActivityDetailPath(activity.id),
+    path: appendShareSrcToPath(buildActivityDetailPath(activity.id), SHARE_SRC_FRIEND),
   }
 }
 
 /** 供 ``onShareTimeline`` 的 query（无 ``?``） */
 export function buildActivityTimelineQuery(activityId) {
-  return `id=${encodeURIComponent(String(activityId || '').trim())}`
+  const base = `id=${encodeURIComponent(String(activityId || '').trim())}`
+  return appendShareSrcToQuery(base, SHARE_SRC_TIMELINE)
 }
 
 /** 复制到剪贴板：标题 + 打开方式 + 小程序页面路径 */

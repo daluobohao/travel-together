@@ -152,6 +152,10 @@ import {
 } from '@/api'
 import { buildDefaultTimelineShare, DEFAULT_MINI_PROGRAM_SHARE } from '@/utils/activityShare'
 import {
+  clearAcquisitionAfterLogin,
+  getLoginAcquisitionPayload,
+} from '@/utils/acquisitionSource'
+import {
   applyLoginTokens,
   clearSkipSilentLogin,
   consumePostLoginRedirect,
@@ -362,8 +366,9 @@ export default {
       try {
         clearSkipSilentLogin()
         const code = await getWxLoginCode()
-        const data = await loginByWechat({ code })
+        const data = await loginByWechat({ code, ...getLoginAcquisitionPayload() })
         applyLoginTokens(data)
+        clearAcquisitionAfterLogin()
         navigateAfterLogin(data?.user)
       } catch (e) {
         uni.showToast({ title: e?.message || '微信登录失败', icon: 'none' })
@@ -390,8 +395,9 @@ export default {
       try {
         clearSkipSilentLogin()
         const code = await getTtLoginCode()
-        const data = await loginByDouyin({ code })
+        const data = await loginByDouyin({ code, ...getLoginAcquisitionPayload() })
         applyLoginTokens(data)
+        clearAcquisitionAfterLogin()
         navigateAfterLogin(data?.user)
       } catch (e) {
         uni.showToast({ title: e?.message || '抖音登录失败', icon: 'none' })

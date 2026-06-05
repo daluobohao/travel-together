@@ -9,6 +9,7 @@
 
 <script>
 import { bindReferralCode, isLoggedIn, redirectToLogin } from '@/api'
+import { capturePageQueryAttribution } from '@/utils/acquisitionSource'
 import { clearPendingInviteCode, parseInviteFromQuery, savePendingInviteCode } from '@/utils/referralInv'
 
 export default {
@@ -16,6 +17,7 @@ export default {
     return { tip: '正在进入…' }
   },
   async onLoad(options) {
+    capturePageQueryAttribution(options)
     const inv = parseInviteFromQuery(options)
     if (inv) savePendingInviteCode(inv)
     if (isLoggedIn()) {

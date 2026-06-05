@@ -2,6 +2,10 @@ import { clearWmAuthTokens } from '@/api/config'
 import { getAccessToken, loginByWechat, setAccessToken, setRefreshToken } from '@/api'
 import { loadOnboardingConfig } from '@/config/onboarding'
 import { tryBindPendingReferralAfterLogin } from '@/utils/referralInv'
+import {
+  clearAcquisitionAfterLogin,
+  getLoginAcquisitionPayload,
+} from '@/utils/acquisitionSource'
 
 const SKIP_SILENT_LOGIN_KEY = 'wm_skip_silent_login'
 const REDIRECT_URL_KEY = 'REDIRECT_URL'
@@ -167,6 +171,7 @@ export function navigateAfterLogin(user, { showToast = true } = {}) {
       try {
         // 邀请绑定不阻塞跳转；失败时静默忽略
         tryBindPendingReferralAfterLogin().catch(() => {})
+        clearAcquisitionAfterLogin()
         const { fullEnabled } = await loadOnboardingConfig()
         if (fullEnabled && !user?.onboardingCompletedAt) {
           target = '/pages/onboarding/onboarding'
@@ -201,9 +206,10 @@ export function trySilentWechatLogin() {
     try {
       const code = await getWxLoginCode()
       if (shouldSkipSilentLogin()) return false
-      const data = await loginByWechat({ code })
+      const data = await loginByWechat({ code, ...getLoginAcquisitionPayload() })
       if (shouldSkipSilentLogin()) return false
       applyLoginTokens(data)
+      clearAcquisitionAfterLogin()
       return true
     } catch {
       return false

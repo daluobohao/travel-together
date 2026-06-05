@@ -2031,6 +2031,195 @@ export const adminRejectPhotoVerification = (verificationId, reason) =>
     },
   })
 
+function mockAdminListCityGroupHosts(query = {}) {
+  const list = []
+  let id = 1
+  for (const [cityCode, cfg] of Object.entries(wmDB.cityGroupHosts || {})) {
+    if (query.cityCode && query.cityCode !== cityCode) continue
+    if (cfg.ownerUserId) {
+      const uid = cfg.ownerUserId
+      const u = wmDB.users?.[uid]
+      list.push({
+        id: id++,
+        cityCode,
+        userId: uid,
+        nickname: u?.nickname || '用户',
+        role: 'owner',
+        status: 'active',
+        appointedAt: new Date().toISOString(),
+      })
+    }
+    for (const uid of cfg.deputies || []) {
+      const u = wmDB.users?.[uid]
+      list.push({
+        id: id++,
+        cityCode,
+        userId: uid,
+        nickname: u?.nickname || '用户',
+        role: 'deputy',
+        status: 'active',
+        appointedAt: new Date().toISOString(),
+      })
+    }
+  }
+  if (query.status) {
+    return ok(paginate(list.filter((x) => x.status === query.status), query.page, query.pageSize))
+  }
+  return ok(paginate(list, query.page, query.pageSize))
+}
+
+function mockAdminAppointCityGroupHost(payload = {}) {
+  const cc = payload.cityCode
+  const uid = payload.userId
+  const role = payload.role || 'owner'
+  if (!cc || !uid) throw new Error('参数不完整')
+  if (!wmDB.cityGroupHosts) wmDB.cityGroupHosts = {}
+  if (!wmDB.cityGroupHosts[cc]) {
+    wmDB.cityGroupHosts[cc] = { ownerUserId: null, deputies: [], announcement: '', welcomeText: '' }
+  }
+  const cfg = wmDB.cityGroupHosts[cc]
+  if (role === 'owner') {
+    cfg.ownerUserId = uid
+  } else if (!(cfg.deputies || []).includes(uid)) {
+    cfg.deputies = [...(cfg.deputies || []), uid]
+  }
+  return ok({
+    id: Date.now(),
+    cityCode: cc,
+    userId: uid,
+    role,
+    status: 'active',
+  })
+}
+
+function mockAdminListCityGroupHostApplications(query = {}) {
+  const apps = wmDB.cityGroupHostApplications || []
+  const filtered = query.status ? apps.filter((a) => a.status === query.status) : apps
+  const list = filtered.map((a) => {
+    const u = wmDB.users?.[a.userId]
+    return {
+      applicationId: a.id,
+      cityCode: a.cityCode,
+      userId: a.userId,
+      nickname: u?.nickname || '用户',
+      applicationType: a.applicationType,
+      status: a.status,
+      introText: a.introText || '',
+      nominatorUserId: a.nominatorUserId || null,
+      createdAt: new Date().toISOString(),
+    }
+  })
+  return ok(paginate(list, query.page, query.pageSize))
+}
+
+export const adminListCityGroupHosts = (query = {}) =>
+  wmRequest({
+    method: 'GET',
+    path: '/admin/city-group-hosts',
+    query,
+    needAuth: true,
+    mockHandler: ({ query: q }) => mockAdminListCityGroupHosts(q),
+  })
+
+export const adminAppointCityGroupHost = (payload) =>
+  wmRequest({
+    method: 'POST',
+    path: '/admin/city-group-hosts',
+    data: payload,
+    needAuth: true,
+    mockHandler: ({ data }) => {
+      try {
+        return mockAdminAppointCityGroupHost(data)
+      } catch (e) {
+        return { code: 400, message: e.message || '任命失败', data: null }
+      }
+    },
+  })
+
+export const adminUpdateCityGroupHost = (hostId, payload) =>
+  wmRequest({
+    method: 'PATCH',
+    path: `/admin/city-group-hosts/${hostId}`,
+    data: payload,
+    needAuth: true,
+    mockHandler: ({ data }) => ok({ id: hostId, status: data?.status || 'resigned' }),
+  })
+
+export const adminListCityGroupHostApplications = (query = {}) =>
+  wmRequest({
+    method: 'GET',
+    path: '/admin/city-group-hosts/applications',
+    query,
+    needAuth: true,
+    mockHandler: ({ query: q }) => mockAdminListCityGroupHostApplications(q),
+  })
+
+export const adminApproveCityGroupHostApplication = (applicationId) =>
+  wmRequest({
+    method: 'POST',
+    path: `/admin/city-group-hosts/applications/${applicationId}/approve`,
+    needAuth: true,
+    mockHandler: () => {
+      const apps = wmDB.cityGroupHostApplications || []
+      const row = apps.find((a) => a.id === Number(applicationId))
+      if (row) {
+        row.status = 'approved'
+        mockAdminAppointCityGroupHost({
+          cityCode: row.cityCode,
+          userId: row.userId,
+          role: row.applicationType === 'deputy' ? 'deputy' : 'owner',
+        })
+      }
+      return ok({ ok: true })
+    },
+  })
+
+export const adminRejectCityGroupHostApplication = (applicationId, reviewNote) =>
+  wmRequest({
+    method: 'POST',
+    path: `/admin/city-group-hosts/applications/${applicationId}/reject`,
+    data: reviewNote != null ? { reviewNote } : {},
+    needAuth: true,
+    mockHandler: () => {
+      const apps = wmDB.cityGroupHostApplications || []
+      const row = apps.find((a) => a.id === Number(applicationId))
+      if (row) row.status = 'rejected'
+      return ok({ ok: true })
+    },
+  })
+
+export const adminGetAcquisitionStats = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/admin/acquisition-stats',
+    needAuth: true,
+    mockHandler: () => {
+      const counts = {}
+      if (wmDB.profile?.acquisitionSource) {
+        counts[wmDB.profile.acquisitionSource] = 1
+      }
+      counts.mp_weixin = (counts.mp_weixin || 0) + 12
+      counts.wx_share_friend = (counts.wx_share_friend || 0) + 8
+      counts['referral:ABC123'] = (counts['referral:ABC123'] || 0) + 3
+      const total = Object.values(counts).reduce((a, b) => a + b, 0) + 5
+      const items = Object.entries(counts)
+        .map(([source, count]) => ({
+          source,
+          count,
+          pct: total ? Math.round((count / total) * 10000) / 100 : 0,
+        }))
+        .sort((a, b) => b.count - a.count)
+      items.push({ source: '(未记录)', count: 5, pct: total ? Math.round((5 / total) * 10000) / 100 : 0 })
+      const withSource = items.filter((x) => x.source !== '(未记录)').reduce((s, x) => s + x.count, 0)
+      return ok({
+        totalUsers: total,
+        withSource,
+        withoutSource: 5,
+        items,
+      })
+    },
+  })
+
 // ===== Frontend-friendly aggregate helpers =====
 const categoryColorMap = ACTIVITY_CATEGORY_COLOR_MAP
 

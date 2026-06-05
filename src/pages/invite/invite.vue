@@ -61,6 +61,12 @@ import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import { getMyReferral } from '@/api'
 import { REFERRAL_TIERS } from '@/constants/growthTrust'
 import { copyTextToClipboard } from '@/utils/clipboard'
+import {
+  SHARE_SRC_FRIEND,
+  SHARE_SRC_TIMELINE,
+  appendShareSrcToPath,
+  appendShareSrcToQuery,
+} from '@/utils/acquisitionSource'
 
 const STATUS_MAP = {
   pending: '待完成',
@@ -110,11 +116,22 @@ export default {
     this.load()
   },
   onShareAppMessage() {
+    const base = this.data.sharePath || '/pages/entry/entry'
     return {
       title: '来旅聚，加入同城大群',
-      path: this.data.sharePath || '/pages/entry/entry',
+      path: appendShareSrcToPath(base, SHARE_SRC_FRIEND),
     }
   },
+  // #ifdef MP-WEIXIN
+  onShareTimeline() {
+    const base = this.data.sharePath || '/pages/entry/entry'
+    const q = base.includes('?') ? base.split('?')[1] : ''
+    return {
+      title: '来旅聚，加入同城大群',
+      query: appendShareSrcToQuery(q, SHARE_SRC_TIMELINE),
+    }
+  },
+  // #endif
 }
 </script>
 

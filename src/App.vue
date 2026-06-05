@@ -2,12 +2,14 @@
 import { setMockEnabled } from '@/api'
 import { loadOnboardingConfig } from '@/config/onboarding'
 import { trySilentWechatLogin } from '@/utils/wechatAuth'
+import { captureLaunchAttribution } from '@/utils/acquisitionSource'
 // #ifdef MP-TOUTIAO
 import { trySilentDouyinLogin } from '@/utils/douyinAuth'
 // #endif
 
 export default {
-  onLaunch() {
+  onLaunch(options) {
+    captureLaunchAttribution(options || {})
     setMockEnabled(false)
     console.log('WanderMeet App Launch', 'mock=', false)
     loadOnboardingConfig()

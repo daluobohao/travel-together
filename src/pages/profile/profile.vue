@@ -106,6 +106,7 @@
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import {
+  adminListCityGroupHostApplications,
   adminListPhotoVerifications,
   formatUserGenderLabel,
   getMe,
@@ -139,6 +140,7 @@ export default {
       loggedIn: false,
       isAdmin: false,
       adminPendingCount: 0,
+      adminHostPendingCount: 0,
       menus: [
         { key: 'bindPhone', icon: 'bell', color: '#0284c7', bg: '#e0f2fe', label: '绑定手机号', hint: '' },
         { key: 'myFeed', icon: 'edit', color: '#0d9488', bg: '#f0fdfa', label: '我的动态' },
@@ -161,14 +163,32 @@ export default {
     displayMenus() {
       const items = [...this.menus]
       if (this.isAdmin) {
-        items.unshift({
-          key: 'adminPhotoReview',
-          icon: 'shield',
-          color: '#7c3aed',
-          bg: '#f5f3ff',
-          label: '照片验证审核',
-          hint: this.adminPendingCount > 0 ? `${this.adminPendingCount} 待审` : '',
-        })
+        items.unshift(
+          {
+            key: 'adminCityHost',
+            icon: 'users',
+            color: '#4f46e5',
+            bg: '#eef2ff',
+            label: '城市群主任命',
+            hint: this.adminHostPendingCount > 0 ? `${this.adminHostPendingCount} 待审` : '',
+          },
+          {
+            key: 'adminAcquisitionStats',
+            icon: 'globe',
+            color: '#0d9488',
+            bg: '#f0fdfa',
+            label: '渠道来源统计',
+            hint: '',
+          },
+          {
+            key: 'adminPhotoReview',
+            icon: 'shield',
+            color: '#7c3aed',
+            bg: '#f5f3ff',
+            label: '照片验证审核',
+            hint: this.adminPendingCount > 0 ? `${this.adminPendingCount} 待审` : '',
+          },
+        )
       }
       // #ifdef H5
       return [
@@ -225,9 +245,26 @@ export default {
         return
       }
       if (
-        ['bindPhone', 'history', 'myFeed', 'friends', 'feedback', 'adminPhotoReview'].includes(m.key) &&
+        [
+          'bindPhone',
+          'history',
+          'myFeed',
+          'friends',
+          'feedback',
+          'adminPhotoReview',
+          'adminCityHost',
+          'adminAcquisitionStats',
+        ].includes(m.key) &&
         !this.ensureLoggedIn()
       ) {
+        return
+      }
+      if (m.key === 'adminAcquisitionStats') {
+        uni.navigateTo({ url: '/pages/admin-acquisition-stats/admin-acquisition-stats' })
+        return
+      }
+      if (m.key === 'adminCityHost') {
+        uni.navigateTo({ url: '/pages/admin-city-host/admin-city-host' })
         return
       }
       if (m.key === 'adminPhotoReview') {
@@ -321,6 +358,7 @@ export default {
       this.activities = []
       this.isAdmin = false
       this.adminPendingCount = 0
+      this.adminHostPendingCount = 0
       return
     }
     try {
@@ -343,17 +381,19 @@ export default {
       }
       if (this.isAdmin) {
         try {
-          const pending = await adminListPhotoVerifications({
-            status: 'pending',
-            page: 1,
-            pageSize: 1,
-          })
-          this.adminPendingCount = pending?.total ?? 0
+          const [photoPending, hostPending] = await Promise.all([
+            adminListPhotoVerifications({ status: 'pending', page: 1, pageSize: 1 }),
+            adminListCityGroupHostApplications({ status: 'pending', page: 1, pageSize: 1 }),
+          ])
+          this.adminPendingCount = photoPending?.total ?? 0
+          this.adminHostPendingCount = hostPending?.total ?? 0
         } catch {
           this.adminPendingCount = 0
+          this.adminHostPendingCount = 0
         }
       } else {
         this.adminPendingCount = 0
+        this.adminHostPendingCount = 0
       }
       const bindMenu = this.menus.find((m) => m.key === 'bindPhone')
       if (bindMenu) {

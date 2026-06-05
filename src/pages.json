@@ -316,6 +316,20 @@
 				"navigationBarTitleText": "照片验证审核",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/admin-city-host/admin-city-host",
+			"style": {
+				"navigationBarTitleText": "城市群主管理",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/admin-acquisition-stats/admin-acquisition-stats",
+			"style": {
+				"navigationBarTitleText": "渠道来源统计",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"globalStyle": {

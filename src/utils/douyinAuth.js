@@ -1,6 +1,10 @@
 import { loginByDouyin } from '@/api'
 import { getAccessToken } from '@/api/config'
 import {
+  clearAcquisitionAfterLogin,
+  getLoginAcquisitionPayload,
+} from '@/utils/acquisitionSource'
+import {
   applyLoginTokens,
   setSkipSilentLogin,
   shouldSkipSilentLogin,
@@ -129,7 +133,7 @@ export async function loginWithDouyinCode() {
   await waitForDouyinSilentLoginIdle()
   const code = await getTtLoginCode('manual')
   console.log(`${LOG_PREFIX} POST /auth/douyin/login [manual]`, { code: maskCredential(code) })
-  return loginByDouyin({ code })
+  return loginByDouyin({ code, ...getLoginAcquisitionPayload() })
 }
 
 /** 启动静默登录：无本地 access 时 tt.login → POST /api/v1/wm/auth/douyin/login */
@@ -143,9 +147,10 @@ export function trySilentDouyinLogin() {
       const code = await getTtLoginCode('silent')
       if (shouldSkipSilentLogin()) return false
       console.log(`${LOG_PREFIX} POST /auth/douyin/login [silent]`, { code: maskCredential(code) })
-      const data = await loginByDouyin({ code })
+      const data = await loginByDouyin({ code, ...getLoginAcquisitionPayload() })
       if (shouldSkipSilentLogin()) return false
       applyLoginTokens(data)
+      clearAcquisitionAfterLogin()
       console.log(`${LOG_PREFIX} 静默登录成功`)
       return true
     } catch (e) {
