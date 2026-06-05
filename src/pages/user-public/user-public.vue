@@ -132,6 +132,7 @@ import {
   unfollowUser,
 } from '@/api'
 import { ensureTextContentSafe, SEC_SCENE } from '@/utils/contentSecurity'
+import { formatHostBadgeLabel, normalizeHostBadgeLabel } from '@/utils/cityCatalog'
 
 export default {
   components: { WmIcon, FeedPostCard },
@@ -174,7 +175,12 @@ export default {
       return String(n).slice(0, 1)
     },
     cityHostBadges() {
-      return this.profile?.cityHostBadges || []
+      return (this.profile?.cityHostBadges || []).map((b) => ({
+        ...b,
+        badgeLabel: b.badgeLabel
+          ? normalizeHostBadgeLabel(b.badgeLabel)
+          : formatHostBadgeLabel(b.cityName, b.role),
+      }))
     },
     publicGenderLabel() {
       return formatUserGenderLabel(this.profile?.gender)

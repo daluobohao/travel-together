@@ -48,6 +48,31 @@ function normalizeCityKeyword(keyword) {
     .replace(/(特别行政区|自治州|地区|盟|市)$/g, '')
 }
 
+/** 城主徽章用短城名：北京市 → 北京 */
+export function cityShortNameForHostBadge(cityName) {
+  const name = String(cityName || '').trim()
+  const short = name.replace(/(特别行政区|自治州|地区|盟|市)$/g, '')
+  return short || name
+}
+
+/** 城主徽章文案：北京城主 / 北京副城主 */
+export function formatHostBadgeLabel(cityName, role = 'owner') {
+  const short = cityShortNameForHostBadge(cityName)
+  return role === 'deputy' ? `${short}副城主` : `${short}城主`
+}
+
+/** 兼容旧 API：北京市群主 → 北京城主 */
+export function normalizeHostBadgeLabel(label, fallback = '城主') {
+  let s = String(label || '').trim()
+  if (!s) return fallback
+  s = s.replace(/副群主/g, '副城主').replace(/群主/g, '城主')
+  const m = s.match(/^(.+?)(副?)城主$/)
+  if (m) {
+    return `${cityShortNameForHostBadge(m[1])}${m[2]}城主`
+  }
+  return s
+}
+
 /** 按城市名 / 省份名搜索目录城市 */
 export function searchCatalogCities(keyword, limit = 40) {
   const q = normalizeCityKeyword(keyword)

@@ -50,6 +50,7 @@ import {
   mockToggleLike,
 } from '@/mock/feed-mock'
 import { contactTextBlockedReason } from '@/utils/contactContentFilter'
+import { cityShortNameForHostBadge } from '@/utils/cityCatalog'
 import { isKnownStickerId } from '@/constants/chatStickers'
 
 const ok = (data) => ({ code: 0, message: 'ok', data })
@@ -98,6 +99,11 @@ function mockCityNameFromCode(cityCode) {
   return cityCode
 }
 
+function mockHostBadgeLabel(cityCode, role = 'owner') {
+  const short = cityShortNameForHostBadge(mockCityNameFromCode(cityCode))
+  return role === 'deputy' ? `${short}副城主` : `${short}城主`
+}
+
 function mockBuildHostSummary(userId, cityCode, role = 'owner') {
   const u = wmDB.users?.[userId] || {}
   const cityName = mockCityNameFromCode(cityCode)
@@ -106,7 +112,7 @@ function mockBuildHostSummary(userId, cityCode, role = 'owner') {
     nickname: u.nickname || '用户',
     avatarUrl: u.avatarUrl || null,
     role,
-    badgeLabel: role === 'owner' ? `${cityName}群主` : `${cityName}副群主`,
+    badgeLabel: mockHostBadgeLabel(cityCode, role),
   }
 }
 
@@ -170,7 +176,7 @@ function mockListCityHostBadges(userId) {
         cityCode,
         cityName: mockCityNameFromCode(cityCode),
         role: 'owner',
-        badgeLabel: `${mockCityNameFromCode(cityCode)}群主`,
+        badgeLabel: mockHostBadgeLabel(cityCode, 'owner'),
       })
     }
     for (const dep of cfg.deputies || []) {
@@ -179,7 +185,7 @@ function mockListCityHostBadges(userId) {
           cityCode,
           cityName: mockCityNameFromCode(cityCode),
           role: 'deputy',
-          badgeLabel: `${mockCityNameFromCode(cityCode)}副群主`,
+          badgeLabel: mockHostBadgeLabel(cityCode, 'deputy'),
         })
       }
     }

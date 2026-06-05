@@ -5,7 +5,7 @@
         <wm-icon name="chevronLeft" :size="34" color="#0f172a" />
         <text>返回</text>
       </view>
-      <text class="admin-host__title">城市群主管理</text>
+      <text class="admin-host__title">城主管理</text>
       <view class="admin-host__placeholder" />
     </view>
 
@@ -30,7 +30,7 @@
 
       <!-- 任命 -->
       <view v-if="activeTab === 'appoint'" class="admin-host__panel">
-        <text class="admin-host__panel-title">任命群主 / 副群主</text>
+        <text class="admin-host__panel-title">任命城主 / 副城主</text>
         <text class="admin-host__panel-hint">北京 110000 · 上海 310100 · 广州 440100</text>
 
         <view class="admin-host__field">
@@ -49,14 +49,14 @@
               :class="{ 'admin-host__role--on': appointRole === 'owner' }"
               @click="appointRole = 'owner'"
             >
-              <text>群主 owner</text>
+              <text>城主 owner</text>
             </view>
             <view
               class="admin-host__role"
               :class="{ 'admin-host__role--on': appointRole === 'deputy' }"
               @click="appointRole = 'deputy'"
             >
-              <text>副群主 deputy</text>
+              <text>副城主 deputy</text>
             </view>
           </view>
         </view>
@@ -79,7 +79,7 @@
           </view>
         </view>
         <view v-if="hostsLoading" class="admin-host__state"><text>加载中…</text></view>
-        <view v-else-if="!hosts.length" class="admin-host__state"><text>暂无群主记录</text></view>
+        <view v-else-if="!hosts.length" class="admin-host__state"><text>暂无城主记录</text></view>
         <view v-for="item in hosts" :key="item.id" class="admin-host__card">
           <view class="admin-host__card-head">
             <text class="admin-host__card-city">{{ cityLabel(item.cityCode) }}</text>
@@ -187,13 +187,13 @@ export default {
       return resolveCityHallCityName(code) || code
     },
     roleLabel(role) {
-      if (role === 'owner') return '群主'
-      if (role === 'deputy') return '副群主'
+      if (role === 'owner') return '城主'
+      if (role === 'deputy') return '副城主'
       return role
     },
     typeLabel(t) {
-      if (t === 'owner') return '申请群主'
-      if (t === 'deputy') return '副群主提名'
+      if (t === 'owner') return '申请城主'
+      if (t === 'deputy') return '副城主提名'
       return t
     },
     async bootstrap() {
@@ -266,7 +266,7 @@ export default {
     },
     onResignHost(item) {
       uni.showModal({
-        title: '撤换群主',
+        title: '撤换城主',
         content: `确定撤换 ${this.cityLabel(item.cityCode)} 的${this.roleLabel(item.role)}？`,
         success: async (res) => {
           if (!res.confirm) return

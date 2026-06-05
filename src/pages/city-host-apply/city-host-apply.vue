@@ -4,14 +4,14 @@
       <view class="host-apply__back" @click="goBack">
         <wm-icon name="chevronLeft" :size="34" color="#0f172a" />
       </view>
-      <text class="host-apply__title">申请成为群主</text>
+      <text class="host-apply__title">申请成为城主</text>
       <view class="host-apply__placeholder" />
     </view>
 
     <view class="host-apply__body">
       <text class="host-apply__city">{{ cityLabel || cityCode }}</text>
       <text class="host-apply__hint">
-        需已加入该城大群、完成照片验证；大群成员 ≥ {{ applyMinMembers }} 且群主空缺满 30 天。
+        需已加入该城大群、完成照片验证；大群成员 ≥ {{ applyMinMembers }} 且城主空缺满 30 天。
       </text>
 
       <view class="host-apply__field">
@@ -29,7 +29,7 @@
         <view class="host-apply__check" :class="{ 'host-apply__check--on': agreed }">
           <text v-if="agreed">✓</text>
         </view>
-        <text class="host-apply__agree-text">我已阅读并同意《城市群主公约》</text>
+        <text class="host-apply__agree-text">我已阅读并同意《城主公约》</text>
       </view>
 
       <view class="host-apply__btn" :class="{ 'host-apply__btn--disabled': !agreed }" @click="onSubmit">
@@ -71,7 +71,7 @@ export default {
     },
     async onSubmit() {
       if (!this.agreed) {
-        uni.showToast({ title: '请先同意群主公约', icon: 'none' })
+        uni.showToast({ title: '请先同意城主公约', icon: 'none' })
         return
       }
       try {

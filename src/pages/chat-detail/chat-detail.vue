@@ -52,7 +52,7 @@
                 @click.stop="item.openProfile && openUserPublic(item)"
               >
                 {{ item.sender }}
-                <text v-if="item.senderHostRole === 'owner'" class="msg-col__host-tag">群主</text>
+                <text v-if="item.senderHostRole === 'owner'" class="msg-col__host-tag">城主</text>
                 <text v-else-if="item.senderHostRole === 'deputy'" class="msg-col__host-tag msg-col__host-tag--dep">管理</text>
               </text>
               <view
@@ -85,7 +85,7 @@
                   class="msg-bubble__activity-rec"
                   @click.stop="openRecommendedActivity(item)"
                 >
-                  <text class="msg-bubble__activity-rec-tag">群主推荐</text>
+                  <text class="msg-bubble__activity-rec-tag">城主推荐</text>
                   <text class="msg-bubble__activity-rec-title">{{ item.recActivityTitle || '查看活动' }}</text>
                   <text class="msg-bubble__activity-rec-link">查看详情 ›</text>
                 </view>
@@ -342,7 +342,7 @@ export default {
             this.cityHostContext = await getCityGroupHostContext(this.chatId)
             this.cityCode = this.cityHostContext?.cityCode || ''
           } catch (e) {
-            console.warn('加载群主上下文失败', e)
+            console.warn('加载城主上下文失败', e)
             this.cityHostContext = null
           }
         } else {

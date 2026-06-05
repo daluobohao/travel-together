@@ -279,7 +279,7 @@ export const wmDB = {
   dmThreads: [],
   /** key: 数字 thread id 字符串，如 '1' */
   dmMessages: {},
-  /** 城市大群群主（按 cityCode） */
+  /** 城市大群城主（按 cityCode） */
   cityGroupHosts: {
     '110000': {
       ownerUserId: 'u_10001',

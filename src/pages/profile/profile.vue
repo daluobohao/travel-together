@@ -169,7 +169,7 @@ export default {
             icon: 'users',
             color: '#4f46e5',
             bg: '#eef2ff',
-            label: '城市群主任命',
+            label: '城主任命',
             hint: this.adminHostPendingCount > 0 ? `${this.adminHostPendingCount} 待审` : '',
           },
           {

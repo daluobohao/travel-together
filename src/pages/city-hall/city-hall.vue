@@ -110,20 +110,15 @@
         </view>
         <view class="city-hall__owner-main">
           <view class="city-hall__owner-title-row">
-            <text class="city-hall__owner-label">群主</text>
+            <text class="city-hall__owner-label">城主</text>
             <text class="city-hall__owner-name">{{ owner.nickname || '用户' }}</text>
           </view>
-          <text class="city-hall__owner-meta">{{ owner.badgeLabel || '城市群主' }}</text>
+          <text class="city-hall__owner-meta">{{ ownerBadgeLabel }}</text>
         </view>
         <text class="city-hall__owner-action">看资料 ›</text>
       </view>
       <view v-else class="city-hall__official-tip">
         <text>旅聚官方 · 友善交流，违规可举报</text>
-      </view>
-
-      <view v-if="announcement" class="city-hall__announcement">
-        <text class="city-hall__announcement-label">群公告</text>
-        <text class="city-hall__announcement-text">{{ announcement }}</text>
       </view>
 
       <view v-if="metaTip" class="city-hall__tip-card">
@@ -145,11 +140,26 @@
           class="city-hall__btn city-hall__btn--ghost"
           @click="openHostApply"
         >
-          <text>申请成为群主</text>
+          <text>申请成为城主</text>
         </view>
         <view v-else-if="hostApplicationPending" class="city-hall__pending-tip">
-          <text>群主申请审核中，请耐心等待</text>
+          <text>城主申请审核中，请耐心等待</text>
         </view>
+      </view>
+
+      <view v-if="announcement" class="city-hall__announcement">
+        <view class="city-hall__announcement-head">
+          <text class="city-hall__announcement-label">群公告</text>
+          <text
+            v-if="announcementNeedsFold"
+            class="city-hall__announcement-toggle"
+            @click="toggleAnnouncement"
+          >{{ announcementExpanded ? '收起' : '展开' }}</text>
+        </view>
+        <text
+          class="city-hall__announcement-text"
+          :class="{ 'city-hall__announcement-text--folded': announcementNeedsFold && !announcementExpanded }"
+        >{{ announcement }}</text>
       </view>
 
       <view class="city-hall__section">
@@ -205,6 +215,8 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import {
+  formatHostBadgeLabel,
+  normalizeHostBadgeLabel,
   normalizePlaceHint,
   resolveCityHallCityName,
   resolveCityHallProvinceName,
@@ -253,6 +265,7 @@ export default {
       joined: false,
       activityId: '',
       lookup: {},
+      announcementExpanded: false,
     }
   },
   computed: {
@@ -303,8 +316,23 @@ export default {
     ownerInitial() {
       return String(this.owner?.nickname || '?').slice(0, 1)
     },
+    ownerBadgeLabel() {
+      if (this.owner?.badgeLabel) {
+        return normalizeHostBadgeLabel(this.owner.badgeLabel)
+      }
+      if (this.owner?.role) {
+        return formatHostBadgeLabel(this.catalogCityName, this.owner.role)
+      }
+      return '城主'
+    },
     announcement() {
       return (this.lookup?.announcement && String(this.lookup.announcement).trim()) || ''
+    },
+    announcementNeedsFold() {
+      const text = this.announcement
+      if (!text) return false
+      if (text.length > 100) return true
+      return (text.match(/\n/g) || []).length >= 3
     },
     isHost() {
       return !!(this.lookup?.currentUserHostRole)
@@ -366,6 +394,11 @@ export default {
       const hit = this.flatCatalogCities.find((c) => c.cityCode === this.nearCityCode)
       if (hit?.joined) return true
       return !!this.nearLookup?.joined
+    },
+  },
+  watch: {
+    announcement() {
+      this.announcementExpanded = false
     },
   },
   onLoad(query) {
@@ -449,6 +482,9 @@ export default {
       const code = block && block.provinceCode
       if (!code) return
       this.expandedProvinceCode = this.expandedProvinceCode === code ? '' : code
+    },
+    toggleAnnouncement() {
+      this.announcementExpanded = !this.announcementExpanded
     },
     async loadCatalog() {
       const cat = await getCityHallCatalog()
@@ -918,23 +954,42 @@ export default {
   color: #64748b;
 }
 .city-hall__announcement {
-  margin-top: 20rpx;
+  margin-top: 28rpx;
   padding: 24rpx;
   background: #fffbeb;
   border-radius: 16rpx;
   border: 1rpx solid #fde68a;
+}
+.city-hall__announcement-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8rpx;
 }
 .city-hall__announcement-label {
   display: block;
   font-size: 24rpx;
   font-weight: 600;
   color: #b45309;
-  margin-bottom: 8rpx;
+}
+.city-hall__announcement-toggle {
+  flex-shrink: 0;
+  font-size: 24rpx;
+  color: #b45309;
+  padding: 4rpx 0 4rpx 20rpx;
 }
 .city-hall__announcement-text {
   font-size: 28rpx;
   color: #78350f;
   line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.city-hall__announcement-text--folded {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
 }
 .city-hall__tip-card {
   margin-top: 20rpx;

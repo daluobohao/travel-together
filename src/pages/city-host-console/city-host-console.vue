@@ -4,7 +4,7 @@
       <view class="host-console__back" @click="goBack">
         <wm-icon name="chevronLeft" :size="34" color="#0f172a" />
       </view>
-      <text class="host-console__title">群管理</text>
+      <text class="host-console__title">城主控制台</text>
       <view class="host-console__placeholder" />
     </view>
 
@@ -40,10 +40,10 @@
       </view>
 
       <view v-if="isOwner" class="host-console__section">
-        <text class="host-console__section-title">群主工具</text>
+        <text class="host-console__section-title">城主工具</text>
 
         <view class="host-console__field">
-          <text class="host-console__label">提名副群主</text>
+          <text class="host-console__label">提名副城主</text>
           <text class="host-console__subhint">输入用户 ID（如 u_42），提交后由平台审核</text>
           <input
             v-model="deputyUserIdDraft"

@@ -187,14 +187,14 @@
 		{
 			"path": "pages/city-host-console/city-host-console",
 			"style": {
-				"navigationBarTitleText": "群管理",
+				"navigationBarTitleText": "城主控制台",
 				"navigationStyle": "custom"
 			}
 		},
 		{
 			"path": "pages/city-host-apply/city-host-apply",
 			"style": {
-				"navigationBarTitleText": "申请群主",
+				"navigationBarTitleText": "申请城主",
 				"navigationStyle": "custom"
 			}
 		},
@@ -320,7 +320,7 @@
 		{
 			"path": "pages/admin-city-host/admin-city-host",
 			"style": {
-				"navigationBarTitleText": "城市群主管理",
+				"navigationBarTitleText": "城主管理",
 				"navigationStyle": "custom"
 			}
 		},
