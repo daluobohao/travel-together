@@ -38,13 +38,51 @@
       <view class="host-console__btn" @click="onSave">
         <text>保存</text>
       </view>
+
+      <view v-if="isOwner" class="host-console__section">
+        <text class="host-console__section-title">群主工具</text>
+
+        <view class="host-console__field">
+          <text class="host-console__label">提名副群主</text>
+          <text class="host-console__subhint">输入用户 ID（如 u_42），提交后由平台审核</text>
+          <input
+            v-model="deputyUserIdDraft"
+            class="host-console__input"
+            placeholder="u_xxx"
+            placeholder-class="host-console__placeholder-text"
+          />
+          <view class="host-console__btn host-console__btn--secondary" @click="onNominateDeputy">
+            <text>提交提名</text>
+          </view>
+        </view>
+
+        <view class="host-console__field">
+          <text class="host-console__label">推荐活动进群</text>
+          <text class="host-console__subhint">仅可推荐你发起的、与本城匹配的活动；每周最多 5 次</text>
+          <input
+            v-model="recommendActivityIdDraft"
+            class="host-console__input"
+            placeholder="act_123 或 123"
+            placeholder-class="host-console__placeholder-text"
+          />
+          <view class="host-console__btn host-console__btn--secondary" @click="onRecommendActivity">
+            <text>发送到群聊</text>
+          </view>
+        </view>
+      </view>
     </view>
   </view>
 </template>
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
-import { getCityGroupProfile, patchCityGroupHostProfile } from '@/api'
+import {
+  getCityGroupProfile,
+  getCityHallLookup,
+  patchCityGroupHostProfile,
+  nominateCityGroupDeputy,
+  recommendActivityToCityGroup,
+} from '@/api'
 import { resolveCityHallCityName } from '@/utils/cityCatalog'
 
 export default {
@@ -54,9 +92,17 @@ export default {
       cityCode: '',
       cityLabel: '',
       loading: true,
+      hostRole: '',
       welcomeDraft: '',
       announcementDraft: '',
+      deputyUserIdDraft: '',
+      recommendActivityIdDraft: '',
     }
+  },
+  computed: {
+    isOwner() {
+      return this.hostRole === 'owner'
+    },
   },
   onLoad(query) {
     this.cityCode = query?.cityCode ? decodeURIComponent(query.cityCode) : ''
@@ -76,9 +122,13 @@ export default {
         return
       }
       try {
-        const data = await getCityGroupProfile(this.cityCode)
-        this.welcomeDraft = data?.welcomeText || ''
-        this.announcementDraft = data?.announcement || ''
+        const [profile, lookup] = await Promise.all([
+          getCityGroupProfile(this.cityCode),
+          getCityHallLookup(this.cityCode),
+        ])
+        this.welcomeDraft = profile?.welcomeText || ''
+        this.announcementDraft = profile?.announcement || ''
+        this.hostRole = lookup?.currentUserHostRole || ''
       } catch (e) {
         uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
       } finally {
@@ -97,6 +147,41 @@ export default {
         setTimeout(() => uni.navigateBack(), 400)
       } catch (e) {
         uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+      } finally {
+        uni.hideLoading()
+      }
+    },
+    async onNominateDeputy() {
+      const userId = (this.deputyUserIdDraft || '').trim()
+      if (!userId) {
+        uni.showToast({ title: '请输入用户 ID', icon: 'none' })
+        return
+      }
+      try {
+        uni.showLoading({ title: '提交中…' })
+        await nominateCityGroupDeputy({ cityCode: this.cityCode, userId })
+        this.deputyUserIdDraft = ''
+        uni.showToast({ title: '提名已提交', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+      } finally {
+        uni.hideLoading()
+      }
+    },
+    async onRecommendActivity() {
+      const raw = (this.recommendActivityIdDraft || '').trim()
+      if (!raw) {
+        uni.showToast({ title: '请输入活动 ID', icon: 'none' })
+        return
+      }
+      const activityId = raw.startsWith('act_') ? raw : `act_${raw}`
+      try {
+        uni.showLoading({ title: '发送中…' })
+        await recommendActivityToCityGroup({ cityCode: this.cityCode, activityId })
+        this.recommendActivityIdDraft = ''
+        uni.showToast({ title: '已推荐到群聊', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: e?.message || '发送失败', icon: 'none' })
       } finally {
         uni.hideLoading()
       }
@@ -202,5 +287,46 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+
+  &--secondary {
+    background: #ffffff;
+    color: #4f46e5;
+    border: 1rpx solid #c7d2fe;
+  }
+}
+
+.host-console__section {
+  margin-top: 48rpx;
+  padding-top: 32rpx;
+  border-top: 1rpx solid #e2e8f0;
+}
+
+.host-console__section-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 24rpx;
+}
+
+.host-console__subhint {
+  display: block;
+  font-size: 24rpx;
+  color: #94a3b8;
+  margin-bottom: 12rpx;
+  line-height: 1.45;
+}
+
+.host-console__input {
+  width: 100%;
+  height: 80rpx;
+  padding: 0 24rpx;
+  background: #ffffff;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  color: #0f172a;
+  box-sizing: border-box;
+  border: 1rpx solid #e2e8f0;
+  margin-bottom: 12rpx;
 }
 </style>

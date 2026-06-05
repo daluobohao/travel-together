@@ -140,6 +140,16 @@
         <view v-if="isHost" class="city-hall__btn city-hall__btn--ghost" @click="openHostConsole">
           <text>管理群公告</text>
         </view>
+        <view
+          v-else-if="canApplyForOwner && joined"
+          class="city-hall__btn city-hall__btn--ghost"
+          @click="openHostApply"
+        >
+          <text>申请成为群主</text>
+        </view>
+        <view v-else-if="hostApplicationPending" class="city-hall__pending-tip">
+          <text>群主申请审核中，请耐心等待</text>
+        </view>
       </view>
 
       <view class="city-hall__section">
@@ -299,6 +309,15 @@ export default {
     isHost() {
       return !!(this.lookup?.currentUserHostRole)
     },
+    canApplyForOwner() {
+      return !!this.lookup?.canApplyForOwner
+    },
+    hostApplicationPending() {
+      return this.lookup?.hostApplicationStatus === 'pending'
+    },
+    applyMinMembers() {
+      return Number(this.lookup?.applyMinMembers) || 100
+    },
     heroSubline() {
       if (this.placeHint) {
         return `你在 ${this.placeHint} 附近 · 加入${this.catalogCityName}同城旅人一起聊`
@@ -377,6 +396,11 @@ export default {
       this.nearPlaceName = rawNearPlace
     }
     this.bootstrap()
+  },
+  onShow() {
+    if (this.isDetail && this.cityCode && !this.loading) {
+      this.refreshLookup()
+    }
   },
   onReady() {
     this.calcScrollHeight()
@@ -462,6 +486,18 @@ export default {
         this.nearLookup = (await getCityHallLookup(this.nearCityCode)) || {}
       } catch (_) {
         this.nearLookup = {}
+      }
+    },
+    async refreshLookup() {
+      if (!this.cityCode) return
+      try {
+        const lu = await getCityHallLookup(this.cityCode)
+        this.lookup = lu || {}
+        this.exists = !!lu?.exists
+        this.joined = !!lu?.joined
+        this.activityId = lu?.activityId || this.activityId
+      } catch {
+        /* ignore background refresh */
       }
     },
     async bootstrap() {
@@ -579,6 +615,15 @@ export default {
       const label = this.catalogCityName
       if (label) q.push(`cityLabel=${encodeURIComponent(label)}`)
       uni.navigateTo({ url: `/pages/city-host-console/city-host-console?${q.join('&')}` })
+    },
+    openHostApply() {
+      const q = [
+        `cityCode=${encodeURIComponent(this.cityCode)}`,
+        `applyMinMembers=${this.applyMinMembers}`,
+      ]
+      const label = this.catalogCityName
+      if (label) q.push(`cityLabel=${encodeURIComponent(label)}`)
+      uni.navigateTo({ url: `/pages/city-host-apply/city-host-apply?${q.join('&')}` })
     },
   },
 }
@@ -1008,6 +1053,15 @@ export default {
   color: #4f46e5;
   border: 1rpx solid #c7d2fe;
   box-shadow: none;
+}
+.city-hall__pending-tip {
+  margin-top: 16rpx;
+  padding: 20rpx 24rpx;
+  text-align: center;
+  font-size: 26rpx;
+  color: #64748b;
+  background: #f1f5f9;
+  border-radius: 16rpx;
 }
 .city-hall__section {
   margin-top: 36rpx;

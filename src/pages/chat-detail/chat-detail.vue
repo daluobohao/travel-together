@@ -63,6 +63,7 @@
                   'msg-bubble--image': item.msgType === 'image',
                   'msg-bubble--sticker': item.msgType === 'sticker',
                   'msg-bubble--location': item.msgType === 'location',
+                  'msg-bubble--activity-rec': item.msgType === 'activity_rec',
                 }"
                 @longpress.stop="onMessageLongPress(item)"
               >
@@ -79,6 +80,15 @@
                   :address="item.address"
                   @open="openLocationMessage(item)"
                 />
+                <view
+                  v-else-if="item.msgType === 'activity_rec'"
+                  class="msg-bubble__activity-rec"
+                  @click.stop="openRecommendedActivity(item)"
+                >
+                  <text class="msg-bubble__activity-rec-tag">群主推荐</text>
+                  <text class="msg-bubble__activity-rec-title">{{ item.recActivityTitle || '查看活动' }}</text>
+                  <text class="msg-bubble__activity-rec-link">查看详情 ›</text>
+                </view>
                 <text v-else-if="item.msgType === 'sticker'" class="msg-bubble__sticker" selectable>{{ item.stickerEmoji }}</text>
                 <text v-else class="msg-bubble__text" selectable>{{ item.text }}</text>
               </view>
@@ -393,7 +403,8 @@ export default {
             m.msgType !== this.messages[i]?.msgType ||
             m.stickerId !== this.messages[i]?.stickerId ||
             m.locationName !== this.messages[i]?.locationName ||
-            m.lat !== this.messages[i]?.lat
+            m.lat !== this.messages[i]?.lat ||
+            m.recActivityId !== this.messages[i]?.recActivityId
         )
       if (changed) {
         this.messages = merged
@@ -753,6 +764,14 @@ export default {
     },
     openLocationMessage(item) {
       openChatLocationOnMap(item)
+    },
+    openRecommendedActivity(item) {
+      const id = item?.recActivityId
+      if (!id) return
+      const normalized = String(id).startsWith('act_') ? id : `act_${id}`
+      uni.navigateTo({
+        url: `/pages/activity-detail/activity-detail?id=${encodeURIComponent(normalized)}`,
+      })
     },
     async sendLocationMessage(loc) {
       if (this.sendingLocation || !loc) return
@@ -1152,6 +1171,42 @@ export default {
     padding: 0;
     background: transparent;
     max-width: 520rpx;
+  }
+
+  &--activity-rec {
+    padding: 0;
+    background: transparent;
+    max-width: 520rpx;
+  }
+
+  &__activity-rec {
+    padding: 20rpx 24rpx;
+    background: #ffffff;
+    border-radius: 12rpx;
+    border: 1rpx solid #e2e8f0;
+    min-width: 280rpx;
+  }
+
+  &__activity-rec-tag {
+    display: block;
+    font-size: 22rpx;
+    color: #6366f1;
+    margin-bottom: 8rpx;
+  }
+
+  &__activity-rec-title {
+    display: block;
+    font-size: 30rpx;
+    font-weight: 600;
+    color: #0f172a;
+    line-height: 1.4;
+    margin-bottom: 8rpx;
+  }
+
+  &__activity-rec-link {
+    display: block;
+    font-size: 24rpx;
+    color: #64748b;
   }
 
   &__text {

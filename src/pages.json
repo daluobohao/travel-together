@@ -192,6 +192,13 @@
 			}
 		},
 		{
+			"path": "pages/city-host-apply/city-host-apply",
+			"style": {
+				"navigationBarTitleText": "申请群主",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/publish/publish",
 			"style": {
 				"navigationBarTitleText": "发布活动",

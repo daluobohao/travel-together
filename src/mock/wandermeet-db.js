@@ -296,6 +296,7 @@ export const wmDB = {
   },
   cityGroupDeletedMessageIds: [],
   cityGroupMutes: [],
+  cityGroupHostApplications: [],
 }
 
 export function toActivityCard(activity) {

@@ -2,6 +2,7 @@ import { getStickerEmoji } from '@/constants/chatStickers'
 
 export function inferMsgType(raw) {
   if (raw?.msgType) return raw.msgType
+  if (raw?.recActivityId) return 'activity_rec'
   if (raw?.stickerId) return 'sticker'
   if (raw?.imageUrl) return 'image'
   if (raw?.locationName != null && raw?.lat != null && raw?.lng != null) return 'location'
@@ -22,5 +23,7 @@ export function parseChatMessageFields(raw) {
     address: msgType === 'location' ? raw?.address || '' : '',
     lat: msgType === 'location' ? raw?.lat : null,
     lng: msgType === 'location' ? raw?.lng : null,
+    recActivityId: msgType === 'activity_rec' ? raw?.recActivityId || '' : '',
+    recActivityTitle: msgType === 'activity_rec' ? raw?.recActivityTitle || '' : '',
   }
 }

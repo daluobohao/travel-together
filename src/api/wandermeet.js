@@ -113,7 +113,13 @@ function mockBuildHostSummary(userId, cityCode, role = 'owner') {
 function mockLookupHostFields(cityCode) {
   const cfg = wmDB.cityGroupHosts?.[cityCode]
   if (!cfg?.ownerUserId) {
-    return { owner: null, announcement: null, welcomeText: null, currentUserHostRole: null }
+    return {
+      owner: null,
+      announcement: null,
+      welcomeText: null,
+      currentUserHostRole: null,
+      ...mockApplyFields(cityCode, 0),
+    }
   }
   const me = wmDB.profile?.userId
   let currentUserHostRole = null
@@ -124,6 +130,35 @@ function mockLookupHostFields(cityCode) {
     announcement: cfg.announcement || null,
     welcomeText: cfg.welcomeText || null,
     currentUserHostRole,
+    ...mockApplyFields(cityCode, 0),
+  }
+}
+
+function mockApplyFields(cityCode, memberCount) {
+  const hasOwner = !!wmDB.cityGroupHosts?.[cityCode]?.ownerUserId
+  const mc = cityCode === '440300' ? 120 : Number(memberCount || 0)
+  const me = wmDB.profile?.userId
+  const pending = (wmDB.cityGroupHostApplications || []).some(
+    (a) =>
+      a.cityCode === cityCode &&
+      a.userId === me &&
+      a.status === 'pending' &&
+      a.applicationType === 'owner',
+  )
+  let canApply = !hasOwner && mc >= 100 && !pending
+  let denyReason = null
+  if (hasOwner) denyReason = 'has_owner'
+  else if (mc < 100) denyReason = 'member_count_low'
+  else if (pending) {
+    canApply = false
+    denyReason = 'pending_application'
+  }
+  return {
+    canApplyForOwner: canApply,
+    denyReason,
+    hostApplicationStatus: pending ? 'pending' : null,
+    ownerVacantDays: hasOwner ? 0 : 45,
+    applyMinMembers: 100,
   }
 }
 
@@ -841,6 +876,92 @@ export const muteCityGroupMember = (payload) =>
     mockHandler: () => {
       const until = new Date(Date.now() + 24 * 3600 * 1000).toISOString()
       return ok({ mutedUntil: until })
+    },
+  })
+
+export const submitCityGroupHostApplication = (payload) =>
+  wmRequest({
+    method: 'POST',
+    path: '/city-groups/me/host-applications',
+    data: payload,
+    needAuth: true,
+    mockHandler: ({ data }) => {
+      const cc = data?.cityCode
+      if (!wmDB.cityGroupHostApplications) wmDB.cityGroupHostApplications = []
+      const row = {
+        id: Date.now(),
+        cityCode: cc,
+        userId: wmDB.profile.userId,
+        applicationType: 'owner',
+        status: 'pending',
+        introText: data?.introText || '',
+      }
+      wmDB.cityGroupHostApplications.push(row)
+      return ok({
+        applicationId: row.id,
+        cityCode: cc,
+        status: 'pending',
+        applicationType: 'owner',
+      })
+    },
+  })
+
+export const nominateCityGroupDeputy = (payload) =>
+  wmRequest({
+    method: 'POST',
+    path: '/city-groups/me/nominate-deputy',
+    data: payload,
+    needAuth: true,
+    mockHandler: ({ data }) => {
+      if (!wmDB.cityGroupHostApplications) wmDB.cityGroupHostApplications = []
+      const row = {
+        id: Date.now(),
+        cityCode: data?.cityCode,
+        userId: data?.userId,
+        applicationType: 'deputy',
+        status: 'pending',
+        nominatorUserId: wmDB.profile.userId,
+      }
+      wmDB.cityGroupHostApplications.push(row)
+      return ok({
+        applicationId: row.id,
+        cityCode: data?.cityCode,
+        status: 'pending',
+        applicationType: 'deputy',
+      })
+    },
+  })
+
+export const recommendActivityToCityGroup = (payload) =>
+  wmRequest({
+    method: 'POST',
+    path: '/city-groups/me/recommend-activity',
+    data: payload,
+    needAuth: true,
+    mockHandler: ({ data }) => {
+      const actId = String(data?.activityId || '').replace(/^act_/, '')
+      const act = wmDB.activities.find((a) => String(a.activityId) === actId)
+      const title = act?.title || '活动'
+      const cc = data?.cityCode
+      const hallId = cc === '110000' ? '1' : 'act_mock_city_hall'
+      const row = {
+        messageId: `msg_${Date.now()}`,
+        activityId: hallId,
+        sender: {
+          userId: wmDB.profile.userId,
+          nickname: wmDB.profile.nickname,
+          avatarUrl: wmDB.profile.avatarUrl,
+        },
+        msgType: 'activity_rec',
+        recActivityId: `act_${actId}`,
+        recActivityTitle: title,
+        text: null,
+        createdAt: new Date().toISOString(),
+        senderHostRole: 'owner',
+      }
+      if (!wmDB.chats[hallId]) wmDB.chats[hallId] = []
+      wmDB.chats[hallId].push(row)
+      return ok(row)
     },
   })
 
