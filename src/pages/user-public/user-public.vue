@@ -30,6 +30,9 @@
             <text>已认证</text>
           </view>
         </view>
+        <view v-if="cityHostBadges.length" class="hero__host-badges">
+          <text v-for="(b, i) in cityHostBadges" :key="i" class="hero__host-badge">{{ b.badgeLabel }}</text>
+        </view>
         <text class="hero__stat">已组织 {{ profile.organizedCount || 0 }} 场活动</text>
         <text v-if="publicGenderLabel" class="hero__gender">{{ publicGenderLabel }}</text>
         <view v-if="showFollowBtn" class="hero__follow">
@@ -169,6 +172,9 @@ export default {
     displayInitial() {
       const n = this.profile?.nickname || '用'
       return String(n).slice(0, 1)
+    },
+    cityHostBadges() {
+      return this.profile?.cityHostBadges || []
     },
     publicGenderLabel() {
       return formatUserGenderLabel(this.profile?.gender)
@@ -539,6 +545,22 @@ export default {
     flex-wrap: wrap;
     gap: 12rpx;
     margin-bottom: 12rpx;
+  }
+
+  &__host-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10rpx;
+    margin-bottom: 12rpx;
+  }
+
+  &__host-badge {
+    font-size: 22rpx;
+    color: #4f46e5;
+    background: rgba(99, 102, 241, 0.12);
+    padding: 6rpx 16rpx;
+    border-radius: 999rpx;
   }
 
   &__name {

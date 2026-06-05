@@ -279,6 +279,23 @@ export const wmDB = {
   dmThreads: [],
   /** key: 数字 thread id 字符串，如 '1' */
   dmMessages: {},
+  /** 城市大群群主（按 cityCode） */
+  cityGroupHosts: {
+    '110000': {
+      ownerUserId: 'u_10001',
+      deputies: [],
+      announcement: '欢迎来北京的朋友！进群请友善交流，违规可举报。',
+      welcomeText: '新人进群可以先打个招呼～',
+    },
+    '310100': {
+      ownerUserId: 'u_10002',
+      deputies: ['u_10003'],
+      announcement: '上海大群：禁止广告、导流与骚扰引战。',
+      welcomeText: '欢迎来到上海同城大群，一起找搭子、拼饭、问路！',
+    },
+  },
+  cityGroupDeletedMessageIds: [],
+  cityGroupMutes: [],
 }
 
 export function toActivityCard(activity) {

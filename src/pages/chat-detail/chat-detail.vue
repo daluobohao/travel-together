@@ -8,6 +8,9 @@
         <text class="chat-detail__title">{{ chat.name }}</text>
         <text class="chat-detail__sub">{{ chat.subtitle }}</text>
       </view>
+      <view v-if="canModerateCityHall" class="chat-detail__manage" @click="openHostConsole">
+        <text class="chat-detail__manage-text">管理</text>
+      </view>
       <view class="chat-detail__members" @click="openMembers">
         <wm-icon name="users" :size="32" color="#0f172a" />
       </view>
@@ -49,6 +52,8 @@
                 @click.stop="item.openProfile && openUserPublic(item)"
               >
                 {{ item.sender }}
+                <text v-if="item.senderHostRole === 'owner'" class="msg-col__host-tag">群主</text>
+                <text v-else-if="item.senderHostRole === 'deputy'" class="msg-col__host-tag msg-col__host-tag--dep">管理</text>
               </text>
               <view
                 class="msg-bubble"
@@ -59,7 +64,7 @@
                   'msg-bubble--sticker': item.msgType === 'sticker',
                   'msg-bubble--location': item.msgType === 'location',
                 }"
-                @longpress.stop="copyChatMessage(item)"
+                @longpress.stop="onMessageLongPress(item)"
               >
                 <image
                   v-if="item.msgType === 'image' && item.imageUrl"
@@ -99,55 +104,25 @@
     </scroll-view>
 
     <view class="chat-detail__composer">
+      <view class="chat-detail__emoji-btn" @click="toggleEmojiPanel">
+        <text class="chat-detail__emoji-icon">😊</text>
+      </view>
+      <view class="chat-detail__image-btn" @click="sendImageMessage">
+        <wm-icon name="camera" :size="36" color="#64748b" />
+      </view>
+      <view class="chat-detail__loc-btn" @click="openLocationPicker">
+        <wm-icon name="mapPin" :size="36" color="#64748b" />
+      </view>
       <input
         v-model="draft"
         class="chat-detail__input"
         placeholder="输入消息..."
         placeholder-class="chat-detail__input-placeholder"
         confirm-type="send"
-        hold-keyboard
-        confirm-hold
-        @focus="closeComposerPanels"
         @confirm="sendMessage"
       />
-      <view
-        class="chat-detail__tool-btn"
-        :class="{ 'chat-detail__tool-btn--active': showEmojiPanel }"
-        @click="toggleEmojiPanel"
-      >
-        <text class="chat-detail__emoji-icon">😊</text>
-      </view>
-      <view
-        v-if="hasDraft"
-        class="chat-detail__send"
-        @touchend.prevent="sendMessage"
-      >
+      <view class="chat-detail__send" @click="sendMessage">
         <text>发送</text>
-      </view>
-      <view
-        v-else
-        class="chat-detail__tool-btn"
-        :class="{ 'chat-detail__tool-btn--active': showAttachPanel }"
-        @click="toggleAttachPanel"
-      >
-        <wm-icon v-if="showAttachPanel" name="close" :size="36" color="#64748b" />
-        <wm-icon v-else name="plus" :size="36" color="#64748b" />
-      </view>
-    </view>
-    <view v-if="showAttachPanel" class="chat-detail__attach-panel">
-      <view class="chat-detail__attach-grid">
-        <view class="chat-detail__attach-item" @click="onAttachCamera">
-          <view class="chat-detail__attach-icon">
-            <wm-icon name="camera" :size="44" color="#64748b" />
-          </view>
-          <text class="chat-detail__attach-label">拍照</text>
-        </view>
-        <view class="chat-detail__attach-item" @click="onAttachLocation">
-          <view class="chat-detail__attach-icon">
-            <wm-icon name="mapPin" :size="44" color="#64748b" />
-          </view>
-          <text class="chat-detail__attach-label">位置</text>
-        </view>
       </view>
     </view>
     <chat-emoji-panel
@@ -167,6 +142,9 @@ import {
   getAccessToken,
   getActivityDetail,
   getActivityMessages,
+  getCityGroupHostContext,
+  deleteCityGroupHostMessage,
+  muteCityGroupMember,
   getMe,
   isLoggedIn,
   markMyChatRead,
@@ -236,6 +214,8 @@ export default {
       chatId: '',
       chat: { name: '聊天', subtitle: '' },
       activityKind: 'event',
+      cityCode: '',
+      cityHostContext: null,
       enrolledCount: 0,
       maxMembers: 0,
       messages: [],
@@ -254,13 +234,9 @@ export default {
       sendingImage: false,
       sendingLocation: false,
       showEmojiPanel: false,
-      showAttachPanel: false,
     }
   },
   computed: {
-    hasDraft() {
-      return !!(this.draft || '').trim()
-    },
     displayItems() {
       const items = []
       let prevCreatedAt = ''
@@ -273,6 +249,9 @@ export default {
         if (msg.createdAt) prevCreatedAt = msg.createdAt
       }
       return items
+    },
+    canModerateCityHall() {
+      return this.activityKind === 'city_hall' && !!this.cityHostContext?.canModerate
     },
   },
   onLoad(query) {
@@ -348,6 +327,18 @@ export default {
         this.enrolledCount = enrolled
         this.maxMembers = maxM
         const isCityHall = this.activityKind === 'city_hall'
+        if (isCityHall) {
+          try {
+            this.cityHostContext = await getCityGroupHostContext(this.chatId)
+            this.cityCode = this.cityHostContext?.cityCode || ''
+          } catch (e) {
+            console.warn('加载群主上下文失败', e)
+            this.cityHostContext = null
+          }
+        } else {
+          this.cityHostContext = null
+          this.cityCode = ''
+        }
         this.chat = {
           name: detail?.title || '活动群聊',
           subtitle: isCityHall
@@ -429,9 +420,53 @@ export default {
         createdAt: raw.createdAt || new Date().toISOString(),
         userId: senderUserId,
         openProfile,
+        senderHostRole: raw.senderHostRole || null,
         avatarUrl: raw.sender?.avatarUrl || '',
         avatarLetter: String(nickname || '?').slice(0, 1),
       }
+    },
+    onMessageLongPress(item) {
+      if (this.canModerateCityHall && !item.mine && item.userId) {
+        uni.showActionSheet({
+          itemList: ['复制', '删除消息', '禁言 24 小时'],
+          success: (res) => {
+            if (res.tapIndex === 0) this.copyChatMessage(item)
+            else if (res.tapIndex === 1) this.deleteMessageAsHost(item)
+            else if (res.tapIndex === 2) this.muteMemberAsHost(item)
+          },
+        })
+        return
+      }
+      this.copyChatMessage(item)
+    },
+    async deleteMessageAsHost(item) {
+      if (!item?.id || !this.cityCode) return
+      try {
+        await deleteCityGroupHostMessage(item.id, this.cityCode)
+        this.messages = this.messages.filter((m) => m.id !== item.id)
+        delete this.messageIds[item.id]
+        this.persistCache()
+        uni.showToast({ title: '已删除', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+      }
+    },
+    async muteMemberAsHost(item) {
+      if (!item?.userId || !this.cityCode) return
+      try {
+        await muteCityGroupMember({ cityCode: this.cityCode, userId: item.userId })
+        uni.showToast({ title: '已禁言 24 小时', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      }
+    },
+    openHostConsole() {
+      if (!this.cityCode) return
+      uni.navigateTo({
+        url:
+          '/pages/city-host-console/city-host-console?cityCode=' +
+          encodeURIComponent(this.cityCode),
+      })
     },
     openUserPublic(msg) {
       if (!msg?.userId || msg.userId === 'system') return
@@ -571,36 +606,13 @@ export default {
       copyTextToClipboard(text)
     },
     toggleEmojiPanel() {
-      this.showAttachPanel = false
       this.showEmojiPanel = !this.showEmojiPanel
-      if (this.showEmojiPanel) {
-        uni.hideKeyboard()
-      }
-    },
-    toggleAttachPanel() {
-      this.showEmojiPanel = false
-      this.showAttachPanel = !this.showAttachPanel
-      if (this.showAttachPanel) {
-        uni.hideKeyboard()
-      }
-    },
-    closeComposerPanels() {
-      this.showEmojiPanel = false
-      this.showAttachPanel = false
-    },
-    onAttachCamera() {
-      this.closeComposerPanels()
-      this.sendImageMessage()
-    },
-    onAttachLocation() {
-      this.closeComposerPanels()
-      this.openLocationPicker()
     },
     onPickEmoji(emoji) {
       this.draft = `${this.draft || ''}${emoji}`
     },
     onPickSticker(stickerId) {
-      this.closeComposerPanels()
+      this.showEmojiPanel = false
       this.sendStickerMessage(stickerId)
     },
     async sendStickerMessage(stickerId) {
@@ -665,7 +677,7 @@ export default {
     },
     async sendImageMessage() {
       if (this.sendingImage || !this.chatId) return
-      this.closeComposerPanels()
+      this.showEmojiPanel = false
       this.sendingImage = true
       let tempId = ''
       try {
@@ -730,7 +742,7 @@ export default {
       }
     },
     openLocationPicker() {
-      this.closeComposerPanels()
+      this.showEmojiPanel = false
       uni.navigateTo({ url: '/pages/location-picker/location-picker?from=chat' })
     },
     trySendPickedLocation() {
@@ -744,7 +756,7 @@ export default {
     },
     async sendLocationMessage(loc) {
       if (this.sendingLocation || !loc) return
-      this.closeComposerPanels()
+      this.showEmojiPanel = false
       this.sendingLocation = true
       const payload = buildLocationMessagePayload(loc)
       const tempId = `temp_loc_${Date.now()}`
@@ -799,7 +811,7 @@ export default {
     async sendMessage() {
       const text = (this.draft || '').trim()
       if (!text) return
-      this.closeComposerPanels()
+      this.showEmojiPanel = false
       // 群聊：走真实接口，乐观渲染
       const tempId = `temp_${Date.now()}`
       const nowIso = new Date().toISOString()
@@ -889,6 +901,21 @@ export default {
     opacity: 0.75;
   }
 
+  &__manage {
+    margin-right: 4rpx;
+    padding: 0 12rpx;
+    height: 56rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__manage-text {
+    font-size: 24rpx;
+    color: #4f46e5;
+    font-weight: 600;
+  }
+
   &__title-wrap {
     display: flex;
     flex-direction: column;
@@ -937,7 +964,9 @@ export default {
     border-top: 1rpx solid #e5e7eb;
   }
 
-  &__tool-btn {
+  &__emoji-btn,
+  &__image-btn,
+  &__loc-btn {
     width: 72rpx;
     height: 72rpx;
     border-radius: 14rpx;
@@ -946,56 +975,11 @@ export default {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-
-    &--active {
-      background: #eef2ff;
-    }
   }
 
   &__emoji-icon {
     font-size: 40rpx;
     line-height: 1;
-  }
-
-  &__attach-panel {
-    border-top: 1rpx solid #e5e7eb;
-    background: #f8fafc;
-    padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
-  }
-
-  &__attach-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 32rpx 48rpx;
-  }
-
-  &__attach-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12rpx;
-    width: 120rpx;
-
-    &:active {
-      opacity: 0.7;
-    }
-  }
-
-  &__attach-icon {
-    width: 112rpx;
-    height: 112rpx;
-    border-radius: 24rpx;
-    background: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.06);
-  }
-
-  &__attach-label {
-    font-size: 24rpx;
-    color: #64748b;
-    line-height: 1.2;
   }
 
   &__input {
@@ -1108,6 +1092,20 @@ export default {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  &__host-tag {
+    margin-left: 8rpx;
+    font-size: 18rpx;
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.12);
+    padding: 2rpx 8rpx;
+    border-radius: 6rpx;
+
+    &--dep {
+      color: #64748b;
+      background: rgba(100, 116, 139, 0.12);
+    }
   }
 
   &__hint {

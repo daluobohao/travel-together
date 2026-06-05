@@ -89,18 +89,99 @@ function mockChatLastPreview(msg) {
   return msg.text || null
 }
 
+function mockCityNameFromCode(cityCode) {
+  for (const blk of cityHallPrefectures) {
+    for (const c of blk.cities || []) {
+      if (c.cityCode === cityCode) return c.cityName
+    }
+  }
+  return cityCode
+}
+
+function mockBuildHostSummary(userId, cityCode, role = 'owner') {
+  const u = wmDB.users?.[userId] || {}
+  const cityName = mockCityNameFromCode(cityCode)
+  return {
+    userId,
+    nickname: u.nickname || '用户',
+    avatarUrl: u.avatarUrl || null,
+    role,
+    badgeLabel: role === 'owner' ? `${cityName}群主` : `${cityName}副群主`,
+  }
+}
+
+function mockLookupHostFields(cityCode) {
+  const cfg = wmDB.cityGroupHosts?.[cityCode]
+  if (!cfg?.ownerUserId) {
+    return { owner: null, announcement: null, welcomeText: null, currentUserHostRole: null }
+  }
+  const me = wmDB.profile?.userId
+  let currentUserHostRole = null
+  if (me === cfg.ownerUserId) currentUserHostRole = 'owner'
+  else if ((cfg.deputies || []).includes(me)) currentUserHostRole = 'deputy'
+  return {
+    owner: mockBuildHostSummary(cfg.ownerUserId, cityCode, 'owner'),
+    announcement: cfg.announcement || null,
+    welcomeText: cfg.welcomeText || null,
+    currentUserHostRole,
+  }
+}
+
+function mockListCityHostBadges(userId) {
+  const out = []
+  for (const [cityCode, cfg] of Object.entries(wmDB.cityGroupHosts || {})) {
+    if (cfg.ownerUserId === userId) {
+      out.push({
+        cityCode,
+        cityName: mockCityNameFromCode(cityCode),
+        role: 'owner',
+        badgeLabel: `${mockCityNameFromCode(cityCode)}群主`,
+      })
+    }
+    for (const dep of cfg.deputies || []) {
+      if (dep === userId) {
+        out.push({
+          cityCode,
+          cityName: mockCityNameFromCode(cityCode),
+          role: 'deputy',
+          badgeLabel: `${mockCityNameFromCode(cityCode)}副群主`,
+        })
+      }
+    }
+  }
+  return out
+}
+
+function mockHostRoleForSender(activityId, userId) {
+  const act = wmDB.activities.find((a) => String(a.activityId) === String(activityId).replace(/^act_/, ''))
+  const cc = act?.cityCode
+  if (!cc || (act?.activityKind || 'event') !== 'city_hall') return null
+  const cfg = wmDB.cityGroupHosts?.[cc]
+  if (!cfg) return null
+  if (cfg.ownerUserId === userId) return 'owner'
+  if ((cfg.deputies || []).includes(userId)) return 'deputy'
+  return null
+}
+
 function buildMockCityHallCatalog() {
   const provinces = cityHallPrefectures.map((blk) => ({
     provinceCode: blk.provinceCode,
     provinceName: provinceDisplayName(blk.provinceCode),
-    cities: (blk.cities || []).map((c) => ({
-      cityCode: c.cityCode,
-      cityName: c.cityName,
-      displayName: `${c.cityName} · 城市大群`,
-      memberCount: 0,
-      activityId: null,
-      joined: null,
-    })),
+    cities: (blk.cities || []).map((c) => {
+      const hostCfg = wmDB.cityGroupHosts?.[c.cityCode]
+      const ownerNick = hostCfg?.ownerUserId
+        ? wmDB.users?.[hostCfg.ownerUserId]?.nickname || null
+        : null
+      return {
+        cityCode: c.cityCode,
+        cityName: c.cityName,
+        displayName: `${c.cityName} · 城市大群`,
+        memberCount: 0,
+        activityId: null,
+        joined: null,
+        ownerNickname: ownerNick,
+      }
+    }),
   }))
   return { provinces }
 }
@@ -642,6 +723,7 @@ export const getCityHallLookup = (cityCode) =>
     tokenIfPresent: true,
     mockHandler: ({ query: q }) => {
       const cc = (q && q.cityCode) || '110000'
+      const hostFields = mockLookupHostFields(cc)
       return ok({
         exists: false,
         cityCode: cc,
@@ -650,7 +732,115 @@ export const getCityHallLookup = (cityCode) =>
         joined: false,
         activityId: null,
         activityKind: 'event',
+        ...hostFields,
       })
+    },
+  })
+
+export const getCityGroupProfile = (cityCode) =>
+  wmRequest({
+    method: 'GET',
+    path: '/city-groups/profile',
+    query: { cityCode },
+    needAuth: false,
+    tokenIfPresent: true,
+    mockHandler: ({ query: q }) => {
+      const cc = (q && q.cityCode) || '110000'
+      const hostFields = mockLookupHostFields(cc)
+      const cfg = wmDB.cityGroupHosts?.[cc]
+      const deputies = (cfg?.deputies || []).map((uid) => mockBuildHostSummary(uid, cc, 'deputy'))
+      return ok({
+        cityCode: cc,
+        displayName: `${mockCityNameFromCode(cc)} · 城市大群`,
+        memberCount: 0,
+        activityId: null,
+        deputies,
+        ...hostFields,
+      })
+    },
+  })
+
+export const getCityGroupHostContext = (activityId) =>
+  wmRequest({
+    method: 'GET',
+    path: '/city-groups/host-context',
+    query: { activityId },
+    needAuth: true,
+    mockHandler: ({ query: q }) => {
+      const aid = String(q?.activityId || '').replace(/^act_/, '')
+      const act = wmDB.activities.find((a) => String(a.activityId) === aid)
+      const cc = act?.cityCode || '110000'
+      const hostFields = mockLookupHostFields(cc)
+      const cfg = wmDB.cityGroupHosts?.[cc]
+      const deputies = (cfg?.deputies || []).map((uid) => mockBuildHostSummary(uid, cc, 'deputy'))
+      const hostUserIds = []
+      if (hostFields.owner?.userId) hostUserIds.push(hostFields.owner.userId)
+      deputies.forEach((d) => hostUserIds.push(d.userId))
+      return ok({
+        cityCode: cc,
+        activityId: q?.activityId || `act_${aid}`,
+        owner: hostFields.owner,
+        deputies,
+        currentUserHostRole: hostFields.currentUserHostRole,
+        canModerate: !!hostFields.currentUserHostRole,
+        hostUserIds,
+      })
+    },
+  })
+
+export const patchCityGroupHostProfile = (payload) =>
+  wmRequest({
+    method: 'PATCH',
+    path: '/city-groups/me/host-profile',
+    data: payload,
+    needAuth: true,
+    mockHandler: ({ data }) => {
+      const cc = data?.cityCode
+      if (!cc || !wmDB.cityGroupHosts?.[cc]) {
+        return { code: 403, message: 'Not a city group host', data: null }
+      }
+      const cfg = wmDB.cityGroupHosts[cc]
+      const me = wmDB.profile.userId
+      const isHost = cfg.ownerUserId === me || (cfg.deputies || []).includes(me)
+      if (!isHost) return { code: 403, message: 'Not a city group host', data: null }
+      if (data.welcomeText !== undefined) cfg.welcomeText = data.welcomeText || ''
+      if (data.announcement !== undefined) cfg.announcement = data.announcement || ''
+      if (data.clearWelcome) cfg.welcomeText = ''
+      if (data.clearAnnouncement) cfg.announcement = ''
+      const hostFields = mockLookupHostFields(cc)
+      return ok({
+        cityCode: cc,
+        displayName: `${mockCityNameFromCode(cc)} · 城市大群`,
+        memberCount: 0,
+        activityId: null,
+        deputies: (cfg.deputies || []).map((uid) => mockBuildHostSummary(uid, cc, 'deputy')),
+        ...hostFields,
+      })
+    },
+  })
+
+export const deleteCityGroupHostMessage = (messageId, cityCode) =>
+  wmRequest({
+    method: 'POST',
+    path: `/city-groups/me/messages/${encodeURIComponent(messageId)}/delete`,
+    data: { cityCode },
+    needAuth: true,
+    mockHandler: ({ data }) => {
+      if (!wmDB.cityGroupDeletedMessageIds) wmDB.cityGroupDeletedMessageIds = []
+      wmDB.cityGroupDeletedMessageIds.push(String(messageId))
+      return ok({ ok: true })
+    },
+  })
+
+export const muteCityGroupMember = (payload) =>
+  wmRequest({
+    method: 'POST',
+    path: '/city-groups/me/members/mute',
+    data: payload,
+    needAuth: true,
+    mockHandler: () => {
+      const until = new Date(Date.now() + 24 * 3600 * 1000).toISOString()
+      return ok({ mutedUntil: until })
     },
   })
 
@@ -835,7 +1025,10 @@ export const getUserPublicProfile = (userId) =>
       const organizedCount = wmDB.activities.filter((x) => x.organizer?.userId === uid).length
       const u = wmDB.users?.[uid]
       if (u) {
-        return ok(mockEnhancePublicProfile({ ...u, organizedCount }, uid))
+        return ok({
+          ...mockEnhancePublicProfile({ ...u, organizedCount }, uid),
+          cityHostBadges: mockListCityHostBadges(uid),
+        })
       }
       const act = wmDB.activities.find((x) => x.organizer?.userId === uid)
       if (act?.organizer) {
@@ -1073,6 +1266,8 @@ export const getActivityMessages = (activityId, query = {}) =>
     query,
     mockHandler: ({ query: q }) => {
       let list = (wmDB.chats[String(activityId)] || []).slice()
+      const deleted = new Set(wmDB.cityGroupDeletedMessageIds || [])
+      list = list.filter((m) => !deleted.has(String(m.messageId)))
       const parsePk = (id) => {
         const n = Number(String(id || '').replace(/^msg_/, ''))
         return Number.isFinite(n) ? n : 0
@@ -1095,6 +1290,10 @@ export const getActivityMessages = (activityId, query = {}) =>
       } else {
         sliced = list.slice(-limit)
       }
+      sliced = sliced.map((m) => ({
+        ...m,
+        senderHostRole: mockHostRoleForSender(activityId, m.sender?.userId),
+      }))
       return ok({
         list: sliced,
         nextCursor: sliced.length ? sliced[sliced.length - 1].messageId : null,

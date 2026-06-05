@@ -103,6 +103,29 @@
         </view>
       </view>
 
+      <view v-if="owner" class="city-hall__owner-card" @click="openOwnerProfile">
+        <view class="city-hall__owner-avatar">
+          <image v-if="owner.avatarUrl" class="city-hall__owner-avatar-img" :src="owner.avatarUrl" mode="aspectFill" />
+          <text v-else>{{ ownerInitial }}</text>
+        </view>
+        <view class="city-hall__owner-main">
+          <view class="city-hall__owner-title-row">
+            <text class="city-hall__owner-label">群主</text>
+            <text class="city-hall__owner-name">{{ owner.nickname || '用户' }}</text>
+          </view>
+          <text class="city-hall__owner-meta">{{ owner.badgeLabel || '城市群主' }}</text>
+        </view>
+        <text class="city-hall__owner-action">看资料 ›</text>
+      </view>
+      <view v-else class="city-hall__official-tip">
+        <text>旅聚官方 · 友善交流，违规可举报</text>
+      </view>
+
+      <view v-if="announcement" class="city-hall__announcement">
+        <text class="city-hall__announcement-label">群公告</text>
+        <text class="city-hall__announcement-text">{{ announcement }}</text>
+      </view>
+
       <view v-if="metaTip" class="city-hall__tip-card">
         <text>{{ metaTip }}</text>
       </view>
@@ -113,6 +136,9 @@
         </view>
         <view v-else class="city-hall__btn city-hall__btn--primary" @click="onJoin">
           <text>加入城市大群</text>
+        </view>
+        <view v-if="isHost" class="city-hall__btn city-hall__btn--ghost" @click="openHostConsole">
+          <text>管理群公告</text>
         </view>
       </view>
 
@@ -260,6 +286,18 @@ export default {
     },
     memberCount() {
       return Number(this.lookup?.memberCount) || 0
+    },
+    owner() {
+      return this.lookup?.owner || null
+    },
+    ownerInitial() {
+      return String(this.owner?.nickname || '?').slice(0, 1)
+    },
+    announcement() {
+      return (this.lookup?.announcement && String(this.lookup.announcement).trim()) || ''
+    },
+    isHost() {
+      return !!(this.lookup?.currentUserHostRole)
     },
     heroSubline() {
       if (this.placeHint) {
@@ -530,6 +568,18 @@ export default {
       const url = `/pages/chat-detail/chat-detail?id=${encodeURIComponent(id)}`
       uni.redirectTo({ url, fail: () => uni.navigateTo({ url }) })
     },
+    openOwnerProfile() {
+      if (!this.owner?.userId) return
+      uni.navigateTo({
+        url: '/pages/user-public/user-public?userId=' + encodeURIComponent(this.owner.userId),
+      })
+    },
+    openHostConsole() {
+      const q = [`cityCode=${encodeURIComponent(this.cityCode)}`]
+      const label = this.catalogCityName
+      if (label) q.push(`cityLabel=${encodeURIComponent(label)}`)
+      uni.navigateTo({ url: `/pages/city-host-console/city-host-console?${q.join('&')}` })
+    },
   },
 }
 </script>
@@ -755,6 +805,92 @@ export default {
   border-radius: 999rpx;
   font-weight: 600;
 }
+.city-hall__owner-card {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-top: 24rpx;
+  padding: 24rpx;
+  background: #ffffff;
+  border-radius: 20rpx;
+  box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.06);
+}
+.city-hall__owner-avatar {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 16rpx;
+  background: linear-gradient(135deg, #c7d2fe, #6366f1);
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.city-hall__owner-avatar-img {
+  width: 100%;
+  height: 100%;
+}
+.city-hall__owner-main {
+  flex: 1;
+  min-width: 0;
+}
+.city-hall__owner-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 6rpx;
+}
+.city-hall__owner-label {
+  font-size: 22rpx;
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.12);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+.city-hall__owner-name {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
+.city-hall__owner-meta {
+  font-size: 24rpx;
+  color: #64748b;
+}
+.city-hall__owner-action {
+  font-size: 24rpx;
+  color: #6366f1;
+  flex-shrink: 0;
+}
+.city-hall__official-tip {
+  margin-top: 24rpx;
+  padding: 20rpx 24rpx;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 16rpx;
+  font-size: 26rpx;
+  color: #64748b;
+}
+.city-hall__announcement {
+  margin-top: 20rpx;
+  padding: 24rpx;
+  background: #fffbeb;
+  border-radius: 16rpx;
+  border: 1rpx solid #fde68a;
+}
+.city-hall__announcement-label {
+  display: block;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #b45309;
+  margin-bottom: 8rpx;
+}
+.city-hall__announcement-text {
+  font-size: 28rpx;
+  color: #78350f;
+  line-height: 1.55;
+}
 .city-hall__tip-card {
   margin-top: 20rpx;
   padding: 20rpx 24rpx;
@@ -865,6 +1001,13 @@ export default {
   background: linear-gradient(135deg, #6366f1, #4f46e5);
   color: #fff;
   box-shadow: 0 8rpx 24rpx rgba(79, 70, 229, 0.3);
+}
+.city-hall__btn--ghost {
+  margin-top: 16rpx;
+  background: #ffffff;
+  color: #4f46e5;
+  border: 1rpx solid #c7d2fe;
+  box-shadow: none;
 }
 .city-hall__section {
   margin-top: 36rpx;

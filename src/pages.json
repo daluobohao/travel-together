@@ -185,6 +185,13 @@
 			}
 		},
 		{
+			"path": "pages/city-host-console/city-host-console",
+			"style": {
+				"navigationBarTitleText": "群管理",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/publish/publish",
 			"style": {
 				"navigationBarTitleText": "发布活动",
