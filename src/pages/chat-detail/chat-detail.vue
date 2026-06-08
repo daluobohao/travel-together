@@ -64,6 +64,7 @@
                   'msg-bubble--sticker': item.msgType === 'sticker',
                   'msg-bubble--location': item.msgType === 'location',
                   'msg-bubble--activity-rec': item.msgType === 'activity_rec',
+                  'msg-bubble--chain': item.msgType === 'chain_signup',
                 }"
                 @longpress.stop="onMessageLongPress(item)"
               >
@@ -89,7 +90,26 @@
                   <text class="msg-bubble__activity-rec-title">{{ item.recActivityTitle || '查看活动' }}</text>
                   <text class="msg-bubble__activity-rec-link">查看详情 ›</text>
                 </view>
+                <chat-chain-bubble
+                  v-else-if="item.msgType === 'chain_signup'"
+                  :title="item.chainTitle"
+                  :description="item.chainDescription"
+                  :closed="item.chainClosed"
+                  :entries="item.chainEntries"
+                  :current-user-id="currentUserId"
+                  :can-close="item.mine"
+                  @join="openJoinChain(item)"
+                  @edit="openJoinChain(item)"
+                  @leave="leaveChain(item)"
+                  @close="closeChain(item)"
+                />
                 <text v-else-if="item.msgType === 'sticker'" class="msg-bubble__sticker" selectable>{{ item.stickerEmoji }}</text>
+                <chat-mention-text
+                  v-else-if="item.msgType === 'text' && item.mentions && item.mentions.length"
+                  :text="item.text"
+                  :mentions="item.mentions"
+                  @open-mention="openMentionProfile"
+                />
                 <text v-else class="msg-bubble__text" selectable>{{ item.text }}</text>
               </view>
               <text v-if="item.pending" class="msg-col__hint">发送中…</text>
@@ -113,33 +133,107 @@
       </view>
     </scroll-view>
 
-    <view class="chat-detail__composer">
-      <view class="chat-detail__emoji-btn" @click="toggleEmojiPanel">
-        <text class="chat-detail__emoji-icon">😊</text>
+    <view class="chat-detail__footer">
+      <view class="chat-detail__composer">
+        <input
+          :value="draft"
+          class="chat-detail__input"
+          placeholder="输入消息..."
+          placeholder-class="chat-detail__input-placeholder"
+          confirm-type="send"
+          @input="onDraftInput"
+          @confirm="sendMessage"
+          @focus="onInputFocus"
+        />
+        <view class="chat-detail__emoji-btn" @click="toggleEmojiPanel">
+          <text class="chat-detail__emoji-icon">😊</text>
+        </view>
+        <view v-if="hasDraft" class="chat-detail__send" @click="sendMessage">
+          <text>发送</text>
+        </view>
+        <view
+          v-else
+          class="chat-detail__plus-btn"
+          :class="{ 'chat-detail__plus-btn--open': showMorePanel }"
+          @click="toggleMorePanel"
+        >
+          <wm-icon name="plus" :size="40" color="#64748b" />
+        </view>
       </view>
-      <view class="chat-detail__image-btn" @click="sendImageMessage">
-        <wm-icon name="camera" :size="36" color="#64748b" />
-      </view>
-      <view class="chat-detail__loc-btn" @click="openLocationPicker">
-        <wm-icon name="mapPin" :size="36" color="#64748b" />
-      </view>
-      <input
-        v-model="draft"
-        class="chat-detail__input"
-        placeholder="输入消息..."
-        placeholder-class="chat-detail__input-placeholder"
-        confirm-type="send"
-        @confirm="sendMessage"
+
+      <chat-emoji-panel
+        :visible="showEmojiPanel"
+        @pick-emoji="onPickEmoji"
+        @pick-sticker="onPickSticker"
       />
-      <view class="chat-detail__send" @click="sendMessage">
-        <text>发送</text>
+
+      <chat-mention-picker
+        :visible="mentionPickerVisible"
+        :activity-id="chatId"
+        :keyword-seed="mentionQuery"
+        @pick="onPickMention"
+      />
+
+      <view v-if="showMorePanel" class="chat-detail__more-panel">
+        <view class="chat-detail__more-grid">
+          <view class="chat-detail__more-item" @click="onMorePick('image')">
+            <view class="chat-detail__more-icon-wrap">
+              <wm-icon name="camera" :size="44" color="#475569" />
+            </view>
+            <text class="chat-detail__more-label">照片</text>
+          </view>
+          <view class="chat-detail__more-item" @click="onMorePick('location')">
+            <view class="chat-detail__more-icon-wrap">
+              <wm-icon name="mapPin" :size="44" color="#475569" />
+            </view>
+            <text class="chat-detail__more-label">位置</text>
+          </view>
+          <view class="chat-detail__more-item" @click="onMorePick('chain')">
+            <view class="chat-detail__more-icon-wrap chat-detail__more-icon-wrap--chain">
+              <text class="chat-detail__more-chain-text">接龙</text>
+            </view>
+            <text class="chat-detail__more-label">接龙</text>
+          </view>
+        </view>
       </view>
     </view>
-    <chat-emoji-panel
-      :visible="showEmojiPanel"
-      @pick-emoji="onPickEmoji"
-      @pick-sticker="onPickSticker"
-    />
+
+    <view v-if="chainSheetVisible" class="chain-sheet-mask" @click="!chainSubmitting && closeChainSheet()">
+      <view class="chain-sheet" @click.stop>
+        <text class="chain-sheet__title">{{ chainSheetMode === 'create' ? '发起接龙' : '参与接龙' }}</text>
+        <view v-if="chainSheetMode === 'create'" class="chain-sheet__field">
+          <text class="chain-sheet__label">标题</text>
+          <input
+            v-model="chainForm.title"
+            class="chain-sheet__input"
+            maxlength="80"
+            placeholder="如：周六奥森晨跑"
+            placeholder-class="chain-sheet__placeholder"
+          />
+        </view>
+        <view v-else class="chain-sheet__hint">
+          <text>{{ chainTarget?.chainTitle || '接龙' }}</text>
+        </view>
+        <view class="chain-sheet__field">
+          <text class="chain-sheet__label">备注（可选）</text>
+          <input
+            v-model="chainForm.note"
+            class="chain-sheet__input"
+            maxlength="60"
+            placeholder="如：1人、带家属"
+            placeholder-class="chain-sheet__placeholder"
+          />
+        </view>
+        <view class="chain-sheet__actions">
+          <view class="chain-sheet__btn chain-sheet__btn--ghost" @click="closeChainSheet">
+            <text>取消</text>
+          </view>
+          <view class="chain-sheet__btn chain-sheet__btn--primary" @click="submitChainSheet">
+            <text>{{ chainSheetMode === 'create' ? '发布' : '确认' }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -147,6 +241,9 @@
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import ChatEmojiPanel from '@/components/ChatEmojiPanel/ChatEmojiPanel.vue'
 import ChatLocationBubble from '@/components/ChatLocationBubble/ChatLocationBubble.vue'
+import ChatChainBubble from '@/components/ChatChainBubble/ChatChainBubble.vue'
+import ChatMentionText from '@/components/ChatMentionText/ChatMentionText.vue'
+import ChatMentionPicker from '@/components/ChatMentionPicker/ChatMentionPicker.vue'
 import {
   API_BASE_URL,
   getAccessToken,
@@ -160,6 +257,9 @@ import {
   markMyChatRead,
   redirectToLogin,
   sendActivityMessage,
+  joinChainSignup,
+  leaveChainSignup,
+  closeChainSignup,
 } from '@/api'
 import { chooseAndUploadChatImage } from '@/utils/chatImagePicker'
 import { getStickerEmoji } from '@/constants/chatStickers'
@@ -177,6 +277,7 @@ import {
   mergeMessageLists,
   saveActivityChatCache,
 } from '@/utils/activityChatCache'
+import { buildMentionsPayload } from '@/utils/chatMentions'
 import { ensureTextContentSafe, ensureTextFieldsSafe, SEC_SCENE } from '@/utils/contentSecurity'
 
 const POLL_INTERVAL_MS = 4000
@@ -218,7 +319,7 @@ function buildWsUrl(activityId) {
 }
 
 export default {
-  components: { WmIcon, ChatEmojiPanel, ChatLocationBubble },
+  components: { WmIcon, ChatEmojiPanel, ChatLocationBubble, ChatChainBubble, ChatMentionText, ChatMentionPicker },
   data() {
     return {
       chatId: '',
@@ -244,6 +345,15 @@ export default {
       sendingImage: false,
       sendingLocation: false,
       showEmojiPanel: false,
+      showMorePanel: false,
+      chainSheetVisible: false,
+      chainSheetMode: 'create',
+      chainTarget: null,
+      chainForm: { title: '', note: '' },
+      chainSubmitting: false,
+      mentionPickerVisible: false,
+      mentionQuery: '',
+      pendingMentions: [],
     }
   },
   computed: {
@@ -262,6 +372,15 @@ export default {
     },
     canModerateCityHall() {
       return this.activityKind === 'city_hall' && !!this.cityHostContext?.canModerate
+    },
+    hasDraft() {
+      return !!(this.draft && String(this.draft).trim())
+    },
+    chatContentStrict() {
+      return this.activityKind === 'city_hall'
+    },
+    chatSecOptions() {
+      return { strict: this.chatContentStrict }
     },
   },
   onLoad(query) {
@@ -404,7 +523,10 @@ export default {
             m.stickerId !== this.messages[i]?.stickerId ||
             m.locationName !== this.messages[i]?.locationName ||
             m.lat !== this.messages[i]?.lat ||
-            m.recActivityId !== this.messages[i]?.recActivityId
+            m.recActivityId !== this.messages[i]?.recActivityId ||
+            JSON.stringify(m.chainEntries || []) !== JSON.stringify(this.messages[i]?.chainEntries || []) ||
+            m.chainClosed !== this.messages[i]?.chainClosed ||
+            JSON.stringify(m.mentions || []) !== JSON.stringify(this.messages[i]?.mentions || [])
         )
       if (changed) {
         this.messages = merged
@@ -618,6 +740,90 @@ export default {
     },
     toggleEmojiPanel() {
       this.showEmojiPanel = !this.showEmojiPanel
+      if (this.showEmojiPanel) {
+        this.showMorePanel = false
+        this.mentionPickerVisible = false
+      }
+    },
+    toggleMorePanel() {
+      this.showMorePanel = !this.showMorePanel
+      if (this.showMorePanel) {
+        this.showEmojiPanel = false
+        this.mentionPickerVisible = false
+      }
+    },
+    closeComposerPanels() {
+      this.showEmojiPanel = false
+      this.showMorePanel = false
+      this.mentionPickerVisible = false
+    },
+    onInputFocus() {
+      this.showMorePanel = false
+    },
+    onDraftInput(e) {
+      const val = e?.detail?.value != null ? String(e.detail.value) : ''
+      this.draft = val
+      this.syncMentionPicker(val)
+    },
+    syncMentionPicker(val) {
+      const text = String(val || '')
+      const atIdx = text.lastIndexOf('@')
+      if (atIdx < 0) {
+        this.mentionPickerVisible = false
+        this.mentionQuery = ''
+        return
+      }
+      const tail = text.slice(atIdx + 1)
+      if (tail.includes(' ') || tail.includes('\n')) {
+        this.mentionPickerVisible = false
+        this.mentionQuery = ''
+        return
+      }
+      this.mentionQuery = tail
+      this.mentionPickerVisible = true
+      this.showEmojiPanel = false
+      this.showMorePanel = false
+    },
+    onPickMention(member) {
+      const nick = String(member?.nickname || '用户').trim()
+      const uid = String(member?.userId || '').trim()
+      if (!uid || !nick) return
+      const text = String(this.draft || '')
+      const atIdx = text.lastIndexOf('@')
+      const prefix = atIdx >= 0 ? text.slice(0, atIdx) : text
+      this.draft = `${prefix}@${nick} `
+      if (!this.pendingMentions.find((m) => m.userId === uid)) {
+        this.pendingMentions.push({ userId: uid, nickname: nick })
+      }
+      this.mentionPickerVisible = false
+      this.mentionQuery = ''
+    },
+    openMentionProfile(payload) {
+      if (!payload?.userId || payload.userId === 'system') return
+      const q = [
+        'userId=' + encodeURIComponent(payload.userId),
+        'activityId=' + encodeURIComponent(this.chatId),
+      ]
+      if (payload.nickname) q.push('nick=' + encodeURIComponent(payload.nickname))
+      uni.navigateTo({
+        url: '/pages/user-public/user-public?' + q.join('&'),
+      })
+    },
+    onMorePick(type) {
+      if (type === 'image') {
+        this.closeComposerPanels()
+        this.sendImageMessage()
+        return
+      }
+      if (type === 'location') {
+        this.closeComposerPanels()
+        this.openLocationPicker()
+        return
+      }
+      if (type === 'chain') {
+        this.closeComposerPanels()
+        this.openCreateChain()
+      }
     },
     onPickEmoji(emoji) {
       this.draft = `${this.draft || ''}${emoji}`
@@ -773,6 +979,121 @@ export default {
         url: `/pages/activity-detail/activity-detail?id=${encodeURIComponent(normalized)}`,
       })
     },
+    openCreateChain() {
+      this.chainSheetMode = 'create'
+      this.chainTarget = null
+      this.chainForm = { title: '', note: '' }
+      this.chainSheetVisible = true
+    },
+    openJoinChain(item) {
+      if (!item?.id || item.chainClosed) return
+      this.chainSheetMode = 'join'
+      this.chainTarget = item
+      const me = (item.chainEntries || []).find((e) => e.userId === this.currentUserId)
+      this.chainForm = { title: item.chainTitle || '', note: me?.note || '' }
+      this.chainSheetVisible = true
+    },
+    closeChainSheet() {
+      this.chainSheetVisible = false
+      this.chainTarget = null
+      this.chainForm = { title: '', note: '' }
+    },
+    upsertChainMessage(updated) {
+      if (!updated?.messageId) return
+      const normalized = this.normalizeMessage(updated, { skipDedup: true })
+      if (!normalized) return
+      const idx = this.messages.findIndex((m) => m.id === updated.messageId)
+      if (idx >= 0) {
+        const prev = this.messages[idx]
+        this.messages.splice(idx, 1, {
+          ...normalized,
+          mine: prev.mine,
+          sender: prev.sender,
+          avatarUrl: prev.avatarUrl,
+          avatarLetter: prev.avatarLetter,
+        })
+      }
+      this.persistCache()
+    },
+    async submitChainSheet() {
+      if (this.chainSubmitting) return
+      const note = (this.chainForm.note || '').trim()
+      if (this.chainSheetMode === 'create') {
+        const title = (this.chainForm.title || '').trim()
+        if (title.length < 2) {
+          uni.showToast({ title: '请填写接龙标题', icon: 'none' })
+          return
+        }
+        this.chainSubmitting = true
+        try {
+          await ensureTextFieldsSafe({ chainTitle: title, chainNote: note }, SEC_SCENE.SOCIAL, this.chatSecOptions)
+          const row = await sendActivityMessage(this.chatId, {
+            msgType: 'chain_signup',
+            chainTitle: title,
+            chainNote: note,
+          })
+          const normalized = this.normalizeMessage(row, { skipDedup: true })
+          if (normalized) {
+            this.messages.push({ ...normalized, mine: true })
+            this.messageIds[normalized.id] = true
+            this.updateLastCreatedAt([{ createdAt: row?.createdAt }])
+            this.persistCache()
+            this.scrollToBottom()
+          }
+          this.closeChainSheet()
+          try {
+            await markMyChatRead(this.chatId)
+          } catch (e) {
+            console.warn('标记已读失败', e)
+          }
+        } catch (e) {
+          uni.showToast({ title: e?.message || '发布失败', icon: 'none' })
+        } finally {
+          this.chainSubmitting = false
+        }
+        return
+      }
+      if (!this.chainTarget?.id) return
+      this.chainSubmitting = true
+      try {
+        await ensureTextFieldsSafe({ note }, SEC_SCENE.SOCIAL, this.chatSecOptions)
+        const row = await joinChainSignup(this.chatId, this.chainTarget.id, { note })
+        this.upsertChainMessage(row)
+        this.closeChainSheet()
+        uni.showToast({ title: '已参与', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: e?.message || '参与失败', icon: 'none' })
+      } finally {
+        this.chainSubmitting = false
+      }
+    },
+    async leaveChain(item) {
+      if (!item?.id) return
+      try {
+        const row = await leaveChainSignup(this.chatId, item.id)
+        this.upsertChainMessage(row)
+        uni.showToast({ title: '已取消', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+      }
+    },
+    async closeChain(item) {
+      if (!item?.id) return
+      uni.showModal({
+        title: '截止接龙',
+        content: '截止后其他人将无法继续参与，确定吗？',
+        success: async (res) => {
+          if (!res.confirm) return
+          try {
+            const row = await closeChainSignup(this.chatId, item.id)
+            this.upsertChainMessage(row)
+            uni.showToast({ title: '已截止', icon: 'success' })
+          } catch (e) {
+            uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+          }
+        },
+      })
+    },
     async sendLocationMessage(loc) {
       if (this.sendingLocation || !loc) return
       this.showEmojiPanel = false
@@ -797,6 +1118,7 @@ export default {
         await ensureTextFieldsSafe(
           { locationName: payload.locationName, address: payload.address },
           SEC_SCENE.SOCIAL,
+          this.chatSecOptions,
         )
         const row = await sendActivityMessage(this.chatId, payload)
         const realId = row?.messageId
@@ -831,13 +1153,16 @@ export default {
       const text = (this.draft || '').trim()
       if (!text) return
       this.showEmojiPanel = false
-      // 群聊：走真实接口，乐观渲染
+      this.mentionPickerVisible = false
+      const mentions = buildMentionsPayload(text, this.pendingMentions)
       const tempId = `temp_${Date.now()}`
       const nowIso = new Date().toISOString()
       this.messages.push({
         id: tempId,
         sender: this.currentUserNickname || '我',
+        msgType: 'text',
         text,
+        mentions,
         mine: true,
         pending: true,
         createdAt: nowIso,
@@ -846,24 +1171,20 @@ export default {
       })
       this.messageIds[tempId] = true
       this.draft = ''
+      this.pendingMentions = []
       this.scrollToBottom()
       try {
-        await ensureTextContentSafe(text, SEC_SCENE.SOCIAL)
-        const row = await sendActivityMessage(this.chatId, { msgType: 'text', text })
+        await ensureTextContentSafe(text, SEC_SCENE.SOCIAL, this.chatSecOptions)
+        const payload = { msgType: 'text', text }
+        if (mentions.length) payload.mentions = mentions
+        const row = await sendActivityMessage(this.chatId, payload)
         const realId = row?.messageId
         const idx = this.messages.findIndex((m) => m.id === tempId)
-        if (idx >= 0) {
+        const normalized = this.normalizeMessage(row, { skipDedup: true })
+        if (idx >= 0 && normalized) {
           if (realId && !this.messageIds[realId]) {
             this.messageIds[realId] = true
-            this.messages.splice(idx, 1, {
-              id: realId,
-              sender: this.currentUserNickname || '我',
-              text,
-              mine: true,
-              createdAt: row?.createdAt || nowIso,
-              avatarUrl: this.currentUserAvatar,
-              avatarLetter: String(this.currentUserNickname || '我').slice(0, 1),
-            })
+            this.messages.splice(idx, 1, { ...normalized, mine: true, pending: false })
           } else {
             this.messages[idx].pending = false
           }
@@ -974,18 +1295,23 @@ export default {
     font-size: 24rpx;
   }
 
+  &__footer {
+    flex-shrink: 0;
+    background: #ffffff;
+    border-top: 1rpx solid #e5e7eb;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
   &__composer {
     display: flex;
     align-items: center;
     gap: 12rpx;
-    padding: 16rpx 20rpx calc(16rpx + env(safe-area-inset-bottom));
+    padding: 16rpx 20rpx;
     background: #ffffff;
-    border-top: 1rpx solid #e5e7eb;
   }
 
   &__emoji-btn,
-  &__image-btn,
-  &__loc-btn {
+  &__plus-btn {
     width: 72rpx;
     height: 72rpx;
     border-radius: 14rpx;
@@ -994,6 +1320,17 @@ export default {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+  }
+
+  &__plus-btn--open {
+    transform: rotate(45deg);
+  }
+
+  &__chain-icon {
+    font-size: 22rpx;
+    color: #0d9488;
+    font-weight: 600;
+    line-height: 1;
   }
 
   &__emoji-icon {
@@ -1016,8 +1353,9 @@ export default {
   }
 
   &__send {
-    width: 108rpx;
+    min-width: 108rpx;
     height: 72rpx;
+    padding: 0 24rpx;
     border-radius: 14rpx;
     background: #6366f1;
     color: #ffffff;
@@ -1026,6 +1364,53 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__more-panel {
+    background: #f3f4f6;
+    padding: 28rpx 24rpx 36rpx;
+    border-top: 1rpx solid #e5e7eb;
+  }
+
+  &__more-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 36rpx 0;
+  }
+
+  &__more-item {
+    width: 25%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12rpx;
+  }
+
+  &__more-icon-wrap {
+    width: 112rpx;
+    height: 112rpx;
+    border-radius: 24rpx;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &--chain {
+      background: #f0fdfa;
+    }
+  }
+
+  &__more-chain-text {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: #0d9488;
+  }
+
+  &__more-label {
+    font-size: 24rpx;
+    color: #64748b;
+    line-height: 1.2;
   }
 }
 
@@ -1179,6 +1564,12 @@ export default {
     max-width: 520rpx;
   }
 
+  &--chain {
+    padding: 0;
+    background: transparent;
+    max-width: 520rpx;
+  }
+
   &__activity-rec {
     padding: 20rpx 24rpx;
     background: #ffffff;
@@ -1227,6 +1618,90 @@ export default {
   &__sticker {
     font-size: 96rpx;
     line-height: 1.1;
+  }
+}
+
+.chain-sheet-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+}
+
+.chain-sheet {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 28rpx 28rpx 0 0;
+  padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.chain-sheet__title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 20rpx;
+}
+
+.chain-sheet__hint {
+  margin-bottom: 16rpx;
+  font-size: 28rpx;
+  color: #334155;
+}
+
+.chain-sheet__field {
+  margin-bottom: 16rpx;
+}
+
+.chain-sheet__label {
+  display: block;
+  font-size: 24rpx;
+  color: #64748b;
+  margin-bottom: 8rpx;
+}
+
+.chain-sheet__input {
+  width: 100%;
+  height: 80rpx;
+  border-radius: 16rpx;
+  background: #f8fafc;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+  color: #0f172a;
+  box-sizing: border-box;
+}
+
+.chain-sheet__placeholder {
+  color: #94a3b8;
+}
+
+.chain-sheet__actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.chain-sheet__btn {
+  flex: 1;
+  height: 84rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 600;
+
+  &--ghost {
+    background: #f1f5f9;
+    color: #475569;
+  }
+
+  &--primary {
+    background: #0d9488;
+    color: #ffffff;
   }
 }
 </style>

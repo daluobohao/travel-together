@@ -118,7 +118,8 @@ export default {
       if (!text || this.commenting) return
       this.commenting = true
       try {
-        await ensureTextContentSafe(text, SEC_SCENE.COMMENT)
+        const strict = (this.item?.postKind || 'city') === 'city'
+        await ensureTextContentSafe(text, SEC_SCENE.COMMENT, { strict })
         await createFeedComment(this.postId, { content: text })
         this.commentDraft = ''
         await Promise.all([this.load(), this.loadComments()])

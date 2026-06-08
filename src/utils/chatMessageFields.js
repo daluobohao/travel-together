@@ -2,6 +2,7 @@ import { getStickerEmoji } from '@/constants/chatStickers'
 
 export function inferMsgType(raw) {
   if (raw?.msgType) return raw.msgType
+  if (raw?.chainTitle) return 'chain_signup'
   if (raw?.recActivityId) return 'activity_rec'
   if (raw?.stickerId) return 'sticker'
   if (raw?.imageUrl) return 'image'
@@ -25,5 +26,10 @@ export function parseChatMessageFields(raw) {
     lng: msgType === 'location' ? raw?.lng : null,
     recActivityId: msgType === 'activity_rec' ? raw?.recActivityId || '' : '',
     recActivityTitle: msgType === 'activity_rec' ? raw?.recActivityTitle || '' : '',
+    chainTitle: msgType === 'chain_signup' ? raw?.chainTitle || '' : '',
+    chainDescription: msgType === 'chain_signup' ? raw?.chainDescription || '' : '',
+    chainClosed: msgType === 'chain_signup' ? !!raw?.chainClosed : false,
+    chainEntries: msgType === 'chain_signup' ? (raw?.chainEntries || []) : [],
+    mentions: msgType === 'text' ? (raw?.mentions || []) : [],
   }
 }

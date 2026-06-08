@@ -1,8 +1,10 @@
 /** 微信小程序内容安全：发布前调用后端 ``POST /content/sec-check``（对接微信 msgSecCheck） */
 
 import { checkContentSec } from '@/api'
+import { localTextBlockedReason } from '@/utils/localTextContentFilter'
+import { SENSITIVE_REJECT_DETAIL } from '@/utils/sensitiveContentFilter'
 
-export const CONTENT_VIOLATION_MSG = '所发布内容含违规信息，请修改后重试'
+export const CONTENT_VIOLATION_MSG = SENSITIVE_REJECT_DETAIL
 
 /** scene：1 资料 2 评论 3 论坛 4 社交日志 */
 export const SEC_SCENE = {
@@ -22,9 +24,17 @@ export function normalizeContentViolationMessage(msg) {
 }
 
 /** 发布前检测单段文本；不通过时 toast 并 throw */
-export async function ensureTextContentSafe(text, scene = SEC_SCENE.SOCIAL) {
+export async function ensureTextContentSafe(text, scene = SEC_SCENE.SOCIAL, options = {}) {
   const raw = (text || '').trim()
   if (!raw) return
+  const strict = !!options.strict
+  const blocked = localTextBlockedReason(raw, { strict })
+  if (blocked) {
+    uni.showToast({ title: blocked, icon: 'none' })
+    const err = new Error(blocked)
+    err.isContentViolation = true
+    throw err
+  }
   try {
     await checkContentSec({ content: raw, scene })
   } catch (e) {
@@ -37,8 +47,8 @@ export async function ensureTextContentSafe(text, scene = SEC_SCENE.SOCIAL) {
 }
 
 /** 多字段依次检测（空值跳过） */
-export async function ensureTextFieldsSafe(fields, scene = SEC_SCENE.SOCIAL) {
+export async function ensureTextFieldsSafe(fields, scene = SEC_SCENE.SOCIAL, options = {}) {
   for (const value of Object.values(fields || {})) {
-    await ensureTextContentSafe(value, scene)
+    await ensureTextContentSafe(value, scene, options)
   }
 }

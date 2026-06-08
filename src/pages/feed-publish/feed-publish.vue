@@ -170,9 +170,11 @@ export default {
       this.submitting = true
       const locationPayload = buildFeedLocationPayload(this.location)
       try {
-        await ensureTextContentSafe(this.content.trim(), SEC_SCENE.SOCIAL)
+        const feedStrict = !this.activityId
+        const feedSecOptions = { strict: feedStrict }
+        await ensureTextContentSafe(this.content.trim(), SEC_SCENE.SOCIAL, feedSecOptions)
         if (locationPayload.locationName) {
-          await ensureTextContentSafe(locationPayload.locationName, SEC_SCENE.SOCIAL)
+          await ensureTextContentSafe(locationPayload.locationName, SEC_SCENE.SOCIAL, feedSecOptions)
         }
         if (this.activityId) {
           await createActivityPost(this.activityId, {

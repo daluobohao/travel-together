@@ -28,5 +28,13 @@ export function chatMessageCopyText(msg) {
       msg.lat != null && msg.lng != null ? `（${msg.lat},${msg.lng}）` : ''
     return [name, addr, coords].filter(Boolean).join(' ')
   }
+  if (msg.msgType === 'chain_signup') {
+    const lines = [`[接龙] ${msg.chainTitle || ''}`.trim()]
+    for (const [i, e] of (msg.chainEntries || []).entries()) {
+      const note = e.note ? ` ${e.note}` : ''
+      lines.push(`${i + 1}. ${e.nickname || '用户'}${note}`)
+    }
+    return lines.join('\n')
+  }
   return msg.text || ''
 }

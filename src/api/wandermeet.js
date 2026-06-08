@@ -49,11 +49,85 @@ import {
   mockListUserPosts,
   mockToggleLike,
 } from '@/mock/feed-mock'
-import { contactTextBlockedReason } from '@/utils/contactContentFilter'
+import { localTextBlockedReason } from '@/utils/localTextContentFilter'
+import { SENSITIVE_REJECT_DETAIL } from '@/utils/sensitiveContentFilter'
 import { cityShortNameForHostBadge } from '@/utils/cityCatalog'
 import { isKnownStickerId } from '@/constants/chatStickers'
 
 const ok = (data) => ({ code: 0, message: 'ok', data })
+
+function mockActivityContentStrict(activityId) {
+  const activity = wmDB.activities.find((x) => x.activityId === String(activityId))
+  return (activity?.activityKind || '') === 'city_hall'
+}
+
+function mockLocalTextBlocked(text, activityId) {
+  return localTextBlockedReason(text, { strict: mockActivityContentStrict(activityId) })
+}
+
+function mockChainPayload(title, description, entries, closed = false) {
+  return JSON.stringify({
+    kind: 'chain_signup',
+    title: String(title || '').trim(),
+    description: String(description || '').trim(),
+    closed: !!closed,
+    entries: entries || [],
+  })
+}
+
+function mockDecodeChain(textContent) {
+  if (!textContent) return null
+  try {
+    const data = JSON.parse(textContent)
+    if (data?.kind !== 'chain_signup') return null
+    return data
+  } catch {
+    return null
+  }
+}
+
+function mockChainFieldsFromRow(row) {
+  if (row.msgType !== 'chain_signup') return {}
+  const data = mockDecodeChain(row.text)
+  if (!data) {
+    return {
+      chainTitle: row.chainTitle || '',
+      chainDescription: row.chainDescription || '',
+      chainClosed: !!row.chainClosed,
+      chainEntries: row.chainEntries || [],
+    }
+  }
+  return {
+    chainTitle: data.title || '',
+    chainDescription: data.description || '',
+    chainClosed: !!data.closed,
+    chainEntries: data.entries || [],
+  }
+}
+
+function mockDecodeMentions(textContent) {
+  if (!textContent || !String(textContent).startsWith('{')) return null
+  try {
+    const data = JSON.parse(textContent)
+    if (data?.kind !== 'text_mentions') return null
+    return {
+      text: data.text || '',
+      mentions: Array.isArray(data.mentions) ? data.mentions : [],
+    }
+  } catch {
+    return null
+  }
+}
+
+function mockMentionFieldsFromRow(row) {
+  if (row.msgType !== 'text') return {}
+  if (row.mentions?.length) {
+    return { text: row.text || '', mentions: row.mentions }
+  }
+  const decoded = mockDecodeMentions(row.text)
+  if (decoded) return decoded
+  return { mentions: [] }
+}
 
 function mockChatMessageRow(base, data) {
   const msgType = data.msgType || 'text'
@@ -75,6 +149,30 @@ function mockChatMessageRow(base, data) {
     row.lat = data.lat
     row.lng = data.lng
   }
+  if (msgType === 'activity_rec') {
+    row.recActivityId = data.recActivityId || null
+    row.recActivityTitle = data.recActivityTitle || null
+    row.text = data.text || null
+  }
+  if (msgType === 'chain_signup') {
+    const me = wmDB.profile?.userId || 'me'
+    const nickname = wmDB.profile?.nickname || '你'
+    const note = (data.chainNote || '').trim()
+    const entries = [
+      {
+        entryId: `e_${me}`,
+        userId: me,
+        nickname,
+        note,
+        createdAt: new Date().toISOString(),
+      },
+    ]
+    row.text = mockChainPayload(data.chainTitle, data.chainDescription, entries, false)
+    Object.assign(row, mockChainFieldsFromRow(row))
+  }
+  if (msgType === 'text' && data.mentions?.length) {
+    row.mentions = data.mentions
+  }
   return row
 }
 
@@ -86,6 +184,16 @@ function mockChatLastPreview(msg) {
   if (t === 'location') {
     const n = msg.locationName || ''
     return n ? `[位置] ${String(n).slice(0, 24)}` : '[位置]'
+  }
+  if (t === 'activity_rec') {
+    const title = msg.recActivityTitle || ''
+    return title ? `[活动] ${String(title).slice(0, 24)}` : '[活动推荐]'
+  }
+  if (t === 'chain_signup') {
+    const fields = mockChainFieldsFromRow(msg)
+    const count = (fields.chainEntries || []).length
+    const title = fields.chainTitle || '接龙'
+    return `[接龙] ${String(title).slice(0, 20)} (${count}人)`
   }
   return msg.text || null
 }
@@ -1343,8 +1451,9 @@ export const getActivityMembers = (activityId, query = {}) =>
       const activity = wmDB.activities.find((x) => x.activityId === String(activityId))
       const page = Math.max(1, Number(q.page) || 1)
       const pageSize = Math.min(100, Math.max(1, Number(q.pageSize) || 20))
+      const kw = String(q.q || '').trim().toLowerCase()
       const isCityHall = (activity?.activityKind || '') === 'city_hall'
-      const pool = [
+      let pool = [
         ...(isCityHall
           ? []
           : [
@@ -1378,6 +1487,36 @@ export const getActivityMembers = (activityId, query = {}) =>
           joinedAt: new Date(Date.now() - 172800000).toISOString(),
         },
       ]
+      if (isCityHall && page === 1) {
+        const cc = activity?.cityCode
+        const hostCfg = cc ? wmDB.cityGroupHosts?.[cc] : null
+        const hostItems = []
+        if (hostCfg?.ownerUserId) {
+          const owner = wmDB.users?.[hostCfg.ownerUserId] || {}
+          hostItems.push({
+            userId: hostCfg.ownerUserId,
+            nickname: owner.nickname || '城主',
+            avatarUrl: owner.avatarUrl || null,
+            role: 'owner',
+            joinedAt: new Date().toISOString(),
+          })
+        }
+        for (const depId of hostCfg?.deputies || []) {
+          const dep = wmDB.users?.[depId] || {}
+          hostItems.push({
+            userId: depId,
+            nickname: dep.nickname || '管理',
+            avatarUrl: dep.avatarUrl || null,
+            role: 'deputy',
+            joinedAt: new Date().toISOString(),
+          })
+        }
+        const seen = new Set(pool.map((m) => m.userId))
+        pool = [...hostItems.filter((h) => !seen.has(h.userId)), ...pool]
+      }
+      if (kw) {
+        pool = pool.filter((m) => String(m.nickname || '').toLowerCase().includes(kw))
+      }
       const start = (page - 1) * pageSize
       const list = pool.slice(start, start + pageSize)
       return ok({ list })
@@ -1419,6 +1558,8 @@ export const getActivityMessages = (activityId, query = {}) =>
       }
       sliced = sliced.map((m) => ({
         ...m,
+        ...mockChainFieldsFromRow(m),
+        ...mockMentionFieldsFromRow(m),
         senderHostRole: mockHostRoleForSender(activityId, m.sender?.userId),
       }))
       return ok({
@@ -1435,7 +1576,7 @@ export const sendActivityMessage = (activityId, payload) =>
     data: payload,
     mockHandler: ({ data }) => {
       if (data.msgType === 'text' && data.text) {
-        const blocked = contactTextBlockedReason(data.text)
+        const blocked = mockLocalTextBlocked(data.text, activityId)
         if (blocked) return { code: 400, message: blocked, data: null }
       }
       if (data.msgType === 'sticker' && !isKnownStickerId(data.stickerId)) {
@@ -1444,6 +1585,18 @@ export const sendActivityMessage = (activityId, payload) =>
       if (data.msgType === 'location') {
         if (!data.locationName || data.lat == null || data.lng == null) {
           return { code: 400, message: 'locationName, lat, lng required', data: null }
+        }
+      }
+      if (data.msgType === 'chain_signup') {
+        const title = (data.chainTitle || '').trim()
+        if (title.length < 2) {
+          return { code: 400, message: 'chainTitle required', data: null }
+        }
+        const titleBlocked = mockLocalTextBlocked(title, activityId)
+        if (titleBlocked) return { code: 400, message: titleBlocked, data: null }
+        if (data.chainNote) {
+          const blocked = mockLocalTextBlocked(data.chainNote, activityId)
+          if (blocked) return { code: 400, message: blocked, data: null }
         }
       }
       const row = mockChatMessageRow(
@@ -1457,6 +1610,92 @@ export const sendActivityMessage = (activityId, payload) =>
       if (!wmDB.chats[String(activityId)]) wmDB.chats[String(activityId)] = []
       wmDB.chats[String(activityId)].push(row)
       return ok(row)
+    },
+  })
+
+function mockFindChainMessage(activityId, messageId) {
+  const list = wmDB.chats[String(activityId)] || []
+  const row = list.find((m) => String(m.messageId) === String(messageId))
+  if (!row || row.msgType !== 'chain_signup') return null
+  return row
+}
+
+function mockUpdateChainRow(row, updater) {
+  const data = mockDecodeChain(row.text)
+  if (!data) return null
+  updater(data)
+  row.text = mockChainPayload(data.title, data.description, data.entries, data.closed)
+  Object.assign(row, mockChainFieldsFromRow(row))
+  return row
+}
+
+export const joinChainSignup = (activityId, messageId, payload = {}) =>
+  wmRequest({
+    method: 'POST',
+    path: `/activities/${activityId}/messages/${messageId}/chain/entries`,
+    data: payload,
+    mockHandler: ({ data }) => {
+      const row = mockFindChainMessage(activityId, messageId)
+      if (!row) return { code: 404, message: 'not found', data: null }
+      const me = wmDB.profile?.userId || 'me'
+      const nickname = wmDB.profile?.nickname || '你'
+      const note = (data?.note || '').trim()
+      if (note) {
+        const blocked = mockLocalTextBlocked(note, activityId)
+        if (blocked) return { code: 400, message: blocked, data: null }
+      }
+      mockUpdateChainRow(row, (chain) => {
+        if (chain.closed) {
+          throw Object.assign(new Error('closed'), { code: 400 })
+        }
+        const entries = Array.isArray(chain.entries) ? chain.entries : []
+        const hit = entries.find((e) => e.userId === me)
+        if (hit) hit.note = note
+        else {
+          entries.push({
+            entryId: `e_${me}`,
+            userId: me,
+            nickname,
+            note,
+            createdAt: new Date().toISOString(),
+          })
+        }
+        chain.entries = entries
+      })
+      return ok({ ...row, sender: row.sender })
+    },
+  })
+
+export const leaveChainSignup = (activityId, messageId) =>
+  wmRequest({
+    method: 'DELETE',
+    path: `/activities/${activityId}/messages/${messageId}/chain/entries/me`,
+    mockHandler: () => {
+      const row = mockFindChainMessage(activityId, messageId)
+      if (!row) return { code: 404, message: 'not found', data: null }
+      const me = wmDB.profile?.userId || 'me'
+      mockUpdateChainRow(row, (chain) => {
+        chain.entries = (chain.entries || []).filter((e) => e.userId !== me)
+      })
+      return ok({ ...row, sender: row.sender })
+    },
+  })
+
+export const closeChainSignup = (activityId, messageId) =>
+  wmRequest({
+    method: 'POST',
+    path: `/activities/${activityId}/messages/${messageId}/chain/close`,
+    mockHandler: () => {
+      const row = mockFindChainMessage(activityId, messageId)
+      if (!row) return { code: 404, message: 'not found', data: null }
+      const me = wmDB.profile?.userId || 'me'
+      if (row.sender?.userId !== me) {
+        return { code: 403, message: 'only creator', data: null }
+      }
+      mockUpdateChainRow(row, (chain) => {
+        chain.closed = true
+      })
+      return ok({ ...row, sender: row.sender })
     },
   })
 
@@ -1803,8 +2042,13 @@ export const checkContentSec = (payload) =>
     data: payload,
     mockHandler: ({ data }) => {
       const text = String(data?.content || '').trim()
+      const strict = !!data?.strict
+      const blocked = localTextBlockedReason(text, { strict })
+      if (blocked) {
+        return { code: 400, message: blocked, data: null }
+      }
       if (/违规测试|色情|赌博|毒品/.test(text)) {
-        return { code: 400, message: '所发布内容含违规信息，请修改后重试', data: null }
+        return { code: 400, message: SENSITIVE_REJECT_DETAIL, data: null }
       }
       return ok({ safe: true })
     },
@@ -2613,7 +2857,7 @@ export const createDmRequest = (activityId, payload) =>
       const to = data?.toUserId
       if (!to) return { code: 400, message: 'invalid toUserId', data: null }
       if (data?.introText) {
-        const blocked = contactTextBlockedReason(String(data.introText))
+        const blocked = localTextBlockedReason(String(data.introText), { strict: true })
         if (blocked) return { code: 400, message: blocked, data: null }
       }
       const aid = String(activityId).replace(/^act_/, '')
@@ -2823,7 +3067,7 @@ export const sendDirectMessage = (threadId, payload) =>
       const me = wmDB.profile.userId
       if (t.userLow !== me && t.userHigh !== me) return { code: 403, message: 'forbidden', data: null }
       if (data.msgType === 'text' && data.text) {
-        const blocked = contactTextBlockedReason(data.text)
+        const blocked = localTextBlockedReason(data.text)
         if (blocked) return { code: 400, message: blocked, data: null }
       }
       if (data.msgType === 'sticker' && !isKnownStickerId(data.stickerId)) {
