@@ -134,6 +134,9 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import {
+  mergeCategoryListWithFallback,
+} from '@/constants/activityCategories'
+import {
   createPlaceActivityAlert,
   getActivities,
   getActivityCategories,
@@ -226,7 +229,7 @@ export default {
     async loadCategories() {
       try {
         const d = await getActivityCategories()
-        this.categories = d?.categories || []
+        this.categories = mergeCategoryListWithFallback(d?.categories || [])
       } catch {
         this.categories = []
       }

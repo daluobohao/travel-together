@@ -1,6 +1,8 @@
 import {
   ACTIVITY_CATEGORY_COLOR_MAP,
+  FALLBACK_ACTIVITY_CATEGORIES,
   formatActivityCategoryDisplay,
+  normalizeCategoryList,
 } from '@/constants/activityCategories'
 import { wmRequest, paginate } from './client'
 import { clearWmAuthTokens, getMockEnabled, setAccessToken, setRefreshToken } from './config'
@@ -873,7 +875,7 @@ export const getActivityCategories = () =>
     method: 'GET',
     path: '/meta/activity-categories',
     needAuth: false,
-    mockHandler: () => ok({ categories: wmDB.categories }),
+    mockHandler: () => ok({ categories: normalizeCategoryList(FALLBACK_ACTIVITY_CATEGORIES) }),
   })
 
 export const getCityGroupsMeta = () =>
@@ -907,14 +909,32 @@ export const getCityHallLookup = (cityCode) =>
     mockHandler: ({ query: q }) => {
       const cc = (q && q.cityCode) || '110000'
       const hostFields = mockLookupHostFields(cc)
+      const exists = cc === '110000' || cc === '310100'
+      if (!exists) {
+        return ok({
+          exists: false,
+          cityCode: cc,
+          displayName: '',
+          memberCount: 0,
+          messageCount: 0,
+          unreadCount: null,
+          joined: false,
+          activityId: null,
+          activityKind: 'event',
+          ...hostFields,
+        })
+      }
+      const joined = cc === '110000'
       return ok({
-        exists: false,
+        exists: true,
         cityCode: cc,
-        displayName: '',
-        memberCount: 0,
-        joined: false,
-        activityId: null,
-        activityKind: 'event',
+        displayName: `${mockCityNameFromCode(cc)} · 城市大群`,
+        memberCount: cc === '110000' ? 128 : 86,
+        messageCount: 120,
+        unreadCount: joined ? 8 : null,
+        joined,
+        activityId: `act_city_${cc}`,
+        activityKind: 'city_hall',
         ...hostFields,
       })
     },
@@ -2680,6 +2700,8 @@ export function isActivityPostWindowOpen(raw, nowMs = Date.now()) {
   return nowMs >= startMs && nowMs <= windowEndMs
 }
 
+import { resolveChatBadgeCount } from '@/utils/chatBadge'
+
 export function mapActivityCard(card) {
   const tag = resolveActivityCategoryTag(card)
   const safeActivityId =
@@ -2704,6 +2726,13 @@ export function mapActivityCard(card) {
     categoryId: card.categoryId,
     subCategoryId: card.subCategoryId || '',
     enrollmentStatus: card.enrollmentStatus || card.myEnrollment?.status || null,
+    messageCount: Number(card.messageCount || 0),
+    unreadCount: card.unreadCount == null ? null : Number(card.unreadCount || 0),
+    chatBadge: resolveChatBadgeCount({
+      joined: (card.enrollmentStatus || card.myEnrollment?.status) === 'joined',
+      unreadCount: card.unreadCount,
+      messageCount: card.messageCount,
+    }),
     ...status,
   }
 }
@@ -2755,7 +2784,7 @@ export const getMyChats = (query = {}) =>
             memberCount,
             lastMessage,
             lastMessageAt: last?.createdAt || null,
-            unreadCount: 0,
+            unreadCount: Number(activity.activityId) === 1 ? 105 : Number(activity.activityId) === 2 ? 3 : 0,
           }
         })
         .sort((a, b) => {

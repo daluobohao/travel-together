@@ -22,11 +22,11 @@ export const FALLBACK_ACTIVITY_CATEGORIES = [
       { subCategoryId: 'movie', name: '看电影' },
       { subCategoryId: 'escape_room', name: '密室' },
       { subCategoryId: 'script_murder', name: '剧本杀' },
+      { subCategoryId: 'cat_mouse', name: '猫鼠游戏' },
       { subCategoryId: 'billiards', name: '台球' },
       { subCategoryId: 'mahjong', name: '棋牌' },
       { subCategoryId: 'arcade', name: '电玩' },
       { subCategoryId: 'diy', name: '拼豆/DIY' },
-      { subCategoryId: 'cat_mouse', name: '猫鼠游戏' },
     ],
   },
   {
@@ -196,6 +196,41 @@ export function normalizeCategoryList(categories) {
       name: s.name,
     })),
   }))
+}
+
+/** 接口类目与本地 FALLBACK 合并：二级项按 FALLBACK 顺序，并保留接口独有项 */
+export function mergeCategoryListWithFallback(apiCategories) {
+  const api = normalizeCategoryList(Array.isArray(apiCategories) ? apiCategories : [])
+  if (!api.length) return normalizeCategoryList(FALLBACK_ACTIVITY_CATEGORIES)
+
+  const fallbackById = Object.fromEntries(
+    normalizeCategoryList(FALLBACK_ACTIVITY_CATEGORIES).map((c) => [c.categoryId, c]),
+  )
+  const merged = api.map((c) => {
+    const fb = fallbackById[c.categoryId]
+    if (!fb?.subcategories?.length) return c
+    const apiSubById = Object.fromEntries((c.subcategories || []).map((s) => [s.subCategoryId, s]))
+    const subs = []
+    const seen = new Set()
+    for (const sub of fb.subcategories) {
+      const fromApi = apiSubById[sub.subCategoryId]
+      subs.push(fromApi || sub)
+      seen.add(sub.subCategoryId)
+    }
+    for (const sub of c.subcategories || []) {
+      if (!seen.has(sub.subCategoryId)) {
+        subs.push(sub)
+        seen.add(sub.subCategoryId)
+      }
+    }
+    return { ...c, subcategories: subs }
+  })
+
+  const apiIds = new Set(merged.map((c) => c.categoryId))
+  for (const fb of normalizeCategoryList(FALLBACK_ACTIVITY_CATEGORIES)) {
+    if (!apiIds.has(fb.categoryId)) merged.push(fb)
+  }
+  return merged
 }
 
 export function formatActivityCategoryDisplay(categoryId, subCategoryId, categoryLabel, categoryDisplay) {

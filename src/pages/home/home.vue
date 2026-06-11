@@ -55,6 +55,9 @@
             <text class="home__city-hall-desc">{{ cityHallDesc }}</text>
           </view>
           <view class="home__city-hall-cta">
+            <view v-if="cityHallChatBadge" class="home__chat-badge">
+              <text>{{ cityHallChatBadge }}</text>
+            </view>
             <text>{{ cityHallCtaText }}</text>
           </view>
         </view>
@@ -190,7 +193,12 @@
               <text>{{ item.statusLabel }}</text>
             </view>
           </view>
-          <wm-icon name="chevronRight" :size="32" color="#cbd5e1" />
+          <view class="card__top-right">
+            <view v-if="item.chatBadge" class="home__chat-badge home__chat-badge--card">
+              <text>{{ item.chatBadge }}</text>
+            </view>
+            <wm-icon name="chevronRight" :size="32" color="#cbd5e1" />
+          </view>
         </view>
 
         <text class="card__title">{{ item.title }}</text>
@@ -248,6 +256,7 @@ import {
 } from '@/utils/homeCity'
 import {
   FALLBACK_ACTIVITY_CATEGORIES,
+  mergeCategoryListWithFallback,
   normalizeCategoryList,
 } from '@/constants/activityCategories'
 import {
@@ -263,6 +272,7 @@ import {
   parseSharedActivityIdFromQuery,
   pinSharedActivityOnList,
 } from '@/utils/activityShare'
+import { resolveChatBadgeCount } from '@/utils/chatBadge'
 
 export default {
   components: { WmIcon, WmTabBar },
@@ -349,6 +359,13 @@ export default {
     cityHallCtaText() {
       return this.cityHallJoined ? '进群找搭子' : '免费进群找搭子'
     },
+    cityHallChatBadge() {
+      return resolveChatBadgeCount({
+        joined: this.cityHallJoined,
+        unreadCount: this.cityHallLookup?.unreadCount,
+        messageCount: this.cityHallLookup?.messageCount,
+      })
+    },
     categoryChips() {
       const all = [{ key: HOME_CATEGORY_ALL, label: '全部' }]
       const rest = (this.categoryTree || []).map((c) => ({
@@ -424,7 +441,7 @@ export default {
       try {
         const data = await getActivityCategories()
         const list = data?.categories || []
-        this.categoryTree = normalizeCategoryList(list.length ? list : FALLBACK_ACTIVITY_CATEGORIES)
+        this.categoryTree = mergeCategoryListWithFallback(list)
       } catch (_) {
         this.categoryTree = normalizeCategoryList(FALLBACK_ACTIVITY_CATEGORIES)
       }
@@ -889,6 +906,7 @@ export default {
   }
 
   &__city-hall-cta {
+    position: relative;
     flex-shrink: 0;
     padding: 14rpx 26rpx;
     border-radius: 999rpx;
@@ -900,6 +918,41 @@ export default {
       font-weight: 600;
       color: #ffffff;
       white-space: nowrap;
+    }
+  }
+
+  &__chat-badge {
+    position: absolute;
+    top: -10rpx;
+    right: -10rpx;
+    min-width: 32rpx;
+    height: 32rpx;
+    padding: 0 8rpx;
+    border-radius: 999rpx;
+    background: #ef4444;
+    border: 2rpx solid #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2rpx 8rpx rgba(239, 68, 68, 0.35);
+    z-index: 1;
+
+    text {
+      font-size: 20rpx;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1;
+    }
+
+    &--card {
+      position: static;
+      top: auto;
+      right: auto;
+      min-width: 36rpx;
+      height: 36rpx;
+      padding: 0 10rpx;
+      border: none;
+      box-shadow: none;
     }
   }
 
@@ -1165,6 +1218,13 @@ export default {
     display: flex;
     justify-content: space-between;
     align-items: center;
+  }
+
+  &__top-right {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+    flex-shrink: 0;
   }
 
   &__tags {

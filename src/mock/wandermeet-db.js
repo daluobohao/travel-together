@@ -300,6 +300,20 @@ export const wmDB = {
 }
 
 export function toActivityCard(activity) {
+  const joined = activity.myEnrollment?.status === 'joined'
+  const actNum = Number(activity.activityId) || 0
+  const messageCount =
+    activity.messageCount != null ? Number(activity.messageCount) : actNum === 1 ? 105 : actNum * 11 + 5
+  const unreadCount =
+    activity.unreadCount != null
+      ? Number(activity.unreadCount)
+      : joined
+        ? actNum === 1
+          ? 5
+          : actNum === 2
+            ? 0
+            : 2
+        : null
   return {
     activityId: activity.activityId,
     title: activity.title,
@@ -315,7 +329,9 @@ export function toActivityCard(activity) {
     categoryLabel: activity.categoryLabel || '',
     organizer: activity.organizer,
     activityStatus: activity.activityStatus,
-    enrollmentStatus: activity.myEnrollment?.status || null,
+    enrollmentStatus: joined ? 'joined' : null,
     activityKind: activity.activityKind || 'event',
+    messageCount,
+    unreadCount: joined ? unreadCount : null,
   }
 }

@@ -75,7 +75,7 @@
                 <text class="chat__sender">{{ chat.sender }}：</text>{{ chat.preview }}
               </text>
               <view v-if="chat.unread" class="chat__badge">
-                <text>{{ chat.unread }}</text>
+                <text>{{ formatChatBadgeCount(chat.unread) }}</text>
               </view>
             </view>
           </view>
@@ -117,7 +117,7 @@
                 <text class="chat__sender">私聊：</text>{{ chat.preview }}
               </text>
               <view v-if="chat.unread" class="chat__badge">
-                <text>{{ chat.unread }}</text>
+                <text>{{ formatChatBadgeCount(chat.unread) }}</text>
               </view>
             </view>
           </view>
@@ -235,6 +235,7 @@ import {
   isLoggedIn,
   redirectToLogin,
 } from '@/api'
+import { formatChatBadgeCount } from '@/utils/chatBadge'
 
 /** 消息列表每页条数（首屏轻量，靠加载更多翻页） */
 const LIST_PAGE_SIZE = 5
@@ -365,6 +366,7 @@ export default {
     this.loadMessages()
   },
   methods: {
+    formatChatBadgeCount,
     goLogin() {
       redirectToLogin('/pages/messages/messages')
     },

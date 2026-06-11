@@ -215,6 +215,7 @@ import {
   ACTIVITY_CATEGORY_OTHER,
   FALLBACK_ACTIVITY_CATEGORIES,
   formatActivityCategoryDisplay,
+  mergeCategoryListWithFallback,
   normalizeCategoryList,
   publishTitlePlaceholder,
 } from '@/constants/activityCategories'
@@ -349,7 +350,7 @@ export default {
       } catch (e) {
         list = []
       }
-      this.categoryTree = normalizeCategoryList(list.length ? list : FALLBACK_ACTIVITY_CATEGORIES)
+      this.categoryTree = mergeCategoryListWithFallback(list)
       if (!this.categoryTree.some((c) => c.categoryId === this.form.categoryId)) {
         this.form.categoryId = this.categoryTree[0]?.categoryId || 'dining'
         this.form.subCategoryId = ''
