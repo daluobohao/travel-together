@@ -12,6 +12,20 @@ import { bindReferralCode, isLoggedIn, redirectToLogin } from '@/api'
 import { capturePageQueryAttribution } from '@/utils/acquisitionSource'
 import { clearPendingInviteCode, parseInviteFromQuery, savePendingInviteCode } from '@/utils/referralInv'
 
+function goHomeAfterEntry() {
+  uni.reLaunch({
+    url: '/pages/home/home',
+    fail: () => {
+      uni.redirectTo({
+        url: '/pages/home/home',
+        fail: () => {
+          uni.navigateTo({ url: '/pages/home/home' })
+        },
+      })
+    },
+  })
+}
+
 export default {
   data() {
     return { tip: '正在进入…' }
@@ -32,7 +46,7 @@ export default {
         }
       }
       setTimeout(() => {
-        uni.switchTab({ url: '/pages/home/home' })
+        goHomeAfterEntry()
       }, 600)
       return
     }

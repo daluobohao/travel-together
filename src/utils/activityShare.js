@@ -1,4 +1,4 @@
-/** 非活动详情页：分享统一落到 entry 归因页，避免好友打开到登录/半完成引导页 */
+/** 非活动详情页：分享统一落到首页（带 src 归因）；邀请链仍走 entry */
 import {
   SHARE_SRC_FRIEND,
   SHARE_SRC_TIMELINE,
@@ -8,7 +8,7 @@ import {
 
 export const DEFAULT_MINI_PROGRAM_SHARE = {
   title: '去旅聚 · 发现身边的活动',
-  path: appendShareSrcToPath('/pages/entry/entry', SHARE_SRC_FRIEND),
+  path: appendShareSrcToPath('/pages/home/home', SHARE_SRC_FRIEND),
 }
 
 export function buildDefaultTimelineShare() {
@@ -107,6 +107,9 @@ export function buildHomeShareClipboardText(cityName) {
   ].join('\n')
 }
 
+/** 活动分享落地首页时携带的活动 ID 参数 */
+export const SHARED_ACTIVITY_QUERY_KEY = 'sharedActivityId'
+
 /** 活动详情分享 / 复制（微信小程序 path + 说明文案） */
 
 export function buildActivityDetailPath(activityId) {
@@ -114,7 +117,25 @@ export function buildActivityDetailPath(activityId) {
   return `/pages/activity-detail/activity-detail?id=${id}`
 }
 
-/** 供 ``onShareAppMessage`` 使用 */
+export function normalizeShareActivityId(raw) {
+  const s = String(raw || '').trim()
+  if (!s) return ''
+  return s.replace(/^act_/i, '')
+}
+
+/** 首页落地并置顶该活动（好友分享 path） */
+export function buildHomeSharePathWithActivity(activityId) {
+  const id = normalizeShareActivityId(activityId)
+  if (!id) return DEFAULT_MINI_PROGRAM_SHARE.path
+  const base = `/pages/home/home?${SHARED_ACTIVITY_QUERY_KEY}=${encodeURIComponent(id)}`
+  return appendShareSrcToPath(base, SHARE_SRC_FRIEND)
+}
+
+export function parseSharedActivityIdFromQuery(options = {}) {
+  return normalizeShareActivityId(options[SHARED_ACTIVITY_QUERY_KEY] || options.id)
+}
+
+/** 供 ``onShareAppMessage`` 使用：落地首页 + 置顶活动 */
 export function buildActivityShareMessage(activity) {
   if (!activity?.id) {
     return { title: '去旅聚 · 发现身边的活动', path: DEFAULT_MINI_PROGRAM_SHARE.path }
@@ -122,23 +143,32 @@ export function buildActivityShareMessage(activity) {
   const title = (activity.title && String(activity.title).trim().slice(0, 64)) || '去旅聚活动'
   return {
     title,
-    path: appendShareSrcToPath(buildActivityDetailPath(activity.id), SHARE_SRC_FRIEND),
+    path: buildHomeSharePathWithActivity(activity.id),
   }
 }
 
-/** 供 ``onShareTimeline`` 的 query（无 ``?``） */
+/** 供 ``onShareTimeline`` 的 query（无 ``?``）；朋友圈仍从详情页发起，由详情页重定向到首页 */
 export function buildActivityTimelineQuery(activityId) {
-  const base = `id=${encodeURIComponent(String(activityId || '').trim())}`
+  const id = normalizeShareActivityId(activityId)
+  const base = id ? `${SHARED_ACTIVITY_QUERY_KEY}=${encodeURIComponent(id)}` : ''
   return appendShareSrcToQuery(base, SHARE_SRC_TIMELINE)
 }
 
 /** 复制到剪贴板：标题 + 打开方式 + 小程序页面路径 */
 export function buildActivityShareClipboardText(activity) {
   const title = (activity?.title && String(activity.title).trim()) || '活动'
-  const path = activity?.id ? buildActivityDetailPath(activity.id) : '/pages/home/home'
+  const path = activity?.id ? buildHomeSharePathWithActivity(activity.id) : DEFAULT_MINI_PROGRAM_SHARE.path
   return [
     `【去旅聚】${title}`,
     '在微信中打开「去旅聚」小程序，使用右上角「···」可转发给好友；也可将下方路径发给已安装该小程序的朋友。',
     `页面路径：${path}`,
   ].join('\n')
+}
+
+/** 将置顶活动插入列表首位并去重 */
+export function pinSharedActivityOnList(list, pinnedCard) {
+  if (!pinnedCard?.id) return list || []
+  const pinId = String(pinnedCard.id)
+  const rest = (list || []).filter((item) => String(item.id) !== pinId)
+  return [{ ...pinnedCard, sharedPin: true }, ...rest]
 }

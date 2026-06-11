@@ -181,7 +181,10 @@ import {
   buildActivityShareClipboardText,
   buildActivityShareMessage,
   buildActivityTimelineQuery,
+  parseSharedActivityIdFromQuery,
+  SHARED_ACTIVITY_QUERY_KEY,
 } from '@/utils/activityShare'
+import { SHARE_SRC_FRIEND, SHARE_SRC_TIMELINE } from '@/utils/acquisitionSource'
 
 export default {
   components: { WmIcon, FeedPostCard },
@@ -246,7 +249,16 @@ export default {
     },
   },
   onLoad(query) {
-    this.activityId = query?.id ? String(query.id) : ''
+    const opts = query || {}
+    const sharedId = parseSharedActivityIdFromQuery(opts)
+    const fromShareParam = !!opts[SHARED_ACTIVITY_QUERY_KEY]
+    const fromShareTimeline = opts.src === SHARE_SRC_TIMELINE
+    const fromShareFriendLegacy = opts.src === SHARE_SRC_FRIEND && opts.id && !opts[SHARED_ACTIVITY_QUERY_KEY]
+    if (sharedId && (fromShareParam || fromShareTimeline || fromShareFriendLegacy)) {
+      this.redirectToHomeWithSharedActivity(sharedId, opts.src)
+      return
+    }
+    this.activityId = opts.id ? String(opts.id) : ''
     this.loadActivity(this.activityId)
   },
   onShow() {
@@ -284,6 +296,17 @@ export default {
   },
   // #endif
   methods: {
+    redirectToHomeWithSharedActivity(activityId, src) {
+      const id = encodeURIComponent(String(activityId || '').trim())
+      let url = `/pages/home/home?${SHARED_ACTIVITY_QUERY_KEY}=${id}`
+      if (src) url += `&src=${encodeURIComponent(String(src))}`
+      uni.reLaunch({
+        url,
+        fail: () => {
+          uni.redirectTo({ url })
+        },
+      })
+    },
     async loadActivity(id) {
       const actId = String(id || '').trim()
       if (!actId) {

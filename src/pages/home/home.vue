@@ -23,6 +23,7 @@
           <button
             class="home__header-icon-btn home__header-icon-btn--share"
             type="default"
+            plain
             hover-class="home__header-icon-btn--hover"
             open-type="share"
           >
@@ -134,12 +135,19 @@
         v-for="(item, index) in activities"
         :key="item.id"
         class="card"
+        :class="{
+          'card--shared-pin': item.sharedPin,
+          'card--shared-inactive': item.sharedPin && !item.canJoin,
+        }"
         hover-class="card--hover"
         :style="{ animationDelay: `${index * 80}ms` }"
         @click="onOpenActivity(item)"
       >
         <view class="card__top">
           <view class="card__tags">
+            <view v-if="item.sharedPin" class="tag tag--shared">
+              <text>分享推荐</text>
+            </view>
             <view class="tag tag--category" :style="{ color: item.tagColor, background: item.tagBg }">
               <text>{{ item.category }}</text>
             </view>
@@ -199,7 +207,13 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
-import { getActivities, getCityHallLookup, getNearbyActivities, mapActivityCard } from '@/api'
+import {
+  getActivities,
+  getActivityDetail,
+  getCityHallLookup,
+  getNearbyActivities,
+  mapActivityCard,
+} from '@/api'
 import {
   dedupeHomeActivities,
   isUrgentSpot,
@@ -217,6 +231,8 @@ import {
   buildDefaultTimelineShare,
   buildHomeShareClipboardText,
   buildHomeShareMessage,
+  parseSharedActivityIdFromQuery,
+  pinSharedActivityOnList,
 } from '@/utils/activityShare'
 
 export default {
@@ -238,6 +254,8 @@ export default {
       listFallbackHint: '',
       cityHallLookup: null,
       todayActivityCount: 0,
+      /** 分享落地：需在列表置顶的活动 ID（切换 Tab 仍保留） */
+      sharedActivityId: '',
     }
   },
   computed: {
@@ -306,6 +324,10 @@ export default {
     cityHallCtaText() {
       return this.cityHallJoined ? '进群找搭子' : '免费进群找搭子'
     },
+  },
+  onLoad(options) {
+    const sharedId = parseSharedActivityIdFromQuery(options || {})
+    if (sharedId) this.sharedActivityId = sharedId
   },
   onShow() {
     // #ifdef MP-WEIXIN
@@ -443,6 +465,30 @@ export default {
         }
       })
     },
+    async fetchSharedActivityCard(activityId) {
+      const id = String(activityId || '').trim()
+      if (!id) return null
+      try {
+        const detail = await getActivityDetail(id)
+        if (!detail?.activityId && !detail?.title) return null
+        const card = mapActivityCard(detail)
+        const [decorated] = this.decorateActivityCards([card])
+        return decorated || null
+      } catch (_) {
+        return null
+      }
+    },
+    async applySharedActivityPin(list) {
+      const id = this.sharedActivityId
+      if (!id) return list
+      const pinned = await this.fetchSharedActivityCard(id)
+      if (!pinned) {
+        uni.showToast({ title: '分享的活动已不存在', icon: 'none' })
+        this.sharedActivityId = ''
+        return list
+      }
+      return pinSharedActivityOnList(list, pinned)
+    },
     async loadCityHallStats(cityCode) {
       const cc = (cityCode && String(cityCode).trim()) || ''
       if (!cc) {
@@ -480,7 +526,9 @@ export default {
           this.loadTodayActivityCount(cityCode),
         ])
         const { list, hint } = await this.loadActivitiesWithFallback(anchor, this.activeChip)
-        this.activities = this.decorateActivityCards(list)
+        let cards = this.decorateActivityCards(list)
+        cards = await this.applySharedActivityPin(cards)
+        this.activities = cards
         this.listFallbackHint = hint
       } catch (e) {
         this.activities = []
@@ -1050,6 +1098,19 @@ export default {
     }
   }
 
+  &--shared-pin {
+    border-color: rgba(99, 102, 241, 0.28);
+    box-shadow: 0 12rpx 40rpx rgba(99, 102, 241, 0.12);
+
+    &::before {
+      opacity: 1;
+    }
+  }
+
+  &--shared-inactive {
+    opacity: 0.92;
+  }
+
   &__top {
     display: flex;
     justify-content: space-between;
@@ -1144,6 +1205,11 @@ export default {
   &--urgent {
     background: #fff7ed;
     color: #ea580c;
+  }
+
+  &--shared {
+    background: rgba(99, 102, 241, 0.12);
+    color: #4f46e5;
   }
 }
 
