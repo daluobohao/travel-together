@@ -107,7 +107,7 @@
           </view>
         </scroll-view>
         <view v-if="hasMoreCategories" class="home__cat-expand-btn" @click="catExpanded = true">
-          <text class="home__cat-expand-icon">▼</text>
+          <wm-icon name="chevronDown" :size="32" color="#475569" />
         </view>
       </view>
       <!-- 展开态：全部 chip 换行展示 -->
@@ -122,7 +122,8 @@
           <text>{{ cat.label }}</text>
         </view>
         <view class="chip chip--toggle" @click="toggleCatExpand">
-          <text>收起 ▲</text>
+          <text>收起</text>
+          <wm-icon name="chevronUp" :size="28" color="#475569" />
         </view>
       </view>
     </view>
@@ -867,28 +868,15 @@ export default {
 
   &__cat-expand-btn {
     flex-shrink: 0;
-    width: 64rpx;
+    width: 56rpx;
     height: 60rpx;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-left: 4rpx;
-    border-radius: $wm-radius-pill;
-    background: rgba(255, 255, 255, 0.9);
-    border: 2rpx solid rgba(148, 163, 184, 0.35);
-    box-shadow: -16rpx 0 24rpx 8rpx rgba(248, 250, 252, 0.95);
 
     &:active {
-      background: $wm-primary-soft;
-      border-color: rgba(2, 132, 199, 0.35);
+      opacity: 0.6;
     }
-  }
-
-  &__cat-expand-icon {
-    font-size: 28rpx;
-    font-weight: 700;
-    color: $wm-text-2;
-    line-height: 1;
   }
 
   &__cat-wrap {
@@ -1156,6 +1144,7 @@ export default {
     border: 2rpx solid rgba(148, 163, 184, 0.35);
     color: $wm-text-2;
     font-weight: 600;
+    gap: 6rpx;
   }
 }
 

@@ -19,6 +19,10 @@ const ICONS = {
     '<path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
   chevronRight:
     '<path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  chevronDown:
+    '<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  chevronUp:
+    '<path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
   sliders:
     '<path d="M4 6h10M4 12h6M4 18h12M18 4v4M14 10v4M20 16v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
   clock:
