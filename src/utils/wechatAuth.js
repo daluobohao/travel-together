@@ -34,7 +34,7 @@ export function clearPostLoginRedirect() {
 
 const LOGIN_PAGE_PATH = '/pages/login/login'
 /** 取消登录后若回到这些页会再次触发登录，改回首页 */
-const LOGIN_GATED_RETURN_PREFIXES = ['/pages/chat-detail/', '/pages/publish/publish']
+const LOGIN_GATED_RETURN_PREFIXES = ['/pages/chat-detail/', '/pages/publish/publish', '/pages/bind-phone/']
 
 function isLoginGatedReturnPath(url) {
   const u = String(url || '')

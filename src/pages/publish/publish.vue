@@ -71,7 +71,13 @@
       <view class="field">
         <text class="field__label">开始时间 <text class="field__req">*</text></text>
         <view class="field__datetime">
-          <picker mode="date" :value="form.startDate" @change="onStartDateChange">
+          <picker
+            mode="date"
+            :value="form.startDate"
+            :start="startDateMin"
+            :end="startDateMax"
+            @change="onStartDateChange"
+          >
             <view class="field__select field__datetime-item">
               <wm-icon name="calendar" :size="32" color="#94a3b8" />
               <text :class="['field__select-text', { 'field__placeholder': !form.startDate }]">
@@ -91,6 +97,7 @@
           </picker>
           <view v-if="form.startTime" class="field__datetime-summary">已选择：{{ form.startTime }}</view>
         </view>
+        <text class="field__hint">{{ publishStartWindowHint }}</text>
       </view>
 
       <view class="field">
@@ -211,6 +218,13 @@ import {
   normalizeCategoryList,
   publishTitlePlaceholder,
 } from '@/constants/activityCategories'
+import {
+  isStartWithinHomeWindow,
+  publishStartDateBounds,
+  PUBLISH_START_WINDOW_HINT,
+  PUBLISH_START_WINDOW_REJECT_MSG,
+} from '@/constants/homeActivityList'
+import { ensurePhoneBound, PHONE_GATE_REASON } from '@/utils/phoneGate'
 
 export default {
   components: { WmIcon, PublishPayModal },
@@ -219,7 +233,7 @@ export default {
       categoryTree: normalizeCategoryList(FALLBACK_ACTIVITY_CATEGORIES),
       form: {
         title: '',
-        categoryId: 'sports',
+        categoryId: 'dining',
         subCategoryId: '',
         categoryTheme: '',
         startTime: '',
@@ -281,12 +295,26 @@ export default {
     titlePlaceholder() {
       return publishTitlePlaceholder(this.form.categoryId, this.form.subCategoryId)
     },
+    startDateMin() {
+      return publishStartDateBounds().start
+    },
+    startDateMax() {
+      return publishStartDateBounds().end
+    },
+    publishStartWindowHint() {
+      return PUBLISH_START_WINDOW_HINT
+    },
   },
   async onShow() {
     if (!isLoggedIn()) {
       redirectToLogin('/pages/publish/publish')
       return
     }
+    const phoneOk = await ensurePhoneBound({
+      redirectPath: '/pages/publish/publish',
+      reason: PHONE_GATE_REASON.PUBLISH,
+    })
+    if (!phoneOk) return
     try {
       const cfg = await loadPublishPayConfig(true)
       this.publishPayEnabled = !!cfg.enabled
@@ -323,7 +351,7 @@ export default {
       }
       this.categoryTree = normalizeCategoryList(list.length ? list : FALLBACK_ACTIVITY_CATEGORIES)
       if (!this.categoryTree.some((c) => c.categoryId === this.form.categoryId)) {
-        this.form.categoryId = this.categoryTree[0]?.categoryId || 'sports'
+        this.form.categoryId = this.categoryTree[0]?.categoryId || 'dining'
         this.form.subCategoryId = ''
       }
     },
@@ -340,13 +368,39 @@ export default {
         fail: () => uni.reLaunch({ url: '/pages/home/home' }),
       })
     },
+    showStartWindowRejectReason() {
+      uni.showModal({
+        title: '开始时间超出范围',
+        content: PUBLISH_START_WINDOW_REJECT_MSG,
+        showCancel: false,
+        confirmText: '知道了',
+      })
+    },
+    warnIfStartOutOfWindow(startAt) {
+      if (!startAt || isStartWithinHomeWindow(startAt)) return true
+      this.showStartWindowRejectReason()
+      return false
+    },
     onStartDateChange(e) {
-      this.form.startDate = e?.detail?.value || ''
+      const val = e?.detail?.value || ''
+      if (val && this.startDateMax && val > this.startDateMax) {
+        this.showStartWindowRejectReason()
+        return
+      }
+      this.form.startDate = val
       this.mergeStartDateTime()
+      if (this.form.startTime && !this.warnIfStartOutOfWindow(this.buildStartAt())) {
+        this.form.startDate = ''
+        this.form.startTime = ''
+      }
     },
     onStartTimeChange(e) {
       this.form.startClock = e?.detail?.value || ''
       this.mergeStartDateTime()
+      if (this.form.startTime && !this.warnIfStartOutOfWindow(this.buildStartAt())) {
+        this.form.startClock = ''
+        this.form.startTime = ''
+      }
     },
     onEndDateChange(e) {
       this.form.endDate = e?.detail?.value || ''
@@ -393,6 +447,10 @@ export default {
       }
       if (!this.form.categoryId) {
         uni.showToast({ title: '请选择活动分类', icon: 'none' })
+        return null
+      }
+      if (!this.isOtherCategory && this.currentSubcategories.length && !this.form.subCategoryId) {
+        uni.showToast({ title: '请选择二级分类', icon: 'none' })
         return null
       }
       const categoryTheme = String(this.form.categoryTheme || '').trim()
@@ -442,6 +500,10 @@ export default {
         })
         return null
       }
+      if (!isStartWithinHomeWindow(startAt)) {
+        this.showStartWindowRejectReason()
+        return null
+      }
       return {
         categoryId: this.form.categoryId,
         subCategoryId: this.form.subCategoryId || null,
@@ -465,7 +527,7 @@ export default {
         await createActivity({
           title: this.form.title.trim(),
           description: (this.form.description || '').trim() || '暂无说明',
-          categoryId: payload.categoryId || 'sports',
+          categoryId: payload.categoryId || 'dining',
           subCategoryId: payload.subCategoryId || undefined,
           categoryLabel: payload.categoryId === ACTIVITY_CATEGORY_OTHER ? payload.categoryTheme : null,
           startAt: payload.startAt,

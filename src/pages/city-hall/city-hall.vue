@@ -233,6 +233,7 @@ import {
   joinCityHall,
   redirectToLogin,
 } from '@/api'
+import { ensurePhoneBound, PHONE_GATE_REASON } from '@/utils/phoneGate'
 
 function stripCityHallSuffix(name) {
   return String(name || '')
@@ -611,6 +612,17 @@ export default {
       })
     },
     async doJoin() {
+      const back = (() => {
+        const q = [`cityCode=${encodeURIComponent(this.cityCode)}`]
+        const label = (this.cityLabel && String(this.cityLabel).trim()) || ''
+        if (label) q.push(`cityLabel=${encodeURIComponent(label)}`)
+        return `/pages/city-hall/city-hall?${q.join('&')}`
+      })()
+      const phoneOk = await ensurePhoneBound({
+        redirectPath: back,
+        reason: PHONE_GATE_REASON.CITY_HALL,
+      })
+      if (!phoneOk) return
       try {
         uni.showLoading({ title: '加入中…' })
         const data = await joinCityHall(this.cityCode, this.catalogCityName)

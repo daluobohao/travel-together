@@ -72,17 +72,35 @@
           <wm-icon name="close" :size="28" color="#64748b" />
         </view>
       </view>
-      <view class="home__chips">
+      <view class="home__sort-row">
         <view
-          v-for="chip in chips"
-          :key="chip.key"
-          class="chip"
-          :class="{ 'chip--active': chip.key === activeChip }"
-          @click="onChipClick(chip.key)"
+          class="home__sort-chip"
+          :class="{ 'home__sort-chip--active': activeSort === 'distance' }"
+          @click="onSortClick('distance')"
         >
-          <text>{{ chip.label }}</text>
+          <text>距离优先</text>
+        </view>
+        <view
+          class="home__sort-chip"
+          :class="{ 'home__sort-chip--active': activeSort === 'popularity' }"
+          @click="onSortClick('popularity')"
+        >
+          <text>人气优先</text>
         </view>
       </view>
+      <scroll-view scroll-x class="home__cat-scroll" :show-scrollbar="false">
+        <view class="home__chips">
+          <view
+            v-for="cat in categoryChips"
+            :key="cat.key"
+            class="chip"
+            :class="{ 'chip--active': cat.key === activeCategoryId }"
+            @click="onCategoryClick(cat.key)"
+          >
+            <text>{{ cat.label }}</text>
+          </view>
+        </view>
+      </scroll-view>
     </view>
 
     <!-- Loading state - Skeleton -->
@@ -107,11 +125,11 @@
     <!-- Empty state -->
     <view v-else-if="!loading && activities.length === 0" class="home__empty">
       <wm-icon name="users" :size="96" color="#cbd5e1" />
-      <text class="empty-title">今天还没有搭子局</text>
-      <text class="empty-desc">先进群找搭子，或切换「全部」看看其他活动</text>
+      <text class="empty-title">近 7 天还没有搭子局</text>
+      <text class="empty-desc">换个分类看看，或先进群找搭子</text>
       <view class="home__empty-actions">
         <view class="home__empty-btn" @click="onCityHall">进群找搭子</view>
-        <view class="home__empty-btn home__empty-btn--ghost" @click="onEmptyShowAll">查看全部活动</view>
+        <view class="home__empty-btn home__empty-btn--ghost" @click="onEmptyShowAllCategories">查看全部分类</view>
       </view>
     </view>
 
@@ -126,7 +144,7 @@
             <text class="home__slogan-b">今天见面</text>
           </text>
         </view>
-        <text v-if="todayActivityCount > 0" class="home__section-meta">{{ todayActivityCount }} 场可加入</text>
+        <text v-if="weekActivityCount > 0" class="home__section-meta">近 7 天 {{ weekActivityCount }} 场可加入</text>
       </view>
       <view v-if="listFallbackHint" class="home__fallback-hint">
         <text>{{ listFallbackHint }}</text>
@@ -209,15 +227,16 @@ import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import {
   getActivities,
+  getActivityCategories,
   getActivityDetail,
   getCityHallLookup,
-  getNearbyActivities,
   mapActivityCard,
 } from '@/api'
 import {
   dedupeHomeActivities,
   isUrgentSpot,
   shortLocationName,
+  sortActivityCardsByDistance,
   spotsLeftLabel,
 } from '@/utils/homeActivityCard'
 import { resolveCityHallCityName } from '@/utils/cityCatalog'
@@ -227,6 +246,16 @@ import {
   getHomeActivityAnchor,
   getHomeSearchAnchorSync,
 } from '@/utils/homeCity'
+import {
+  FALLBACK_ACTIVITY_CATEGORIES,
+  normalizeCategoryList,
+} from '@/constants/activityCategories'
+import {
+  HOME_ACTIVITY_DATE_RANGE,
+  HOME_CATEGORY_ALL,
+  HOME_SORT_DISTANCE,
+  HOME_SORT_POPULARITY,
+} from '@/constants/homeActivityList'
 import {
   buildDefaultTimelineShare,
   buildHomeShareClipboardText,
@@ -239,13 +268,9 @@ export default {
   components: { WmIcon, WmTabBar },
   data() {
     return {
-      activeChip: 'today',
-      chips: [
-        { key: 'today', label: '今天' },
-        { key: 'tomorrow', label: '明天' },
-        { key: 'nearby', label: '距离优先' },
-        { key: 'all', label: '全部' },
-      ],
+      activeCategoryId: HOME_CATEGORY_ALL,
+      activeSort: HOME_SORT_DISTANCE,
+      categoryTree: normalizeCategoryList(FALLBACK_ACTIVITY_CATEGORIES),
       activities: [],
       activityAnchor: null,
       hasSearchAnchor: false,
@@ -253,7 +278,7 @@ export default {
       /** 列表为回退数据时提示（如当前城市/时段无活动） */
       listFallbackHint: '',
       cityHallLookup: null,
-      todayActivityCount: 0,
+      weekActivityCount: 0,
       /** 分享落地：需在列表置顶的活动 ID（切换 Tab 仍保留） */
       sharedActivityId: '',
     }
@@ -284,8 +309,8 @@ export default {
       if (this.cityHallMemberCount > 0) {
         parts.push(`${this.cityHallMemberCount} 人在聊`)
       }
-      if (this.todayActivityCount > 0) {
-        parts.push(`今天 ${this.todayActivityCount} 场可加入`)
+      if (this.weekActivityCount > 0) {
+        parts.push(`近 7 天 ${this.weekActivityCount} 场可加入`)
       } else {
         parts.push('进群或报名活动')
       }
@@ -324,10 +349,19 @@ export default {
     cityHallCtaText() {
       return this.cityHallJoined ? '进群找搭子' : '免费进群找搭子'
     },
+    categoryChips() {
+      const all = [{ key: HOME_CATEGORY_ALL, label: '全部' }]
+      const rest = (this.categoryTree || []).map((c) => ({
+        key: c.categoryId,
+        label: c.name || c.categoryId,
+      }))
+      return all.concat(rest)
+    },
   },
   onLoad(options) {
     const sharedId = parseSharedActivityIdFromQuery(options || {})
     if (sharedId) this.sharedActivityId = sharedId
+    this.loadCategoryTree()
   },
   onShow() {
     // #ifdef MP-WEIXIN
@@ -386,71 +420,58 @@ export default {
       this.hasSearchAnchor = false
       await this.loadHomeData()
     },
-    chipToDateRange(chip) {
-      if (chip === 'today') return 'today'
-      if (chip === 'tomorrow') return 'tomorrow'
-      return 'all'
-    },
-    async fetchActivityListForAnchor(anchor, chip) {
-      const { lat, lng, cityCode } = anchor
-      if (chip === 'nearby') {
-        const data = await getNearbyActivities({
-          lat,
-          lng,
-          radiusKm: 5,
-          cityCode,
-          dateRange: 'all',
-          sortBy: 'distance',
-          page: 1,
-          pageSize: 20,
-        })
-        return (data?.list || []).map(mapActivityCard)
+    async loadCategoryTree() {
+      try {
+        const data = await getActivityCategories()
+        const list = data?.categories || []
+        this.categoryTree = normalizeCategoryList(list.length ? list : FALLBACK_ACTIVITY_CATEGORIES)
+      } catch (_) {
+        this.categoryTree = normalizeCategoryList(FALLBACK_ACTIVITY_CATEGORIES)
       }
-      const data = await getActivities({
+    },
+    onCategoryClick(categoryId) {
+      const next = categoryId == null ? HOME_CATEGORY_ALL : String(categoryId)
+      if (next === this.activeCategoryId) return
+      this.activeCategoryId = next
+      this.loadHomeData()
+    },
+    onSortClick(sort) {
+      if (sort === this.activeSort) return
+      this.activeSort = sort
+      this.loadHomeData()
+    },
+    buildListQuery(cityCode) {
+      const query = {
         cityCode,
-        dateRange: this.chipToDateRange(chip),
+        dateRange: HOME_ACTIVITY_DATE_RANGE,
         page: 1,
         pageSize: 20,
-      })
-      return (data?.list || []).map(mapActivityCard)
+      }
+      if (this.activeCategoryId) query.categoryId = this.activeCategoryId
+      return query
     },
-    /**
-     * 审核与首屏体验：GPS 定位城市无数据时自动放宽条件，避免首页空白。
-     * 用户主动搜地点后不再跨城回退（否则会误展示北京等活动）。
-     */
-    async loadActivitiesWithFallback(anchor, chip) {
-      let list = await this.fetchActivityListForAnchor(anchor, chip)
+    async fetchActivityListForAnchor(anchor) {
+      const { lat, lng, cityCode } = anchor
+      const query = this.buildListQuery(cityCode)
+      const sortBy =
+        this.activeSort === HOME_SORT_POPULARITY ? HOME_SORT_POPULARITY : 'startAt'
+      const data = await getActivities({ ...query, sortBy })
+      let rows = data?.list || []
+      if (this.activeSort === HOME_SORT_DISTANCE) {
+        rows = sortActivityCardsByDistance(rows, lat, lng)
+      }
+      return rows.map(mapActivityCard)
+    },
+    async loadActivitiesForHome(anchor) {
+      let list = await this.fetchActivityListForAnchor(anchor)
       let hint = ''
-      const dateRange = this.chipToDateRange(chip)
-      if (!list.length && dateRange !== 'all' && chip !== 'nearby') {
-        list = await this.fetchActivityListForAnchor(anchor, 'all')
-        if (list.length) {
-          hint = '当前时段暂无活动，已展示该地全部可报名活动'
-        }
-      }
-      const skipCrossCityFallback = anchor?.source === 'search'
-      const fallbackCityCode = '110000'
-      if (
-        !skipCrossCityFallback &&
-        !list.length &&
-        anchor.cityCode !== fallbackCityCode &&
-        chip !== 'nearby'
-      ) {
-        const fallbackAnchor = {
-          ...anchor,
-          cityCode: fallbackCityCode,
-          displayName: '北京',
-          cityName: '北京',
-        }
-        list = await this.fetchActivityListForAnchor(fallbackAnchor, 'all')
-        if (list.length) {
-          hint = '当前城市暂无活动，已展示其他城市热门活动'
-        }
-      }
-      if (!list.length && skipCrossCityFallback) {
-        const place =
-          (anchor.displayName && String(anchor.displayName).trim()) || '该地'
-        hint = `${place}暂无符合条件的活动，可切换「全部」或去「动态」看看`
+      if (!list.length) {
+        const cat = this.categoryChips.find((c) => c.key === this.activeCategoryId)
+        const catLabel = cat?.label || '该分类'
+        hint =
+          this.activeCategoryId === HOME_CATEGORY_ALL
+            ? '近 7 天暂无活动，可先进群找搭子'
+            : `${catLabel}近 7 天暂无活动，可试试「全部」或其他分类`
       }
       return { list, hint }
     },
@@ -501,17 +522,22 @@ export default {
         this.cityHallLookup = null
       }
     },
-    async loadTodayActivityCount(cityCode) {
+    async loadWeekActivityCount(cityCode) {
       const cc = (cityCode && String(cityCode).trim()) || ''
       if (!cc) {
-        this.todayActivityCount = 0
+        this.weekActivityCount = 0
         return
       }
       try {
-        const data = await getActivities({ cityCode: cc, dateRange: 'today', page: 1, pageSize: 1 })
-        this.todayActivityCount = Number(data?.total) || 0
+        const data = await getActivities({
+          cityCode: cc,
+          dateRange: HOME_ACTIVITY_DATE_RANGE,
+          page: 1,
+          pageSize: 1,
+        })
+        this.weekActivityCount = Number(data?.total) || 0
       } catch (_) {
-        this.todayActivityCount = 0
+        this.weekActivityCount = 0
       }
     },
     async loadHomeData() {
@@ -523,9 +549,9 @@ export default {
         const cityCode = anchor?.cityCode || ''
         await Promise.all([
           this.loadCityHallStats(cityCode),
-          this.loadTodayActivityCount(cityCode),
+          this.loadWeekActivityCount(cityCode),
         ])
-        const { list, hint } = await this.loadActivitiesWithFallback(anchor, this.activeChip)
+        const { list, hint } = await this.loadActivitiesForHome(anchor)
         let cards = this.decorateActivityCards(list)
         cards = await this.applySharedActivityPin(cards)
         this.activities = cards
@@ -538,21 +564,16 @@ export default {
         this.loading = false
       }
     },
-    onEmptyShowAll() {
-      if (this.activeChip === 'all') {
+    onEmptyShowAllCategories() {
+      if (this.activeCategoryId === HOME_CATEGORY_ALL) {
         this.loadHomeData()
         return
       }
-      this.activeChip = 'all'
+      this.activeCategoryId = HOME_CATEGORY_ALL
       this.loadHomeData()
     },
     onEmptyGoDiscover() {
-      uni.switchTab({ url: '/pages/discover/discover' })
-    },
-    onChipClick(key) {
-      if (key === this.activeChip) return
-      this.activeChip = key
-      this.loadHomeData()
+      uni.navigateTo({ url: '/pages/discover/discover' })
     },
     onOpenActivity(item) {
       uni.navigateTo({
@@ -754,12 +775,41 @@ export default {
     justify-content: center;
   }
 
-  &__chips {
+  &__sort-row {
     display: flex;
     align-items: center;
     gap: 16rpx;
-    overflow-x: auto;
+    margin-bottom: 4rpx;
+  }
+
+  &__sort-chip {
+    padding: 12rpx 28rpx;
+    border-radius: $wm-radius-pill;
+    background: rgba(255, 255, 255, 0.72);
+    border: 2rpx solid rgba(148, 163, 184, 0.35);
+    font-size: 26rpx;
+    font-weight: 600;
+    color: $wm-text-2;
+
+    &--active {
+      background: $wm-primary-soft;
+      border-color: rgba(2, 132, 199, 0.35);
+      color: $wm-primary;
+    }
+  }
+
+  &__cat-scroll {
+    width: 100%;
+    white-space: nowrap;
+    margin-bottom: 4rpx;
+  }
+
+  &__chips {
+    display: inline-flex;
+    align-items: center;
+    gap: 16rpx;
     padding-bottom: 4rpx;
+    white-space: nowrap;
   }
 
   &__city-hall {

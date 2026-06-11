@@ -581,7 +581,7 @@ export default {
           address: item.address || '',
           lng,
           lat,
-          cityCode: item.adcode || '',
+          cityCode: adcodeToListCityCode(item.adcode) || String(item.adcode || '').trim(),
         })
       }
       uni.navigateBack()

@@ -9,9 +9,7 @@
     </view>
 
     <!-- #ifdef MP-WEIXIN -->
-    <text class="bind-phone__desc">
-      绑定后可用于账号找回，并与此前手机号注册的数据合并。
-    </text>
+    <text class="bind-phone__desc">{{ pageDesc }}</text>
     <!-- #endif -->
 
     <!-- #ifdef MP-WEIXIN -->
@@ -27,9 +25,7 @@
     <!-- #endif -->
 
     <!-- #ifdef MP-TOUTIAO -->
-    <text class="bind-phone__desc bind-phone__desc--sms">
-      使用短信验证码绑定手机号（抖音小程序暂不支持授权一键取号）。
-    </text>
+    <text class="bind-phone__desc bind-phone__desc--sms">{{ pageDesc }}</text>
     <!-- #endif -->
 
     <!-- #ifdef MP-WEIXIN -->
@@ -87,6 +83,7 @@ import {
   setRefreshToken,
 } from '@/api'
 import { mapBindPhoneErrorMessage, parseGetPhoneNumberEvent } from '@/utils/wechatPhoneAuth'
+import { phoneGateDesc } from '@/utils/phoneGate'
 const PHONE_REG = /^1\d{10}$/
 
 export default {
@@ -99,9 +96,15 @@ export default {
       countdown: 0,
       timer: null,
       sendingSms: false,
+      returnUrl: '',
+      gateReason: '',
     }
   },
   computed: {
+    pageDesc() {
+      const base = phoneGateDesc(this.gateReason)
+      return `${base}绑定后可用于账号找回，并与此前手机号注册的数据合并。`
+    },
     smsDisabled() {
       return this.countdown > 0 || !PHONE_REG.test(this.form.phone) || this.sendingSms
     },
@@ -109,6 +112,10 @@ export default {
       if (this.sendingSms) return '发送中…'
       return this.countdown > 0 ? `${this.countdown}s` : '获取验证码'
     },
+  },
+  onLoad(query) {
+    this.returnUrl = query?.return ? decodeURIComponent(String(query.return)) : ''
+    this.gateReason = query?.reason ? String(query.reason) : ''
   },
   onShow() {
     if (!isLoggedIn()) {
@@ -131,7 +138,24 @@ export default {
         if (data.refreshToken) setRefreshToken(data.refreshToken)
       }
       uni.showToast({ title: data?.merged ? '已合并账号' : '绑定成功', icon: 'success' })
-      setTimeout(() => uni.navigateBack(), 500)
+      setTimeout(() => this.finishAfterBind(), 500)
+    },
+    finishAfterBind() {
+      const ret = String(this.returnUrl || '').trim()
+      if (ret && !ret.includes('/pages/bind-phone/')) {
+        uni.redirectTo({
+          url: ret,
+          fail: () => {
+            uni.reLaunch({ url: ret })
+          },
+        })
+        return
+      }
+      uni.navigateBack({
+        fail: () => {
+          uni.reLaunch({ url: '/pages/home/home' })
+        },
+      })
     },
     async onGetPhoneNumber(e) {
       if (this.wechatLoading) return

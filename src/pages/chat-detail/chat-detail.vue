@@ -272,6 +272,12 @@ import {
   readChatLocationPickResult,
 } from '@/utils/chatLocation'
 import {
+  buildBindPhoneUrl,
+  ensurePhoneBound,
+  isPhoneBindingRequiredError,
+  PHONE_GATE_REASON,
+} from '@/utils/phoneGate'
+import {
   getLastServerMessageId,
   loadActivityChatCache,
   mergeMessageLists,
@@ -383,12 +389,18 @@ export default {
       return { strict: this.chatContentStrict }
     },
   },
-  onLoad(query) {
+  async onLoad(query) {
     this.chatId = query?.id ? String(query.id) : '1'
+    const chatUrl = `/pages/chat-detail/chat-detail?id=${encodeURIComponent(this.chatId)}`
     if (!isLoggedIn()) {
-      redirectToLogin(`/pages/chat-detail/chat-detail?id=${encodeURIComponent(this.chatId)}`)
+      redirectToLogin(chatUrl)
       return
     }
+    const phoneOk = await ensurePhoneBound({
+      redirectPath: chatUrl,
+      reason: PHONE_GATE_REASON.CHAT,
+    })
+    if (!phoneOk) return
     this.bootstrapGroup()
   },
   onShow() {
@@ -487,6 +499,11 @@ export default {
         this.persistCache()
         markMyChatRead(this.chatId).catch(() => {})
       } catch (e) {
+        if (isPhoneBindingRequiredError(e)) {
+          const chatUrl = `/pages/chat-detail/chat-detail?id=${encodeURIComponent(this.chatId)}`
+          uni.redirectTo({ url: buildBindPhoneUrl(chatUrl, PHONE_GATE_REASON.CHAT) })
+          return
+        }
         if (!this.messages.length) {
           uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
         }

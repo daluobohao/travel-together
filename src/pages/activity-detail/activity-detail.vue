@@ -185,6 +185,7 @@ import {
   SHARED_ACTIVITY_QUERY_KEY,
 } from '@/utils/activityShare'
 import { SHARE_SRC_FRIEND, SHARE_SRC_TIMELINE } from '@/utils/acquisitionSource'
+import { ensurePhoneBound, PHONE_GATE_REASON } from '@/utils/phoneGate'
 
 export default {
   components: { WmIcon, FeedPostCard },
@@ -491,8 +492,19 @@ export default {
         uni.showToast({ title: '发起人不能取消报名，如需结束请取消活动', icon: 'none' })
         return
       }
-      this.actionLoading = true
       const joined = this.isJoined
+      if (!joined) {
+        const id = this.activity.id || this.activityId
+        const back = id
+          ? `/pages/activity-detail/activity-detail?id=${encodeURIComponent(id)}`
+          : '/pages/activity-detail/activity-detail'
+        const phoneOk = await ensurePhoneBound({
+          redirectPath: back,
+          reason: PHONE_GATE_REASON.ENROLL,
+        })
+        if (!phoneOk) return
+      }
+      this.actionLoading = true
       try {
         if (joined) {
           await cancelEnrollment(this.activity.id)
@@ -515,20 +527,19 @@ export default {
         this.actionLoading = false
       }
     },
-    onEnterGroup() {
+    async onEnterGroup() {
       if (!this.canEnterGroup) return
+      const chatUrl = `/pages/chat-detail/chat-detail?id=${encodeURIComponent(this.activity.id)}`
       if (!isLoggedIn()) {
-        const id = this.activity.id || this.activityId
-        redirectToLogin(
-          id
-            ? `/pages/chat-detail/chat-detail?id=${encodeURIComponent(id)}`
-            : '/pages/activity-detail/activity-detail',
-        )
+        redirectToLogin(chatUrl)
         return
       }
-      uni.navigateTo({
-        url: `/pages/chat-detail/chat-detail?id=${this.activity.id}`,
+      const phoneOk = await ensurePhoneBound({
+        redirectPath: chatUrl,
+        reason: PHONE_GATE_REASON.CHAT,
       })
+      if (!phoneOk) return
+      uni.navigateTo({ url: chatUrl })
     },
     onCopyActivityShare() {
       if (!this.activity?.id) {

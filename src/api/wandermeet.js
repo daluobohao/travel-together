@@ -415,6 +415,13 @@ function activityCityMatchesPlaceFilter(selectedCode, activityCityCode) {
   return false
 }
 
+function mockRequirePhoneBound() {
+  if (!wmDB.profile.phoneBound) {
+    return { code: 403, message: '请先绑定手机号', data: null }
+  }
+  return null
+}
+
 function toRad(n) {
   return (Number(n) * Math.PI) / 180
 }
@@ -434,6 +441,33 @@ function normalizeDateRange(list, dateRange) {
   if (dateRange === 'today') return list.filter((x) => x.activityId === '1' || x.activityId === '3')
   if (dateRange === 'tomorrow') return list.filter((x) => x.activityId === '2')
   if (dateRange === 'weekend') return list.filter((x) => x.activityId === '2')
+  if (dateRange === 'next7d') {
+    const now = Date.now()
+    const max = now + 7 * 24 * 60 * 60 * 1000
+    const bjOffsetMs = 8 * 60 * 60 * 1000
+    const bjNow = new Date(now + bjOffsetMs)
+    const earliest =
+      Date.UTC(bjNow.getUTCFullYear(), bjNow.getUTCMonth(), bjNow.getUTCDate()) - bjOffsetMs
+    return list.filter((x) => {
+      const ms = new Date(x.startAt).getTime()
+      return Number.isFinite(ms) && ms >= earliest && ms <= max
+    })
+  }
+  return list
+}
+
+function sortActivityCards(list, sortBy) {
+  const sb = sortBy || 'startAt'
+  if (sb === 'popularity') {
+    return list.slice().sort((a, b) => {
+      const diff = Number(b.enrolledCount || 0) - Number(a.enrolledCount || 0)
+      if (diff !== 0) return diff
+      return new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
+    })
+  }
+  if (sb === 'startAt') {
+    return list.slice().sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
+  }
   return list
 }
 
@@ -1089,6 +1123,8 @@ export const joinCityHall = (cityCode, cityLabel) => {
     data: payload,
     needAuth: true,
     mockHandler: ({ data }) => {
+      const denied = mockRequirePhoneBound()
+      if (denied) return denied
       const cc = (data && data.cityCode) || '110000'
       const name = (data && data.cityLabel && String(data.cityLabel).trim()) || cc
       mockOnQualifiedAction('city_hall_join')
@@ -1120,6 +1156,7 @@ export const getActivities = (query = {}) =>
       if (q.categoryId) list = list.filter((x) => x.categoryId === q.categoryId)
       if (q.subCategoryId) list = list.filter((x) => x.subCategoryId === q.subCategoryId)
       list = normalizeDateRange(list, q.dateRange)
+      list = sortActivityCards(list, q.sortBy || 'startAt')
       return ok(paginate(list.map(toActivityCard), q.page, q.pageSize))
     },
   })
@@ -1200,8 +1237,15 @@ export const getNearbyActivities = (query = {}) =>
         }))
         .filter((row) => Number(row.distanceMeters) <= radiusKm * 1000)
 
-      if ((q.sortBy || 'distance') === 'startAt') {
+      const sortBy = q.sortBy || 'distance'
+      if (sortBy === 'startAt') {
         list = list.slice().sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
+      } else if (sortBy === 'popularity') {
+        list = list.slice().sort((a, b) => {
+          const diff = Number(b.enrolledCount || 0) - Number(a.enrolledCount || 0)
+          if (diff !== 0) return diff
+          return Number(a.distanceMeters) - Number(b.distanceMeters)
+        })
       } else {
         list = list.slice().sort((a, b) => Number(a.distanceMeters) - Number(b.distanceMeters))
       }
@@ -1293,6 +1337,8 @@ export const createActivity = (payload) =>
     path: '/activities',
     data: payload,
     mockHandler: ({ data }) => {
+      const denied = mockRequirePhoneBound()
+      if (denied) return denied
       const nextId = String(Date.now())
       const row = {
         activityId: nextId,
@@ -1390,6 +1436,8 @@ export const enrollActivity = (activityId) =>
     path: `/activities/${activityId}/enrollments`,
     data: {},
     mockHandler: () => {
+      const denied = mockRequirePhoneBound()
+      if (denied) return denied
       const row = wmDB.activities.find((x) => x.activityId === String(activityId))
       if (row) {
         const current = Number(row.enrolledCount || 0)
@@ -1531,6 +1579,8 @@ export const getActivityMessages = (activityId, query = {}) =>
     path: `/activities/${activityId}/messages`,
     query,
     mockHandler: ({ query: q }) => {
+      const denied = mockRequirePhoneBound()
+      if (denied) return denied
       let list = (wmDB.chats[String(activityId)] || []).slice()
       const deleted = new Set(wmDB.cityGroupDeletedMessageIds || [])
       list = list.filter((m) => !deleted.has(String(m.messageId)))
@@ -1575,6 +1625,8 @@ export const sendActivityMessage = (activityId, payload) =>
     path: `/activities/${activityId}/messages`,
     data: payload,
     mockHandler: ({ data }) => {
+      const denied = mockRequirePhoneBound()
+      if (denied) return denied
       if (data.msgType === 'text' && data.text) {
         const blocked = mockLocalTextBlocked(data.text, activityId)
         if (blocked) return { code: 400, message: blocked, data: null }

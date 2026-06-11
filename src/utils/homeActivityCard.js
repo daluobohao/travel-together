@@ -1,5 +1,36 @@
 /** 首页活动卡片展示辅助 */
 
+export function calcDistanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6378137
+  const toRad = (d) => (d * Math.PI) / 180
+  const dLat = toRad(Number(lat2) - Number(lat1))
+  const dLng = toRad(Number(lng2) - Number(lng1))
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(Number(lat1))) *
+      Math.cos(toRad(Number(lat2))) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return Math.round(R * c)
+}
+
+export function sortActivityCardsByDistance(cards, lat, lng) {
+  const userLat = Number(lat)
+  const userLng = Number(lng)
+  if (!Number.isFinite(userLat) || !Number.isFinite(userLng)) return cards || []
+  return (cards || [])
+    .map((row) => ({
+      ...row,
+      distanceMeters: calcDistanceMeters(userLat, userLng, row.lat, row.lng),
+    }))
+    .sort((a, b) => {
+      const diff = Number(a.distanceMeters) - Number(b.distanceMeters)
+      if (diff !== 0) return diff
+      return new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
+    })
+}
+
 export function shortLocationName(raw) {
   const s = String(raw || '').trim()
   if (!s) return '地点待定'

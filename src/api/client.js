@@ -150,6 +150,7 @@ const LOGIN_PAGE = '/pages/login/login'
  * 鉴权策略（与产品一致）：
  * - 首页 / 发现 / 活动详情浏览：匿名可访问（接口 needAuth: false + tokenIfPresent）
  * - 报名、群聊、消息、发布、我的数据：须登录（页面或接口 redirectToLogin）
+ * - 进群聊、报名、发活动、加城市大群：须绑定手机号（ensurePhoneBound）
  */
 
 /** 未登录时 replace 到登录页，避免返回键回到需登录页形成循环；已登录返回 true */
