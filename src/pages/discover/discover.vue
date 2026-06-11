@@ -33,7 +33,7 @@
 
       <view
         class="city-feed__city-row"
-        :class="{ 'city-feed__city-row--disabled': scope === 'following' }"
+        :class="{ 'city-feed__city-row--disabled': isPersonalScope }"
         hover-class="city-feed__city-row--hover"
         @click="onOpenCityPicker"
       >
@@ -64,7 +64,14 @@
         :class="{ 'city-feed__tab--on': scope === 'following' }"
         @click="switchScope('following')"
       >
-        关注
+        关注的人
+      </text>
+      <text
+        class="city-feed__tab"
+        :class="{ 'city-feed__tab--on': scope === 'friends' }"
+        @click="switchScope('friends')"
+      >
+        好友动态
       </text>
     </view>
 
@@ -130,6 +137,9 @@ export default {
     }
   },
   computed: {
+    isPersonalScope() {
+      return this.scope === 'following' || this.scope === 'friends'
+    },
     currentCityLabel() {
       return (
         resolveCityHallCityName(this.cityCode) ||
@@ -139,13 +149,19 @@ export default {
     },
     cityRowHint() {
       if (this.scope === 'following') {
-        return '关注流不按城市筛选'
+        return '关注的人动态，不按城市筛选'
+      }
+      if (this.scope === 'friends') {
+        return '好友动态，不按城市筛选'
       }
       return '搜索或选择城市，查看同城动态'
     },
     emptyText() {
       if (this.scope === 'following') {
         return '暂无关注的人的动态，去用户主页关注试试'
+      }
+      if (this.scope === 'friends') {
+        return '暂无好友动态，去活动里申请私聊成为好友吧'
       }
       const name = this.currentCityLabel === '选择城市' ? '该城' : this.currentCityLabel
       return `${name}暂无动态，来做第一个分享的人吧`
@@ -195,8 +211,10 @@ export default {
       }
     },
     onOpenCityPicker() {
-      if (this.scope === 'following') {
-        uni.showToast({ title: '关注流暂不支持按城市筛选', icon: 'none' })
+      if (this.isPersonalScope) {
+        const tip =
+          this.scope === 'friends' ? '好友动态暂不支持按城市筛选' : '关注的人动态暂不支持按城市筛选'
+        uni.showToast({ title: tip, icon: 'none' })
         return
       }
       this.cityPickerFocusSearch = false
@@ -236,6 +254,10 @@ export default {
     },
     switchScope(nextScope) {
       if (this.scope === nextScope) return
+      if ((nextScope === 'following' || nextScope === 'friends') && !isLoggedIn()) {
+        redirectToLogin('/pages/discover/discover')
+        return
+      }
       this.scope = nextScope
       this.load(true)
     },
@@ -433,15 +455,16 @@ export default {
 
   &__tabs {
     display: flex;
-    gap: 24rpx;
+    gap: 20rpx;
     padding: 16rpx 32rpx 0;
   }
 
   &__tab {
-    font-size: 28rpx;
+    font-size: 26rpx;
     color: #94a3b8;
     padding-bottom: 12rpx;
     border-bottom: 4rpx solid transparent;
+    white-space: nowrap;
 
     &--on {
       color: #0f172a;

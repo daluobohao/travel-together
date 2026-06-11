@@ -26,6 +26,7 @@ export const FALLBACK_ACTIVITY_CATEGORIES = [
       { subCategoryId: 'mahjong', name: '棋牌' },
       { subCategoryId: 'arcade', name: '电玩' },
       { subCategoryId: 'diy', name: '拼豆/DIY' },
+      { subCategoryId: 'cat_mouse', name: '猫鼠游戏' },
     ],
   },
   {

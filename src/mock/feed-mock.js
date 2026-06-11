@@ -46,6 +46,16 @@ export function mockListFeed(query = {}) {
       .filter((f) => f.followerId === uid)
       .map((f) => f.followeeId)
     list = list.filter((p) => followees.includes(p.userId))
+  } else if (query.scope === 'friends') {
+    const me = wmDB.profile.userId
+    const friendIds = wmDB.dmThreads
+      .map((t) => {
+        if (t.userLow === me) return t.userHigh
+        if (t.userHigh === me) return t.userLow
+        return null
+      })
+      .filter(Boolean)
+    list = list.filter((p) => friendIds.includes(p.userId))
   } else if (query.cityCode) {
     list = list.filter((p) => p.cityCode === query.cityCode)
   }
