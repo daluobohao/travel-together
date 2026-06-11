@@ -91,19 +91,40 @@
           <text>人气优先</text>
         </view>
       </view>
-      <scroll-view scroll-x class="home__cat-scroll" :show-scrollbar="false">
-        <view class="home__chips">
-          <view
-            v-for="cat in categoryChips"
-            :key="cat.key"
-            class="chip"
-            :class="{ 'chip--active': cat.key === activeCategoryId }"
-            @click="onCategoryClick(cat.key)"
-          >
-            <text>{{ cat.label }}</text>
+      <!-- 折叠态：横向滑动 + 右侧展开箭头 -->
+      <view v-if="!catExpanded" class="home__cat-row">
+        <scroll-view scroll-x class="home__cat-scroll" :show-scrollbar="false">
+          <view class="home__chips">
+            <view
+              v-for="cat in categoryChips"
+              :key="cat.key"
+              class="chip"
+              :class="{ 'chip--active': cat.key === activeCategoryId }"
+              @click="onCategoryClick(cat.key)"
+            >
+              <text>{{ cat.label }}</text>
+            </view>
           </view>
+        </scroll-view>
+        <view v-if="hasMoreCategories" class="home__cat-expand-btn" @click="catExpanded = true">
+          <text class="home__cat-expand-icon">▼</text>
         </view>
-      </scroll-view>
+      </view>
+      <!-- 展开态：全部 chip 换行展示 -->
+      <view v-else class="home__cat-wrap">
+        <view
+          v-for="cat in categoryChips"
+          :key="cat.key"
+          class="chip"
+          :class="{ 'chip--active': cat.key === activeCategoryId }"
+          @click="onCategoryClick(cat.key)"
+        >
+          <text>{{ cat.label }}</text>
+        </view>
+        <view class="chip chip--toggle" @click="toggleCatExpand">
+          <text>收起 ▲</text>
+        </view>
+      </view>
     </view>
 
     <!-- Loading state - Skeleton -->
@@ -280,6 +301,7 @@ export default {
     return {
       activeCategoryId: HOME_CATEGORY_ALL,
       activeSort: HOME_SORT_DISTANCE,
+      catExpanded: false,
       categoryTree: normalizeCategoryList(FALLBACK_ACTIVITY_CATEGORIES),
       activities: [],
       activityAnchor: null,
@@ -374,6 +396,9 @@ export default {
       }))
       return all.concat(rest)
     },
+    hasMoreCategories() {
+      return this.categoryChips.length > 4
+    },
   },
   onLoad(options) {
     const sharedId = parseSharedActivityIdFromQuery(options || {})
@@ -451,6 +476,9 @@ export default {
       if (next === this.activeCategoryId) return
       this.activeCategoryId = next
       this.loadHomeData()
+    },
+    toggleCatExpand() {
+      this.catExpanded = !this.catExpanded
     },
     onSortClick(sort) {
       if (sort === this.activeSort) return
@@ -815,10 +843,17 @@ export default {
     }
   }
 
-  &__cat-scroll {
-    width: 100%;
-    white-space: nowrap;
+  &__cat-row {
+    display: flex;
+    align-items: center;
     margin-bottom: 4rpx;
+    position: relative;
+  }
+
+  &__cat-scroll {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
   }
 
   &__chips {
@@ -826,7 +861,42 @@ export default {
     align-items: center;
     gap: 16rpx;
     padding-bottom: 4rpx;
+    padding-right: 8rpx;
     white-space: nowrap;
+  }
+
+  &__cat-expand-btn {
+    flex-shrink: 0;
+    width: 64rpx;
+    height: 60rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 4rpx;
+    border-radius: $wm-radius-pill;
+    background: rgba(255, 255, 255, 0.9);
+    border: 2rpx solid rgba(148, 163, 184, 0.35);
+    box-shadow: -16rpx 0 24rpx 8rpx rgba(248, 250, 252, 0.95);
+
+    &:active {
+      background: $wm-primary-soft;
+      border-color: rgba(2, 132, 199, 0.35);
+    }
+  }
+
+  &__cat-expand-icon {
+    font-size: 28rpx;
+    font-weight: 700;
+    color: $wm-text-2;
+    line-height: 1;
+  }
+
+  &__cat-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16rpx;
+    margin-bottom: 4rpx;
   }
 
   &__city-hall {
@@ -1079,6 +1149,13 @@ export default {
     color: #ffffff;
     box-shadow: $wm-shadow-glow;
     border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  &--toggle {
+    background: rgba(255, 255, 255, 0.72);
+    border: 2rpx solid rgba(148, 163, 184, 0.35);
+    color: $wm-text-2;
+    font-weight: 600;
   }
 }
 

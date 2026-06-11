@@ -610,7 +610,7 @@ export default {
 .publish {
   min-height: 100vh;
   background: transparent;
-  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
 
   &__nav {
     position: sticky;
@@ -669,8 +669,10 @@ export default {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: calc(220rpx + env(safe-area-inset-bottom));
-    padding: 20rpx 32rpx 0;
+    bottom: 0;
+    padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(16px);
     z-index: 50;
   }
 
