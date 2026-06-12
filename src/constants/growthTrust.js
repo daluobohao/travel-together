@@ -69,18 +69,9 @@ export const SAFETY_GUIDE_SECTIONS = [
   },
 ]
 
-export const FEED_TOPICS = [
-  { id: 'weekend', label: '周末出门' },
-  { id: 'city_move', label: '换城市了' },
-  { id: 'buddy', label: '找搭子' },
-  { id: 'activity_recap', label: '活动复盘' },
-]
+export { FEED_TOPICS, feedTopicLabel } from '@/constants/feedTopics'
 
 export function formatTrustLevelLabel(key) {
   const row = TRUST_LEVELS.find((x) => x.key === key)
   return row?.label || '已注册'
-}
-
-export function feedTopicLabel(id) {
-  return FEED_TOPICS.find((t) => t.id === id)?.label || id
 }

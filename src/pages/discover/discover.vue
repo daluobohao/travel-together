@@ -75,6 +75,32 @@
       </text>
     </view>
 
+    <scroll-view
+      v-if="scope === 'city'"
+      class="city-feed__topic-bar"
+      scroll-x
+      :show-scrollbar="false"
+    >
+      <view class="city-feed__topic-inner">
+        <text
+          class="city-feed__topic-chip"
+          :class="{ 'city-feed__topic-chip--on': !topicFilter }"
+          @click="setTopicFilter('')"
+        >
+          全部
+        </text>
+        <text
+          v-for="t in filterTopics"
+          :key="t.id"
+          class="city-feed__topic-chip"
+          :class="{ 'city-feed__topic-chip--on': topicFilter === t.id }"
+          @click="setTopicFilter(t.id)"
+        >
+          {{ t.label }}
+        </text>
+      </view>
+    </scroll-view>
+
     <view v-if="loading && !list.length" class="city-feed__state">
       <text>加载中…</text>
     </view>
@@ -108,7 +134,8 @@ import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import FeedPostCard from '@/components/FeedPostCard/FeedPostCard.vue'
 import FeedCityPickerSheet from '@/components/FeedCityPickerSheet/FeedCityPickerSheet.vue'
-import { getCityFeed, isLoggedIn, redirectToLogin } from '@/api'
+import { getCityFeed, getFeedTopics, isLoggedIn, redirectToLogin } from '@/api'
+import { FEED_TOPICS, normalizeFeedTopics } from '@/constants/feedTopics'
 import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
 import {
   buildDiscoverShareClipboardText,
@@ -135,6 +162,8 @@ export default {
       list: [],
       page: 1,
       total: 0,
+      topicFilter: '',
+      filterTopics: FEED_TOPICS.slice(),
     }
   },
   computed: {
@@ -184,6 +213,7 @@ export default {
     Promise.resolve(uni.showShareMenu({ withShareTicket: false })).catch(() => {})
     // #endif
     this.syncCityAnchor()
+    this.loadTopicsMeta()
     this.load(true)
   },
   onReachBottom() {
@@ -260,8 +290,23 @@ export default {
         redirectToLogin('/pages/discover/discover')
         return
       }
+      if (nextScope !== 'city') this.topicFilter = ''
       this.scope = nextScope
       this.load(true)
+    },
+    setTopicFilter(topicId) {
+      const next = topicId || ''
+      if (next === this.topicFilter) return
+      this.topicFilter = next
+      this.load(true)
+    },
+    async loadTopicsMeta() {
+      try {
+        const data = await getFeedTopics()
+        this.filterTopics = normalizeFeedTopics(data?.topics)
+      } catch (_) {
+        this.filterTopics = FEED_TOPICS.slice()
+      }
     },
     openDetail(item) {
       uni.navigateTo({
@@ -278,12 +323,16 @@ export default {
         await this.syncCityAnchor()
       }
       try {
-        const d = await getCityFeed({
+        const query = {
           scope: this.scope,
-          cityCode: this.scope === 'city' ? this.cityCode : undefined,
           page: this.page,
           pageSize: 20,
-        })
+        }
+        if (this.scope === 'city') {
+          query.cityCode = this.cityCode
+          if (this.topicFilter) query.topic = this.topicFilter
+        }
+        const d = await getCityFeed(query)
         const rows = d?.list || []
         this.total = d?.total ?? 0
         this.list = reset ? rows : [...this.list, ...rows]
@@ -472,6 +521,34 @@ export default {
       color: #0f172a;
       font-weight: 600;
       border-bottom-color: #0284c7;
+    }
+  }
+
+  &__topic-bar {
+    width: 100%;
+    white-space: nowrap;
+    padding: 12rpx 0 4rpx;
+  }
+
+  &__topic-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 12rpx;
+    padding: 0 32rpx 8rpx;
+  }
+
+  &__topic-chip {
+    flex-shrink: 0;
+    font-size: 24rpx;
+    padding: 10rpx 22rpx;
+    border-radius: 999rpx;
+    background: #f1f5f9;
+    color: #64748b;
+
+    &--on {
+      background: #e0f2fe;
+      color: #0284c7;
+      font-weight: 600;
     }
   }
 

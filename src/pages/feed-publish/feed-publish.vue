@@ -39,16 +39,29 @@
       </view>
 
       <view v-if="!activityId" class="panel">
-        <text class="panel__label">话题（可选）</text>
-        <view class="topic-row">
+        <text class="panel__label">话题（可选，最多 3 个）</text>
+        <view v-for="section in topicSections" :key="section.group" class="topic-section">
+          <text class="topic-section__title">{{ section.group }}</text>
+          <view class="topic-row">
+            <text
+              v-for="t in section.topics"
+              :key="t.id"
+              class="topic-chip"
+              :class="{ 'topic-chip--on': selectedTopics.includes(t.id) }"
+              @click="toggleTopic(t.id)"
+            >
+              {{ t.label }}
+            </text>
+          </view>
+        </view>
+        <view v-if="selectedTopics.length" class="topic-selected">
           <text
-            v-for="t in topics"
-            :key="t.id"
-            class="topic-chip"
-            :class="{ 'topic-chip--on': selectedTopics.includes(t.id) }"
-            @click="toggleTopic(t.id)"
+            v-for="id in selectedTopics"
+            :key="id"
+            class="topic-selected__chip"
+            @click="toggleTopic(id)"
           >
-            {{ t.label }}
+            #{{ topicLabel(id) }} ×
           </text>
         </view>
       </view>
@@ -61,7 +74,12 @@
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
-import { createActivityPost, createFeedPost, FEED_TOPICS, uploadFeedImage } from '@/api'
+import { createActivityPost, createFeedPost, getFeedTopics, uploadFeedImage } from '@/api'
+import {
+  FEED_TOPICS,
+  feedTopicLabel,
+  groupFeedTopics,
+} from '@/constants/feedTopics'
 import { ensureTextContentSafe, SEC_SCENE } from '@/utils/contentSecurity'
 import { prepareChatImageForUpload, validateChatImageFile } from '@/utils/avatarImage'
 import {
@@ -90,12 +108,22 @@ export default {
       cityCode: '110000',
       activityId: '',
       location: null,
-      topics: FEED_TOPICS,
+      topicSections: groupFeedTopics(FEED_TOPICS),
       selectedTopics: [],
       submitting: false,
     }
   },
   methods: {
+    topicLabel: feedTopicLabel,
+    async loadTopics() {
+      try {
+        const data = await getFeedTopics()
+        const sections = groupFeedTopics(data?.topics)
+        if (sections.length) this.topicSections = sections
+      } catch (_) {
+        this.topicSections = groupFeedTopics(FEED_TOPICS)
+      }
+    },
     goBack() {
       uni.navigateBack()
     },
@@ -129,6 +157,7 @@ export default {
       const i = this.selectedTopics.indexOf(id)
       if (i >= 0) this.selectedTopics.splice(i, 1)
       else if (this.selectedTopics.length < 3) this.selectedTopics.push(id)
+      else uni.showToast({ title: '最多选 3 个话题', icon: 'none' })
     },
     pickImages() {
       uni.chooseImage({
@@ -205,6 +234,7 @@ export default {
     if (options?.cityCode) this.cityCode = options.cityCode
     if (options?.activityId) this.activityId = options.activityId
     this.applyDefaultLocation(options || {})
+    this.loadTopics()
   },
   onShow() {
     this.syncLocationPickResult()
@@ -301,11 +331,20 @@ export default {
     line-height: 1;
   }
 }
+.topic-section {
+  margin-top: 20rpx;
+
+  &__title {
+    display: block;
+    font-size: 24rpx;
+    color: #94a3b8;
+    margin-bottom: 12rpx;
+  }
+}
 .topic-row {
   display: flex;
   flex-wrap: wrap;
   gap: 12rpx;
-  margin-top: 12rpx;
 }
 .topic-chip {
   font-size: 24rpx;
@@ -314,6 +353,22 @@ export default {
   background: #f1f5f9;
   color: #64748b;
   &--on {
+    background: #e0f2fe;
+    color: #0284c7;
+  }
+}
+.topic-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 20rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid #f1f5f9;
+
+  &__chip {
+    font-size: 24rpx;
+    padding: 8rpx 16rpx;
+    border-radius: 999rpx;
     background: #e0f2fe;
     color: #0284c7;
   }

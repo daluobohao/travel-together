@@ -14,14 +14,11 @@ function ensureFeed() {
   if (!wmDB.userFollows) wmDB.userFollows = []
 }
 
+import { FEED_TOPICS } from '@/constants/feedTopics'
+
 export function mockGetFeedTopics() {
   return {
-    topics: [
-      { id: 'weekend', label: '周末出门' },
-      { id: 'city_move', label: '换城市了' },
-      { id: 'buddy', label: '找搭子' },
-      { id: 'activity_recap', label: '活动复盘' },
-    ],
+    topics: FEED_TOPICS.map(({ id, label, group, sort }) => ({ id, label, group, sort })),
   }
 }
 
