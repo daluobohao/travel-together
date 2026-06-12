@@ -1817,8 +1817,25 @@ export const unblockUser = (blockedUserId) =>
     },
   })
 
-export const getBlockList = () =>
-  wmRequest({ method: 'GET', path: '/blocks', mockHandler: () => ok({ list: wmDB.blocks }) })
+export const getBlockList = (query = {}) =>
+  wmRequest({
+    method: 'GET',
+    path: '/blocks',
+    query,
+    mockHandler: ({ query: q }) => {
+      const list = (wmDB.blocks || []).map((b) => {
+        const uid = String(b.blockedUserId || '').replace(/^u_/, '')
+        const u = wmDB.users[uid] || {}
+        return {
+          blockedUserId: b.blockedUserId,
+          nickname: u.nickname || '用户',
+          avatarUrl: u.avatarUrl || null,
+          createdAt: b.createdAt || new Date().toISOString(),
+        }
+      })
+      return ok(paginate(list, q.page, q.pageSize))
+    },
+  })
 
 // 25 / 26 / 27
 export const getNotifications = (query = {}) =>
@@ -3092,6 +3109,24 @@ export const cancelDmRequest = (requestId) =>
     },
   })
 
+export const removeDirectChatFriend = (threadId) => {
+  const raw = String(threadId || '').trim()
+  const pathId = raw.startsWith('dmthr_') ? raw : `dmthr_${raw}`
+  return wmRequest({
+    method: 'DELETE',
+    path: `/me/direct-chats/${pathId}`,
+    mockHandler: () => {
+      const tid = parseDmThrId(pathId)
+      if (!wmDB.dmThreadRemovals) wmDB.dmThreadRemovals = []
+      const me = wmDB.profile.userId
+      if (!wmDB.dmThreadRemovals.some((x) => x.userId === me && Number(x.threadId) === tid)) {
+        wmDB.dmThreadRemovals.push({ userId: me, threadId: tid })
+      }
+      return ok({ ok: true })
+    },
+  })
+}
+
 export const getDirectChats = (query = {}) =>
   wmRequest({
     method: 'GET',
@@ -3099,12 +3134,22 @@ export const getDirectChats = (query = {}) =>
     query,
     mockHandler: ({ query: q }) => {
       const me = wmDB.profile.userId
+      const removedSet = new Set(
+        (wmDB.dmThreadRemovals || [])
+          .filter((r) => r.userId === me)
+          .map((r) => Number(r.threadId)),
+      )
+      const blockedIds = new Set(
+        (wmDB.blocks || []).map((b) => String(b.blockedUserId || '').replace(/^u_/, '')),
+      )
       const list = wmDB.dmThreads
         .map((t) => {
           let peer = null
           if (t.userLow === me) peer = t.userHigh
           else if (t.userHigh === me) peer = t.userLow
           else return null
+          if (removedSet.has(Number(t.id))) return null
+          if (blockedIds.has(String(peer))) return null
           const u = wmDB.users[peer]
           const msgs = wmDB.dmMessages[String(t.id)] || []
           const last = msgs.length ? msgs[msgs.length - 1] : null
