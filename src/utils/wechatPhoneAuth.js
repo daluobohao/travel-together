@@ -28,7 +28,7 @@ export function parseGetPhoneNumberEvent(e) {
     return {
       ok: false,
       reason: 'fail',
-      message: errMsg.replace(/^getPhoneNumber:fail\s*/i, '') || '获取手机号授权失败',
+      message: errMsg.replace(/^getPhoneNumber:fail\s*/i, '') || '获取手机号验证失败',
     }
   }
 
@@ -37,7 +37,7 @@ export function parseGetPhoneNumberEvent(e) {
     return {
       ok: false,
       reason: 'no_code',
-      message: '未获取到手机号凭证，请重新点击「微信授权手机号」',
+      message: '未获取到手机号凭证，请重新点击「手机号快捷验证」',
     }
   }
 
@@ -52,10 +52,10 @@ export function mapBindPhoneErrorMessage(err) {
     return '登录已过期，请重新登录后再绑定'
   }
   if (msg.includes('Invalid or expired WeChat phone code') || msg.includes('凭证已失效')) {
-    return '微信手机号凭证已失效，请重新点击授权'
+    return '手机号验证已过期，请重新验证'
   }
   if (msg.includes('该手机号已绑定其他微信')) {
-    return '该手机号已绑定其他微信，请用对应微信登录或换号'
+    return '该手机号已绑定其他账号，请用原账号登录或换号'
   }
   if (msg.includes('该手机号已绑定其他抖音') || msg.includes('dy_openid')) {
     return '该手机号已绑定其他抖音，请用对应抖音登录或换号'

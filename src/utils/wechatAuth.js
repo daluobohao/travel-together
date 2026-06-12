@@ -124,15 +124,15 @@ export function getWxLoginCode() {
             resolve(code)
             return
           }
-          reject(new Error('未获取到微信登录凭证'))
+          reject(new Error('未获取到登录凭证'))
         },
         fail: (err) => {
-          reject(new Error(err?.errMsg || '微信登录失败'))
+          reject(new Error(err?.errMsg || '登录失败'))
         },
       })
     }),
     WX_LOGIN_TIMEOUT_MS,
-    '微信登录超时',
+    '登录超时',
   )
 }
 

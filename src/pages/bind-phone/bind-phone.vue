@@ -14,13 +14,13 @@
 
     <!-- #ifdef MP-WEIXIN -->
     <button
-      class="bind-phone__wx-btn"
+      class="bind-phone__quick-btn"
       open-type="getPhoneNumber"
       :loading="wechatLoading"
       :disabled="wechatLoading || smsLoading"
       @getphonenumber="onGetPhoneNumber"
     >
-      微信授权手机号
+      手机号快捷验证
     </button>
     <!-- #endif -->
 
@@ -271,17 +271,24 @@ export default {
     margin-bottom: 40rpx;
   }
 
-  &__wx-btn {
+  &__quick-btn {
     width: 100%;
     height: 96rpx;
     line-height: 96rpx;
-    background: #07c160;
+    background: $wm-gradient-primary;
     color: #fff;
     font-size: 30rpx;
     font-weight: 700;
     border-radius: $wm-radius-xl;
     border: none;
     margin-bottom: 32rpx;
+    box-shadow: $wm-shadow-glow;
+
+    &[disabled] {
+      background: #e2e8f0;
+      color: #94a3b8;
+      box-shadow: none;
+    }
   }
 
   &__divider {

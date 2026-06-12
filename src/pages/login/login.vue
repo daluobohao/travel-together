@@ -104,7 +104,7 @@
         :disabled="wechatLoginLoading || !agreeTerms"
         @click="onWechatLogin"
       >
-        微信一键登录
+        一键登录
       </button>
       <view class="login__cancel" @click="onCancel">取消</view>
     </view>
@@ -371,7 +371,7 @@ export default {
         clearAcquisitionAfterLogin()
         navigateAfterLogin(data?.user)
       } catch (e) {
-        uni.showToast({ title: e?.message || '微信登录失败', icon: 'none' })
+        uni.showToast({ title: e?.message || '登录失败', icon: 'none' })
       } finally {
         this.wechatLoginLoading = false
       }
@@ -564,12 +564,12 @@ export default {
     height: 100rpx;
     line-height: 100rpx;
     border-radius: $wm-radius-xl;
-    background: #07c160;
+    background: $wm-gradient-primary;
     color: #ffffff;
     font-size: 32rpx;
     font-weight: 700;
     border: none;
-    box-shadow: 0 12rpx 32rpx rgba(7, 193, 96, 0.35);
+    box-shadow: $wm-shadow-glow;
 
     &[disabled] {
       background: #94a3b8;
