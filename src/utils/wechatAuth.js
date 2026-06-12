@@ -139,6 +139,9 @@ export function getWxLoginCode() {
 export function applyLoginTokens(data) {
   if (data?.accessToken) setAccessToken(data.accessToken)
   if (data?.refreshToken) setRefreshToken(data.refreshToken)
+  import('@/utils/messageUnread')
+    .then((m) => m.refreshMessageUnreadSummary())
+    .catch(() => {})
 }
 
 /** 未完成极简引导：无 onboardingCompletedAt 或未选性别 */

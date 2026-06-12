@@ -295,6 +295,8 @@ import {
   pinSharedActivityOnList,
 } from '@/utils/activityShare'
 import { resolveChatBadgeCount } from '@/utils/chatBadge'
+import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
+import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
 
 export default {
   components: { WmIcon, WmTabBar },
@@ -314,6 +316,8 @@ export default {
       weekActivityCount: 0,
       /** 分享落地：需在列表置顶的活动 ID（切换 Tab 仍保留） */
       sharedActivityId: '',
+      /** 防止并发 loadHomeData 互相覆盖（搜地点返回时常见） */
+      homeLoadSeq: 0,
     }
   },
   computed: {
@@ -407,6 +411,7 @@ export default {
     this.loadCategoryTree()
   },
   onShow() {
+    refreshMessageUnreadSummary()
     // #ifdef MP-WEIXIN
     try {
       uni.showShareMenu({
@@ -447,6 +452,10 @@ export default {
           displayName: search.displayName,
           cityName,
         }
+        return
+      }
+      if (this.activityAnchor?.source === 'search') {
+        this.activityAnchor = null
       }
     },
     async ensureActivityAnchor() {
@@ -587,27 +596,35 @@ export default {
       }
     },
     async loadHomeData() {
+      const seq = ++this.homeLoadSeq
       this.loading = true
       this.activities = []
       this.listFallbackHint = ''
       try {
+        this.syncSearchAnchorUi()
         const anchor = await this.ensureActivityAnchor()
+        if (seq !== this.homeLoadSeq) return
         const cityCode = anchor?.cityCode || ''
         await Promise.all([
           this.loadCityHallStats(cityCode),
           this.loadWeekActivityCount(cityCode),
         ])
+        if (seq !== this.homeLoadSeq) return
         const { list, hint } = await this.loadActivitiesForHome(anchor)
+        if (seq !== this.homeLoadSeq) return
         let cards = this.decorateActivityCards(list)
         cards = await this.applySharedActivityPin(cards)
+        if (seq !== this.homeLoadSeq) return
         this.activities = cards
         this.listFallbackHint = hint
+        this.syncSearchAnchorUi()
       } catch (e) {
+        if (seq !== this.homeLoadSeq) return
         this.activities = []
         this.listFallbackHint = ''
         uni.showToast({ title: e?.message || '活动加载失败', icon: 'none' })
       } finally {
-        this.loading = false
+        if (seq === this.homeLoadSeq) this.loading = false
       }
     },
     onEmptyShowAllCategories() {

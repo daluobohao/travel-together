@@ -285,6 +285,7 @@ import {
 } from '@/utils/activityChatCache'
 import { buildMentionsPayload } from '@/utils/chatMentions'
 import { ensureTextContentSafe, ensureTextFieldsSafe, SEC_SCENE } from '@/utils/contentSecurity'
+import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
 
 const POLL_INTERVAL_MS = 4000
 const DEFAULT_LIMIT = 50
@@ -411,11 +412,13 @@ export default {
   },
   onHide() {
     this.pollingPaused = true
+    refreshMessageUnreadSummary()
   },
   onUnload() {
     this.persistCache()
     this.stopPolling()
     this.closeSocket()
+    refreshMessageUnreadSummary()
   },
   beforeDestroy() {
     this.stopPolling()

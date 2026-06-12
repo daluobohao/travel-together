@@ -693,6 +693,9 @@ export const logout = async () => {
     // 仍清本地，避免残留凭证
   } finally {
     clearWmAuthTokens()
+    import('@/utils/messageUnread')
+      .then((m) => m.clearMessageUnreadSummary())
+      .catch(() => {})
   }
 }
 
@@ -2793,6 +2796,28 @@ export const getMyChats = (query = {}) =>
           return tb - ta
         })
       return ok(paginate(rows, q.page, q.pageSize))
+    },
+  })
+
+export const getMessageUnreadSummary = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/me/messages/unread-summary',
+    needAuth: true,
+    mockHandler: () => {
+      const joined = (wmDB.activities || []).filter(
+        (a) => a.myEnrollment?.status === 'joined' || a.organizer?.userId === wmDB.profile.userId,
+      )
+      let chatUnread = 0
+      joined.forEach((a) => {
+        const id = Number(a.activityId) || 0
+        if (id === 1) chatUnread += 5
+        else if (id === 2) chatUnread += 0
+        else chatUnread += 2
+      })
+      chatUnread += (wmDB.dmThreads || []).length > 0 ? 1 : 0
+      const notifUnread = (wmDB.notifications || []).filter((n) => !n.readAt).length
+      return ok({ chatUnread, notifUnread })
     },
   })
 

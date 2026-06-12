@@ -109,6 +109,7 @@ import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import FeedPostCard from '@/components/FeedPostCard/FeedPostCard.vue'
 import FeedCityPickerSheet from '@/components/FeedCityPickerSheet/FeedCityPickerSheet.vue'
 import { getCityFeed, isLoggedIn, redirectToLogin } from '@/api'
+import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
 import {
   buildDiscoverShareClipboardText,
   buildDiscoverShareMessage,
@@ -168,6 +169,7 @@ export default {
     },
   },
   onShow() {
+    refreshMessageUnreadSummary()
     // #ifdef MP-WEIXIN
     try {
       uni.showShareMenu({

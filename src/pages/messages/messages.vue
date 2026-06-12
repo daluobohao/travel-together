@@ -207,7 +207,11 @@
       </view>
     </template>
 
-    <wm-tab-bar active="messages" />
+    <wm-tab-bar
+      active="messages"
+      :chat-unread="tabBarChatUnread"
+      :notif-unread="tabBarNotifUnread"
+    />
 
     <dm-request-action-sheet
       :visible="dmRequestSheetVisible"
@@ -236,6 +240,11 @@ import {
   redirectToLogin,
 } from '@/api'
 import { formatChatBadgeCount } from '@/utils/chatBadge'
+import {
+  publishTabUnreadFromLists,
+  refreshMessageUnreadSummary,
+  subscribeMessageUnread,
+} from '@/utils/messageUnread'
 
 /** 消息列表每页条数（首屏轻量，靠加载更多翻页） */
 const LIST_PAGE_SIZE = 5
@@ -353,6 +362,20 @@ export default {
     hasUnreadNotif() {
       return this.systemNotifs.some((x) => !x.read)
     },
+    tabBarChatUnread() {
+      let n = 0
+      this.groupChats.forEach((x) => {
+        n += Number(x.unread) || 0
+      })
+      this.privateChats.forEach((x) => {
+        n += Number(x.unread) || 0
+      })
+      return n
+    },
+    tabBarNotifUnread() {
+      if (this.tabBarChatUnread > 0) return 0
+      return this.hasUnreadNotif ? 1 : 0
+    },
   },
   onShow() {
     this.loggedIn = isLoggedIn()
@@ -394,6 +417,7 @@ export default {
         this._applyPaginationState('group', convData, this.groupChats.length)
         this._applyPaginationState('private', dmData, this.privateChats.length)
         this._applyPaginationState('notif', notifData, this.systemNotifs.length)
+        publishTabUnreadFromLists(this.groupChats, this.privateChats, this.systemNotifs)
       } catch (e) {
         if (e.isAuthError) {
           this.loggedIn = false
@@ -412,6 +436,7 @@ export default {
         uni.showToast({ title: e?.message || '消息加载失败', icon: 'none' })
       } finally {
         this.loading = false
+        refreshMessageUnreadSummary()
       }
     },
     async loadMoreGroup() {
@@ -488,6 +513,7 @@ export default {
       if (chat) chat.unread = 0
       try {
         await markMyChatRead(activityId)
+        refreshMessageUnreadSummary()
       } catch (e) {
         if (chat) chat.unread = prevUnread
         uni.showToast({ title: e?.message || '标记已读失败', icon: 'none' })
@@ -502,6 +528,7 @@ export default {
       item.read = true
       try {
         await readNotification(item.id)
+        refreshMessageUnreadSummary()
       } catch (e) {
         item.read = false
         uni.showToast({ title: e?.message || '标记已读失败', icon: 'none' })
@@ -548,6 +575,7 @@ export default {
       })
       try {
         await readAllNotifications()
+        refreshMessageUnreadSummary()
       } catch (e) {
         this.systemNotifs.forEach((x, i) => {
           x.read = snapshot[i]

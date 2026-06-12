@@ -120,6 +120,7 @@ import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import ChatEmojiPanel from '@/components/ChatEmojiPanel/ChatEmojiPanel.vue'
 import ChatLocationBubble from '@/components/ChatLocationBubble/ChatLocationBubble.vue'
 import { getDirectMessages, getMe, markDirectChatRead, sendDirectMessage } from '@/api'
+import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
 import { chooseAndUploadChatImage } from '@/utils/chatImagePicker'
 import { getStickerEmoji } from '@/constants/chatStickers'
 import { parseChatMessageFields } from '@/utils/chatMessageFields'
@@ -202,6 +203,9 @@ export default {
   onShow() {
     this.trySendPickedLocation()
     if (this.threadId) markDirectChatRead(this.threadId).catch(() => {})
+  },
+  onHide() {
+    refreshMessageUnreadSummary()
   },
   methods: {
     async bootstrap() {
