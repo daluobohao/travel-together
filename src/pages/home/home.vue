@@ -62,69 +62,36 @@
           </view>
         </view>
       </view>
-      <view class="home__search" @click="onTapSearch">
-        <view class="home__search-inner">
-          <wm-icon name="search" :size="32" color="#94a3b8" />
-          <text class="home__search-text">{{ searchBarText }}</text>
-        </view>
-        <view
-          v-if="hasSearchAnchor"
-          class="home__search-clear"
-          @click.stop="onClearSearch"
-        >
-          <wm-icon name="close" :size="28" color="#64748b" />
-        </view>
-      </view>
-      <view class="home__sort-row">
-        <view
-          class="home__sort-chip"
-          :class="{ 'home__sort-chip--active': activeSort === 'distance' }"
-          @click="onSortClick('distance')"
-        >
-          <text>距离优先</text>
-        </view>
-        <view
-          class="home__sort-chip"
-          :class="{ 'home__sort-chip--active': activeSort === 'popularity' }"
-          @click="onSortClick('popularity')"
-        >
-          <text>人气优先</text>
-        </view>
-      </view>
-      <!-- 折叠态：横向滑动 + 右侧展开箭头 -->
-      <view v-if="!catExpanded" class="home__cat-row">
-        <scroll-view scroll-x class="home__cat-scroll" :show-scrollbar="false">
-          <view class="home__chips">
-            <view
-              v-for="cat in categoryChips"
-              :key="cat.key"
-              class="chip"
-              :class="{ 'chip--active': cat.key === activeCategoryId }"
-              @click="onCategoryClick(cat.key)"
-            >
-              <text>{{ cat.label }}</text>
-            </view>
+      <view class="home__toolbar">
+        <view class="home__search" @click="onTapSearch">
+          <view class="home__search-inner">
+            <wm-icon name="search" :size="32" color="#94a3b8" />
+            <text class="home__search-text">{{ searchBarText }}</text>
           </view>
-        </scroll-view>
-        <view v-if="hasMoreCategories" class="home__cat-expand-btn" @click="catExpanded = true">
-          <wm-icon name="chevronDown" :size="32" color="#475569" />
+          <view
+            v-if="hasSearchAnchor"
+            class="home__search-clear"
+            @click.stop="onClearSearch"
+          >
+            <wm-icon name="close" :size="28" color="#64748b" />
+          </view>
+        </view>
+        <view class="home__filter-btn" hover-class="home__filter-btn--hover" @click="openFilterSheet">
+          <text class="home__filter-btn-text">筛选</text>
+          <wm-icon name="chevronDown" :size="24" color="#64748b" />
+          <view v-if="filterBadgeCount" class="home__filter-badge">
+            <text>{{ filterBadgeCount }}</text>
+          </view>
         </view>
       </view>
-      <!-- 展开态：全部 chip 换行展示 -->
-      <view v-else class="home__cat-wrap">
-        <view
-          v-for="cat in categoryChips"
-          :key="cat.key"
-          class="chip"
-          :class="{ 'chip--active': cat.key === activeCategoryId }"
-          @click="onCategoryClick(cat.key)"
-        >
-          <text>{{ cat.label }}</text>
-        </view>
-        <view class="chip chip--toggle" @click="toggleCatExpand">
-          <text>收起</text>
-          <wm-icon name="chevronUp" :size="28" color="#475569" />
-        </view>
+      <view
+        v-if="hasActiveFilters"
+        class="home__filter-status"
+        hover-class="home__filter-status--hover"
+        @click="openFilterSheet"
+      >
+        <text class="home__filter-status-text">{{ filterStatusText }}</text>
+        <wm-icon name="chevronDown" :size="22" color="#94a3b8" />
       </view>
     </view>
 
@@ -154,7 +121,7 @@
       <text class="empty-desc">换个分类看看，或先进群找搭子</text>
       <view class="home__empty-actions">
         <view class="home__empty-btn" @click="onCityHall">进群找搭子</view>
-        <view class="home__empty-btn home__empty-btn--ghost" @click="onEmptyShowAllCategories">查看全部分类</view>
+        <view class="home__empty-btn home__empty-btn--ghost" @click="onEmptyShowAllCategories">筛选分类</view>
       </view>
     </view>
 
@@ -249,12 +216,22 @@
     </view>
 
     <wm-tab-bar active="home" />
+
+    <home-filter-sheet
+      :visible="filterSheetVisible"
+      :active-sort="activeSort"
+      :active-category-id="activeCategoryId"
+      :category-chips="categoryChips"
+      @update:visible="filterSheetVisible = $event"
+      @confirm="onFilterConfirm"
+    />
   </view>
 </template>
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
+import HomeFilterSheet from '@/components/HomeFilterSheet/HomeFilterSheet.vue'
 import {
   getActivities,
   getActivityCategories,
@@ -298,12 +275,12 @@ import { resolveChatBadgeCount } from '@/utils/chatBadge'
 import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
 
 export default {
-  components: { WmIcon, WmTabBar },
+  components: { WmIcon, WmTabBar, HomeFilterSheet },
   data() {
     return {
       activeCategoryId: HOME_CATEGORY_ALL,
       activeSort: HOME_SORT_DISTANCE,
-      catExpanded: false,
+      filterSheetVisible: false,
       categoryTree: normalizeCategoryList(FALLBACK_ACTIVITY_CATEGORIES),
       activities: [],
       activityAnchor: null,
@@ -400,8 +377,26 @@ export default {
       }))
       return all.concat(rest)
     },
-    hasMoreCategories() {
-      return this.categoryChips.length > 4
+    hasActiveFilters() {
+      return (
+        this.activeSort !== HOME_SORT_DISTANCE ||
+        this.activeCategoryId !== HOME_CATEGORY_ALL
+      )
+    },
+    filterBadgeCount() {
+      let n = 0
+      if (this.activeSort !== HOME_SORT_DISTANCE) n += 1
+      if (this.activeCategoryId !== HOME_CATEGORY_ALL) n += 1
+      return n
+    },
+    filterStatusText() {
+      const parts = []
+      if (this.activeSort === HOME_SORT_POPULARITY) parts.push('人气优先')
+      if (this.activeCategoryId !== HOME_CATEGORY_ALL) {
+        const cat = this.categoryChips.find((c) => c.key === this.activeCategoryId)
+        if (cat?.label) parts.push(cat.label)
+      }
+      return parts.join(' · ')
     },
   },
   onLoad(options) {
@@ -480,19 +475,17 @@ export default {
         this.categoryTree = normalizeCategoryList(FALLBACK_ACTIVITY_CATEGORIES)
       }
     },
-    onCategoryClick(categoryId) {
-      const next = categoryId == null ? HOME_CATEGORY_ALL : String(categoryId)
-      if (next === this.activeCategoryId) return
-      this.activeCategoryId = next
-      this.loadHomeData()
+    openFilterSheet() {
+      this.filterSheetVisible = true
     },
-    toggleCatExpand() {
-      this.catExpanded = !this.catExpanded
-    },
-    onSortClick(sort) {
-      if (sort === this.activeSort) return
-      this.activeSort = sort
-      this.loadHomeData()
+    onFilterConfirm({ sort, categoryId }) {
+      const nextSort = sort === HOME_SORT_POPULARITY ? HOME_SORT_POPULARITY : HOME_SORT_DISTANCE
+      const nextCategory =
+        categoryId == null || categoryId === HOME_CATEGORY_ALL ? HOME_CATEGORY_ALL : String(categoryId)
+      const changed = nextSort !== this.activeSort || nextCategory !== this.activeCategoryId
+      this.activeSort = nextSort
+      this.activeCategoryId = nextCategory
+      if (changed) this.loadHomeData()
     },
     buildListQuery(cityCode) {
       const query = {
@@ -627,12 +620,7 @@ export default {
       }
     },
     onEmptyShowAllCategories() {
-      if (this.activeCategoryId === HOME_CATEGORY_ALL) {
-        this.loadHomeData()
-        return
-      }
-      this.activeCategoryId = HOME_CATEGORY_ALL
-      this.loadHomeData()
+      this.openFilterSheet()
     },
     onEmptyGoDiscover() {
       uni.navigateTo({ url: '/pages/discover/discover' })
@@ -795,10 +783,78 @@ export default {
     }
   }
 
-  &__search {
+  &__toolbar {
     display: flex;
     align-items: center;
     gap: 12rpx;
+  }
+
+  &__search {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+  }
+
+  &__filter-btn {
+    position: relative;
+    flex-shrink: 0;
+    height: 72rpx;
+    padding: 0 22rpx;
+    border-radius: $wm-radius-lg;
+    background: #ffffff;
+    border: $wm-card-edge;
+    box-shadow: $wm-shadow-sm;
+    display: flex;
+    align-items: center;
+    gap: 6rpx;
+
+    &--hover {
+      background: #f8fafc;
+    }
+  }
+
+  &__filter-btn-text {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: $wm-text-2;
+  }
+
+  &__filter-badge {
+    position: absolute;
+    top: -8rpx;
+    right: -8rpx;
+    min-width: 32rpx;
+    height: 32rpx;
+    padding: 0 8rpx;
+    border-radius: 999rpx;
+    background: #ef4444;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20rpx;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1;
+  }
+
+  &__filter-status {
+    display: flex;
+    align-items: center;
+    gap: 6rpx;
+    margin-top: 4rpx;
+    padding: 8rpx 4rpx 0;
+
+    &--hover {
+      opacity: 0.75;
+    }
+  }
+
+  &__filter-status-text {
+    font-size: 24rpx;
+    color: #64748b;
+    font-weight: 500;
   }
 
   &__search-inner {
@@ -835,72 +891,6 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-
-  &__sort-row {
-    display: flex;
-    align-items: center;
-    gap: 16rpx;
-    margin-bottom: 4rpx;
-  }
-
-  &__sort-chip {
-    padding: 12rpx 28rpx;
-    border-radius: $wm-radius-pill;
-    background: rgba(255, 255, 255, 0.72);
-    border: 2rpx solid rgba(148, 163, 184, 0.35);
-    font-size: 26rpx;
-    font-weight: 600;
-    color: $wm-text-2;
-
-    &--active {
-      background: $wm-primary-soft;
-      border-color: rgba(2, 132, 199, 0.35);
-      color: $wm-primary;
-    }
-  }
-
-  &__cat-row {
-    display: flex;
-    align-items: center;
-    margin-bottom: 4rpx;
-    position: relative;
-  }
-
-  &__cat-scroll {
-    flex: 1;
-    min-width: 0;
-    white-space: nowrap;
-  }
-
-  &__chips {
-    display: inline-flex;
-    align-items: center;
-    gap: 16rpx;
-    padding-bottom: 4rpx;
-    padding-right: 8rpx;
-    white-space: nowrap;
-  }
-
-  &__cat-expand-btn {
-    flex-shrink: 0;
-    width: 56rpx;
-    height: 60rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &:active {
-      opacity: 0.6;
-    }
-  }
-
-  &__cat-wrap {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 16rpx;
-    margin-bottom: 4rpx;
   }
 
   &__city-hall {
@@ -1126,42 +1116,6 @@ export default {
   text-align: center;
   line-height: 1.55;
   max-width: 560rpx;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 60rpx;
-  padding: 0 28rpx;
-  border-radius: 999rpx;
-  background: #fafafa;
-  color: $wm-text-2;
-  font-size: 26rpx;
-  font-weight: 500;
-  line-height: 1;
-  border: 2rpx solid transparent;
-  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-  flex-shrink: 0;
-
-  &:active {
-    transform: scale(0.95);
-  }
-
-  &--active {
-    background: $wm-gradient-primary;
-    color: #ffffff;
-    box-shadow: $wm-shadow-glow;
-    border-color: rgba(255, 255, 255, 0.3);
-  }
-
-  &--toggle {
-    background: rgba(255, 255, 255, 0.72);
-    border: 2rpx solid rgba(148, 163, 184, 0.35);
-    color: $wm-text-2;
-    font-weight: 600;
-    gap: 6rpx;
-  }
 }
 
 .skeleton-card {
