@@ -25,8 +25,10 @@
           <text v-if="user.emailBound && user.emailMasked" class="profile__contact">{{ user.emailMasked }}</text>
           <text v-if="genderDisplay" class="profile__gender">{{ genderDisplay }}</text>
         </view>
-        <text v-if="loggedIn" class="profile__edit" @click="onEdit">编辑</text>
-        <text v-else class="profile__edit profile__edit--login" @click="goLogin">登录</text>
+        <text v-if="loggedIn" class="profile__edit" @tap="onEdit">编辑</text>
+        <view v-else class="profile__edit profile__edit--login" hover-class="profile__edit--hover" @tap="goLogin">
+          <text>登录</text>
+        </view>
       </view>
 
       <view class="profile__stats">
@@ -115,9 +117,10 @@ import {
   isLoggedIn,
   logout,
   mapActivityCard,
-  redirectToLogin,
 } from '@/api'
 import { displayAvatarUrl } from '@/utils/avatarDisplay'
+import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
+import { clearSkipSilentLogin, setPostLoginRedirect } from '@/utils/wechatAuth'
 export default {
   components: { WmIcon, WmTabBar },
   data() {
@@ -145,6 +148,7 @@ export default {
         { key: 'bindPhone', icon: 'bell', color: '#0284c7', bg: '#e0f2fe', label: '绑定手机号', hint: '' },
         { key: 'myFeed', icon: 'edit', color: '#0d9488', bg: '#f0fdfa', label: '我的动态' },
         { key: 'friends', icon: 'users', color: '#6366f1', bg: '#eef2ff', label: '好友列表' },
+        { key: 'blockList', icon: 'shield', color: '#ef4444', bg: '#fef2f2', label: '拉黑列表' },
         { key: 'history', icon: 'history', color: '#0ea5e9', bg: '#e0f2fe', label: '历史活动' },
         { key: 'feedback', icon: 'message', color: '#f59e0b', bg: '#fffbeb', label: '意见与建议' },
         { key: 'rules', icon: 'book', color: '#10b981', bg: '#ecfdf5', label: '社区规范' },
@@ -211,7 +215,15 @@ export default {
   },
   methods: {
     goLogin() {
-      redirectToLogin('/pages/profile/profile')
+      if (this.loggedIn) return
+      setPostLoginRedirect('/pages/profile/profile')
+      clearSkipSilentLogin()
+      uni.reLaunch({
+        url: '/pages/login/login',
+        fail: () => {
+          uni.redirectTo({ url: '/pages/login/login' })
+        },
+      })
     },
     ensureLoggedIn() {
       if (isLoggedIn()) return true
@@ -250,6 +262,7 @@ export default {
           'history',
           'myFeed',
           'friends',
+          'blockList',
           'feedback',
           'adminPhotoReview',
           'adminCityHost',
@@ -287,6 +300,10 @@ export default {
       }
       if (m.key === 'friends') {
         uni.navigateTo({ url: '/pages/friend-list/friend-list' })
+        return
+      }
+      if (m.key === 'blockList') {
+        uni.navigateTo({ url: '/pages/block-list/block-list' })
         return
       }
       if (m.key === 'feedback') {
@@ -339,6 +356,7 @@ export default {
     },
   },
   async onShow() {
+    refreshMessageUnreadSummary()
     this.loggedIn = isLoggedIn()
     if (!this.loggedIn) {
       this.user = {
@@ -416,6 +434,26 @@ export default {
         }
       })
     } catch (e) {
+      if (e?.isAuthError || e?.needLogin || e?.statusCode === 401) {
+        this.loggedIn = false
+        this.user = {
+          name: '游客',
+          bio: '登录后查看个人资料与我的活动',
+          gender: null,
+          avatarUrl: '',
+          phoneMasked: '',
+          phoneBound: false,
+          emailMasked: '',
+          emailBound: false,
+        }
+        this.stats = [
+          { value: '—', label: '参加活动' },
+          { value: '—', label: '发起活动' },
+        ]
+        this.activities = []
+        this.isAdmin = false
+        return
+      }
       const profile = uni.getStorageSync('user_profile')
       if (profile && typeof profile === 'object') {
         this.user = {
@@ -551,6 +589,11 @@ export default {
       background: $wm-gradient-primary;
       border-radius: 999rpx;
       padding: 12rpx 28rpx;
+      flex-shrink: 0;
+    }
+
+    &--hover {
+      opacity: 0.88;
     }
   }
 

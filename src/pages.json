@@ -73,6 +73,13 @@
 			}
 		},
 		{
+			"path": "pages/block-list/block-list",
+			"style": {
+				"navigationBarTitleText": "拉黑列表",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/hosted-activity-list/hosted-activity-list",
 			"style": {
 				"navigationBarTitleText": "发起活动列表",

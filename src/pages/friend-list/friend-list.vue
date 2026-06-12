@@ -41,6 +41,9 @@
         <view class="friend-row__profile" @click.stop="openProfile(item)">
           <text>资料</text>
         </view>
+        <view class="friend-row__more" @click.stop="openManage(item)">
+          <text>···</text>
+        </view>
       </view>
     </view>
   </view>
@@ -50,6 +53,7 @@
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import { getDirectChats } from '@/api'
 import { displayAvatarUrl } from '@/utils/avatarDisplay'
+import { showFriendManageSheet } from '@/utils/friendRelationship'
 
 export default {
   components: { WmIcon },
@@ -126,6 +130,22 @@ export default {
       if (!item?.userId) return
       uni.navigateTo({
         url: '/pages/user-public/user-public?userId=' + encodeURIComponent(item.userId),
+      })
+    },
+    openManage(item) {
+      if (!item?.threadId || !item?.userId) return
+      showFriendManageSheet({
+        threadId: item.threadId,
+        userId: item.userId,
+        nickname: item.nickname,
+        onRemoved: () => {
+          this.friends = this.friends.filter((f) => f.threadId !== item.threadId)
+          this.total = Math.max(0, this.total - 1)
+        },
+        onBlocked: () => {
+          this.friends = this.friends.filter((f) => f.threadId !== item.threadId)
+          this.total = Math.max(0, this.total - 1)
+        },
       })
     },
   },
@@ -259,6 +279,18 @@ export default {
     background: #f1f5f9;
     font-size: 24rpx;
     color: #64748b;
+  }
+
+  &__more {
+    flex-shrink: 0;
+    width: 56rpx;
+    height: 56rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32rpx;
+    color: #94a3b8;
+    letter-spacing: 2rpx;
   }
 }
 </style>

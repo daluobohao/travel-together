@@ -262,6 +262,7 @@ export const wmDB = {
   ],
   reports: [],
   blocks: [],
+  dmThreadRemovals: [],
   /** 私聊 Mock：请求、线程、消息（threadId 与后端一致为数字 id，接口层包装为 dmthr_*） */
   dmRequests: [
     {

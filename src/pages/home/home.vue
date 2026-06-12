@@ -296,7 +296,6 @@ import {
 } from '@/utils/activityShare'
 import { resolveChatBadgeCount } from '@/utils/chatBadge'
 import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
-import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
 
 export default {
   components: { WmIcon, WmTabBar },

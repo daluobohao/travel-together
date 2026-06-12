@@ -7,7 +7,9 @@
       <view class="dm-chat__title-wrap" @click="openPeerProfile()">
         <text class="dm-chat__title">{{ peerNickname || '私聊' }}</text>
       </view>
-      <view class="dm-chat__placeholder" />
+      <view class="dm-chat__more" @click="openManage">
+        <text class="dm-chat__more-text">···</text>
+      </view>
     </view>
 
     <scroll-view class="dm-chat__messages" scroll-y :scroll-top="scrollTop" :scroll-with-animation="true">
@@ -132,6 +134,7 @@ import {
   readChatLocationPickResult,
 } from '@/utils/chatLocation'
 import { ensureTextContentSafe, ensureTextFieldsSafe, SEC_SCENE } from '@/utils/contentSecurity'
+import { showFriendManageSheet } from '@/utils/friendRelationship'
 
 const TIME_GAP_MS = 5 * 60 * 1000
 
@@ -535,6 +538,23 @@ export default {
     goBack() {
       uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/messages/messages' }) })
     },
+    openManage() {
+      if (!this.threadId || !this.peerUserId) {
+        uni.showToast({ title: '暂无法操作', icon: 'none' })
+        return
+      }
+      showFriendManageSheet({
+        threadId: this.threadId,
+        userId: this.peerUserId,
+        nickname: this.peerNickname,
+        onRemoved: () => {
+          setTimeout(() => this.goBack(), 400)
+        },
+        onBlocked: () => {
+          setTimeout(() => this.goBack(), 400)
+        },
+      })
+    },
     openPeerProfile(msg) {
       const userId = msg?.userId || this.peerUserId
       if (!userId) {
@@ -575,12 +595,19 @@ export default {
   }
 
   &__back,
-  &__placeholder {
+  &__more {
     width: 72rpx;
     height: 72rpx;
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  &__more-text {
+    font-size: 34rpx;
+    color: #64748b;
+    letter-spacing: 2rpx;
+    line-height: 1;
   }
 
   &__title-wrap {
