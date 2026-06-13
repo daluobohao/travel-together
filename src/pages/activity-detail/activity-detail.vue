@@ -96,20 +96,28 @@
       <view class="panel">
         <view class="panel__head">
           <text class="section-title">活动状态</text>
-          <view class="status-tag" :style="{ background: activity.statusBg, color: activity.statusColor }">
-            <text>{{ activity.statusLabel }}</text>
+          <view class="panel__head-right">
+            <text
+              v-if="canEditActivity"
+              class="panel__link panel__link--danger"
+              @click="onCancelActivity"
+            >取消活动</text>
+            <view class="status-tag" :style="{ background: activity.statusBg, color: activity.statusColor }">
+              <text>{{ activity.statusLabel }}</text>
+            </view>
           </view>
         </view>
         <text class="desc">{{ statusHint }}</text>
       </view>
 
-      <view v-if="activityPosts.length || canPostActivity" class="panel">
+      <view v-if="isJoined && !activity.isCancelled" class="panel">
         <view class="panel__head">
           <text class="section-title">活动动态</text>
           <text v-if="canPostActivity" class="panel__link" @click="onPublishActivityPost">发一条</text>
         </view>
         <text v-if="!activityPosts.length && canPostActivity" class="desc desc--muted">活动进行中可发图文，结束后 72 小时内仍可发复盘</text>
-        <text v-else-if="!activityPosts.length && isJoined && !activity.isCancelled" class="desc desc--muted">活动尚未开始或已超过复盘期，暂不可发布</text>
+        <text v-else-if="!activityPosts.length" class="desc desc--muted">活动尚未开始或已超过复盘期，暂不可发布</text>
+        <text v-if="activityPostsHint" class="desc desc--muted desc--warn">{{ activityPostsHint }}</text>
         <feed-post-card
           v-for="p in activityPosts"
           :key="p.postId"
@@ -172,11 +180,13 @@ import {
   getActivityDetail,
   getActivityPosts,
   getMe,
+  getUserFeedPosts,
   isActivityPostWindowOpen,
   isLoggedIn,
   redirectToLogin,
   resolveActivityCategoryTag,
 } from '@/api'
+import { apiActivityPathId, sameActivityId } from '@/utils/activityId'
 import {
   buildActivityShareClipboardText,
   buildActivityShareMessage,
@@ -186,6 +196,7 @@ import {
 } from '@/utils/activityShare'
 import { SHARE_SRC_FRIEND, SHARE_SRC_TIMELINE } from '@/utils/acquisitionSource'
 import { ensurePhoneBound, PHONE_GATE_REASON } from '@/utils/phoneGate'
+import { confirmCancelActivity } from '@/utils/activityCancel'
 
 export default {
   components: { WmIcon, FeedPostCard },
@@ -198,12 +209,17 @@ export default {
       actionLoading: false,
       currentUserId: '',
       activityPosts: [],
+      activityPostsHint: '',
     }
   },
   computed: {
     isOrganizer() {
       if (!this.activity?.organizerId || !this.currentUserId) return false
       return String(this.currentUserId) === String(this.activity.organizerId)
+    },
+    canEditActivity() {
+      if (!this.isOrganizer || !this.activity) return false
+      return !this.activity.isCancelled && !this.activity.isEnded
     },
     isJoined() {
       return this.activity?.enrollmentStatus === 'joined'
@@ -224,6 +240,7 @@ export default {
       if (this.activity.isCancelled) return '活动已取消'
       if (this.activity.isEnded) return '活动已结束'
       if (this.activity.statusKey === 'pending') return '审核中'
+      if (this.isOrganizer && this.canEditActivity) return '编辑活动'
       if (this.isOrganizer && this.isJoined) return '你是发起人'
       if (this.isJoined) return '取消报名'
       if (this.activity.isFull) return '已满员'
@@ -235,6 +252,7 @@ export default {
       if (this.activity.isEnded || this.activity.isCancelled || this.activity.statusKey === 'pending') {
         return 'detail__action-btn--disabled'
       }
+      if (this.isOrganizer && this.canEditActivity) return 'detail__action-btn--edit'
       if (this.isOrganizer && this.isJoined) return 'detail__action-btn--disabled'
       if (!this.isJoined && this.activity.isFull) return 'detail__action-btn--disabled'
       if (this.isJoined) return 'detail__action-btn--cancel'
@@ -280,6 +298,9 @@ export default {
       /* ignore */
     }
     // #endif
+    if (this.loadState === 'ready' && this.activityId) {
+      this.loadActivityPosts()
+    }
   },
   onShareAppMessage() {
     return buildActivityShareMessage(this.activity)
@@ -371,6 +392,7 @@ export default {
           ...status,
         }
         this.loadState = 'ready'
+        this.activityId = String(detail.activityId || actId || this.activityId || '')
         this.loadActivityPosts()
       } catch (e) {
         this.activity = null
@@ -385,20 +407,81 @@ export default {
       if (this.activityId) this.loadActivity(this.activityId)
     },
     async loadActivityPosts() {
-      if (!this.activityId) return
+      const actId = this.activity?.id || this.activityId
+      const pathId = apiActivityPathId(actId)
+      if (!pathId) return
+      this.activityPostsHint = ''
       try {
-        const d = await getActivityPosts(this.activityId, { page: 1, pageSize: 20 })
-        this.activityPosts = d?.list || []
-      } catch (_) {
+        const d = await getActivityPosts(pathId, { page: 1, pageSize: 20 })
+        let rows = d?.list || []
+        if (!rows.length && isLoggedIn()) {
+          try {
+            const me = await getMe()
+            const uid = me?.userId
+            if (uid) {
+              const mine = await getUserFeedPosts(uid, { page: 1, pageSize: 50 })
+              const all = mine?.list || []
+              rows = all.filter(
+                (p) => p.postKind === 'activity' && sameActivityId(p.activityId, actId),
+              )
+              if (!rows.length) {
+                const cityRecap = all.find(
+                  (p) =>
+                    p.postKind === 'city' &&
+                    Array.isArray(p.topicTags) &&
+                    p.topicTags.includes('activity_recap'),
+                )
+                if (cityRecap) {
+                  this.activityPostsHint =
+                    '「我的动态」里若只有 #活动复盘、没有「活动态」，说明发成了同城动态；请从本页「发一条」重新发布（页顶应显示「活动动态」）。'
+                }
+              }
+            }
+          } catch (_) {
+            /* ignore fallback errors */
+          }
+        }
+        this.activityPosts = rows
+      } catch (e) {
+        console.warn('loadActivityPosts failed', e)
         this.activityPosts = []
       }
+    },
+    onEditActivity() {
+      const actId = apiActivityPathId(this.activity?.id || this.activityId)
+      if (!actId) {
+        uni.showToast({ title: '活动信息未就绪', icon: 'none' })
+        return
+      }
+      uni.navigateTo({
+        url: `/pages/publish/publish?mode=edit&id=${encodeURIComponent(actId)}`,
+        events: {
+          saved: () => {
+            this.loadActivity(this.activityId)
+          },
+        },
+      })
+    },
+    onCancelActivity() {
+      if (!this.canEditActivity || this.actionLoading) return
+      const actId = this.activity?.id || this.activityId
+      confirmCancelActivity(actId, {
+        onSuccess: () => {
+          this.loadActivity(this.activityId)
+        },
+      })
     },
     onPublishActivityPost() {
       if (!this.canPostActivity) {
         uni.showToast({ title: '当前不在活动动态发布时间', icon: 'none' })
         return
       }
-      const q = [`activityId=${encodeURIComponent(this.activityId)}`]
+      const actId = apiActivityPathId(this.activity?.id || this.activityId)
+      if (!actId) {
+        uni.showToast({ title: '活动信息未就绪', icon: 'none' })
+        return
+      }
+      const q = [`activityId=${encodeURIComponent(actId)}`]
       const a = this.activity
       if (a?.location && a.lat != null && a.lng != null) {
         q.push(`locationName=${encodeURIComponent(a.location)}`)
@@ -407,6 +490,11 @@ export default {
       }
       uni.navigateTo({
         url: `/pages/feed-publish/feed-publish?${q.join('&')}`,
+        events: {
+          published: () => {
+            this.loadActivityPosts()
+          },
+        },
       })
     },
     openFeedDetail(item) {
@@ -470,6 +558,10 @@ export default {
       }
       if (!this.isJoined && this.activity.isFull) {
         uni.showToast({ title: '活动已满员', icon: 'none' })
+        return
+      }
+      if (this.isOrganizer && this.canEditActivity) {
+        this.onEditActivity()
         return
       }
       if (this.isOrganizer && this.isJoined) {
@@ -855,15 +947,30 @@ export default {
   }
 }
 
+.panel__head-right {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
 .panel__link {
   font-size: 26rpx;
   color: #0284c7;
   font-weight: 600;
+
+  &--danger {
+    color: #dc2626;
+  }
 }
 
 .desc--muted {
   color: $wm-text-3;
   margin-bottom: 8rpx;
+}
+
+.desc--warn {
+  color: #b45309;
+  line-height: 1.55;
 }
 
 .status-tag {

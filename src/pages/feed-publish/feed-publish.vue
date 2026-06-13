@@ -87,6 +87,7 @@ import {
   clearFeedLocationPickResult,
   readFeedLocationPickResult,
 } from '@/utils/feedLocation'
+import { apiActivityPathId } from '@/utils/activityId'
 
 function decodeQueryValue(raw) {
   const s = raw != null ? String(raw) : ''
@@ -111,6 +112,7 @@ export default {
       topicSections: groupFeedTopics(FEED_TOPICS),
       selectedTopics: [],
       submitting: false,
+      publishEventChannel: null,
     }
   },
   methods: {
@@ -206,7 +208,7 @@ export default {
           await ensureTextContentSafe(locationPayload.locationName, SEC_SCENE.SOCIAL, feedSecOptions)
         }
         if (this.activityId) {
-          await createActivityPost(this.activityId, {
+          await createActivityPost(apiActivityPathId(this.activityId), {
             content: this.content.trim(),
             images: this.uploadedUrls,
             ...locationPayload,
@@ -221,6 +223,14 @@ export default {
             ...locationPayload,
           })
         }
+        try {
+          this.publishEventChannel?.emit?.('published', {
+            activityId: this.activityId || '',
+            postKind: this.activityId ? 'activity' : 'city',
+          })
+        } catch (_) {
+          /* ignore */
+        }
         uni.showToast({ title: '已发布', icon: 'success' })
         setTimeout(() => uni.navigateBack(), 500)
       } catch (e) {
@@ -232,12 +242,25 @@ export default {
   },
   onLoad(options) {
     if (options?.cityCode) this.cityCode = options.cityCode
-    if (options?.activityId) this.activityId = options.activityId
+    const actRaw = options?.activityId || options?.id || ''
+    if (actRaw) this.activityId = decodeQueryValue(actRaw)
     this.applyDefaultLocation(options || {})
     this.loadTopics()
+    try {
+      this.publishEventChannel = this.getOpenerEventChannel?.() || null
+    } catch (_) {
+      this.publishEventChannel = null
+    }
   },
   onShow() {
     this.syncLocationPickResult()
+    const pages = getCurrentPages()
+    const cur = pages[pages.length - 1]
+    const opts = cur?.options || {}
+    const actRaw = opts.activityId || opts.id || ''
+    if (actRaw && !this.activityId) {
+      this.activityId = decodeQueryValue(actRaw)
+    }
   },
 }
 </script>

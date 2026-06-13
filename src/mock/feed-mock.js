@@ -2,6 +2,7 @@
  * 同城动态 Mock
  */
 import { wmDB } from './wandermeet-db'
+import { sameActivityId } from '../utils/activityId'
 
 function nowIso() {
   return new Date().toISOString()
@@ -104,7 +105,7 @@ export function mockListActivityPosts(activityId, query = {}) {
   ensureFeed()
   const uid = String(wmDB.profile.userId)
   const list = wmDB.feedPosts
-    .filter((p) => p.activityId === String(activityId) && p.postKind === 'activity')
+    .filter((p) => sameActivityId(p.activityId, activityId) && p.postKind === 'activity')
     .map((p) => ({
       ...p,
       likedByMe: wmDB.feedLikes.some((l) => l.postId === p.postId && l.userId === uid),

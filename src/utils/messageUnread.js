@@ -1,76 +1,24 @@
 import { getDirectChats, getMyChats, getNotifications } from '@/api/wandermeet'
 import { getAccessToken } from '@/api/config'
+import {
+  clearMessageUnreadSummary,
+  getMessageUnreadState,
+  publishTabUnreadFromLists,
+  setMessageUnreadSummary,
+  subscribeMessageUnread,
+} from '@/utils/messageUnreadStore'
 
-const EMPTY = Object.freeze({ chatUnread: 0, notifUnread: 0 })
+export {
+  clearMessageUnreadSummary,
+  getMessageUnreadState,
+  publishTabUnreadFromLists,
+  subscribeMessageUnread,
+}
+
 /** 与后端 ``/me/chats``、``/me/direct-chats`` 的 pageSize 上限一致 */
 const CHAT_LIST_PAGE_SIZE = 50
 
-let state = { ...EMPTY }
-const listeners = new Set()
 let inflight = null
-
-export function getMessageUnreadState() {
-  try {
-    const app = getApp()
-    const g = app?.globalData?.wmMessageUnread
-    if (g && typeof g.chatUnread === 'number') {
-      return { chatUnread: g.chatUnread, notifUnread: Number(g.notifUnread) || 0 }
-    }
-  } catch (_) {
-    /* ignore */
-  }
-  return { ...state }
-}
-
-export function subscribeMessageUnread(listener) {
-  if (typeof listener === 'function') listeners.add(listener)
-  return () => listeners.delete(listener)
-}
-
-function notifyListeners() {
-  const snap = getMessageUnreadState()
-  listeners.forEach((fn) => {
-    try {
-      fn(snap)
-    } catch (_) {
-      /* ignore */
-    }
-  })
-}
-
-function setState(next) {
-  state = {
-    chatUnread: Math.max(0, Number(next.chatUnread) || 0),
-    notifUnread: Math.max(0, Number(next.notifUnread) || 0),
-  }
-  try {
-    const app = getApp()
-    if (app) {
-      if (!app.globalData) app.globalData = {}
-      app.globalData.wmMessageUnread = { ...state }
-    }
-  } catch (_) {
-    /* ignore */
-  }
-  notifyListeners()
-}
-
-export function clearMessageUnreadSummary() {
-  setState(EMPTY)
-}
-
-/** 消息页已拉到的列表先写入 Tab 角标（首屏即时展示，与列表一致） */
-export function publishTabUnreadFromLists(groupChats = [], privateChats = [], systemNotifs = []) {
-  let chatUnread = 0
-  ;(groupChats || []).forEach((x) => {
-    chatUnread += Number(x.unread ?? x.unreadCount) || 0
-  })
-  ;(privateChats || []).forEach((x) => {
-    chatUnread += Number(x.unread ?? x.unreadCount) || 0
-  })
-  const notifUnread = (systemNotifs || []).filter((x) => !x.read && !x.readAt).length
-  setState({ chatUnread, notifUnread })
-}
 
 function sumUnreadFromList(list) {
   let n = 0
@@ -95,6 +43,7 @@ async function sumAllPagesUnread(fetchPage) {
 }
 
 async function fetchUnreadFromChatLists() {
+  const prev = getMessageUnreadState()
   let groupUnread = 0
   let dmUnread = 0
   let notifUnread = 0
@@ -102,8 +51,7 @@ async function fetchUnreadFromChatLists() {
   try {
     groupUnread = await sumAllPagesUnread((page, pageSize) => getMyChats({ page, pageSize }))
   } catch (_) {
-    /* 群聊汇总失败时保留已有角标 */
-    groupUnread = state.chatUnread
+    groupUnread = prev.chatUnread
   }
 
   try {
@@ -116,17 +64,13 @@ async function fetchUnreadFromChatLists() {
     const notifs = await getNotifications({ page: 1, pageSize: 1, read: 'unread' })
     notifUnread = Number(notifs?.total) || 0
   } catch (_) {
-    notifUnread = state.notifUnread
+    notifUnread = prev.notifUnread
   }
 
   return {
     chatUnread: groupUnread + dmUnread,
     notifUnread,
   }
-}
-
-async function fetchUnreadSummary() {
-  return fetchUnreadFromChatLists()
 }
 
 /** 拉取 Tab 栏未读汇总；未登录清零 */
@@ -136,9 +80,9 @@ export function refreshMessageUnreadSummary() {
     return Promise.resolve(getMessageUnreadState())
   }
   if (inflight) return inflight
-  inflight = fetchUnreadSummary()
+  inflight = fetchUnreadFromChatLists()
     .then((data) => {
-      setState({
+      setMessageUnreadSummary({
         chatUnread: data?.chatUnread,
         notifUnread: data?.notifUnread,
       })

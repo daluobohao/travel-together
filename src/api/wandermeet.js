@@ -52,6 +52,7 @@ import {
   mockToggleLike,
 } from '@/mock/feed-mock'
 import { localTextBlockedReason } from '@/utils/localTextContentFilter'
+import { clearMessageUnreadSummary } from '@/utils/messageUnreadStore'
 import { SENSITIVE_REJECT_DETAIL } from '@/utils/sensitiveContentFilter'
 import { cityShortNameForHostBadge } from '@/utils/cityCatalog'
 import { isKnownStickerId } from '@/constants/chatStickers'
@@ -693,9 +694,7 @@ export const logout = async () => {
     // 仍清本地，避免残留凭证
   } finally {
     clearWmAuthTokens()
-    import('@/utils/messageUnread')
-      .then((m) => m.clearMessageUnreadSummary())
-      .catch(() => {})
+    clearMessageUnreadSummary()
   }
 }
 
@@ -1406,7 +1405,10 @@ export const updateActivity = (activityId, payload) =>
     path: `/activities/${activityId}`,
     data: payload,
     mockHandler: ({ data }) => {
-      const idx = wmDB.activities.findIndex((x) => x.activityId === String(activityId))
+      const bare = String(activityId).replace(/^act_/, '')
+      const idx = wmDB.activities.findIndex(
+        (x) => String(x.activityId).replace(/^act_/, '') === bare,
+      )
       if (idx === -1) return ok(null)
       wmDB.activities[idx] = { ...wmDB.activities[idx], ...data }
       return ok(wmDB.activities[idx])
@@ -1419,9 +1421,20 @@ export const cancelActivity = (activityId, payload) =>
     method: 'POST',
     path: `/activities/${activityId}/cancel`,
     data: payload,
-    mockHandler: () => {
-      const row = wmDB.activities.find((x) => x.activityId === String(activityId))
-      if (row) row.activityStatus = 'cancelled'
+    mockHandler: ({ data }) => {
+      const bare = String(activityId).replace(/^act_/, '')
+      const row = wmDB.activities.find(
+        (x) => String(x.activityId).replace(/^act_/, '') === bare,
+      )
+      if (row) {
+        row.activityStatus = 'cancelled'
+        pushGroupSystemMessage(
+          row.activityId,
+          data?.reason
+            ? `【活动取消】发起人已取消本次活动\n原因：${data.reason}`
+            : '【活动取消】发起人已取消本次活动',
+        )
+      }
       return ok({ activityId: String(activityId), activityStatus: 'cancelled' })
     },
   })

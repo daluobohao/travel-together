@@ -3,12 +3,18 @@
     <!-- Top Nav -->
     <view class="publish__nav">
       <text class="publish__cancel" @click="onCancel">取消</text>
-      <text class="publish__title">发布活动</text>
-      <text class="publish__submit" @click="onPublish">发布</text>
+      <text class="publish__title">{{ navTitle }}</text>
+      <text v-if="isEditMode" class="publish__submit" @click="onSave">保存</text>
+      <text v-else class="publish__submit" @click="onPublish">发布</text>
     </view>
 
     <!-- Form -->
     <view class="publish__form">
+      <view v-if="editInProgressOnly" class="publish__tip publish__tip--warn">
+        <text>活动进行中，仅可修改活动说明；时间、地点等变更请发群通知或取消活动后重发。</text>
+      </view>
+
+      <template v-if="!editInProgressOnly">
       <view class="field">
         <text class="field__label">活动标题 <text class="field__req">*</text></text>
         <input
@@ -174,6 +180,19 @@
         />
         <text class="field__counter">{{ (form.description || '').length }} / 300</text>
       </view>
+      </template>
+
+      <view v-else class="field">
+        <text class="field__label">活动说明</text>
+        <textarea
+          v-model="form.description"
+          class="field__textarea"
+          placeholder="介绍一下活动的亮点、参与要求等"
+          placeholder-class="field__placeholder"
+          :maxlength="300"
+        />
+        <text class="field__counter">{{ (form.description || '').length }} / 300</text>
+      </view>
 
       <view class="publish__tip">
         <wm-icon name="shield" :size="32" color="#6366f1" />
@@ -183,9 +202,14 @@
 
     <!-- Bottom Action -->
     <view class="publish__action">
-      <view class="publish__btn" @click="onPublish">
+      <view class="publish__btn" @click="isEditMode ? onSave() : onPublish()">
         <text>{{ publishBtnText }}</text>
       </view>
+      <text
+        v-if="isEditMode && editLoaded && !editCancelledClosed"
+        class="publish__cancel-activity"
+        @click="onCancelActivity"
+      >取消活动</text>
     </view>
 
     <publish-pay-modal
@@ -206,7 +230,8 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import PublishPayModal from '@/components/PublishPayModal/PublishPayModal.vue'
-import { createActivity, getActivityCategories, isLoggedIn, redirectToLogin } from '@/api'
+import { createActivity, getActivityCategories, getActivityDetail, getMe, isLoggedIn, redirectToLogin, updateActivity } from '@/api'
+import { apiActivityPathId } from '@/utils/activityId'
 import { ensureTextFieldsSafe, SEC_SCENE } from '@/utils/contentSecurity'
 import { loadPublishPayConfig, payBeforePublishActivity } from '@/pay/publishPay'
 import { PUBLISH_FEE_YUAN, publishFeeLabel } from '@/pay/constants'
@@ -226,11 +251,18 @@ import {
   PUBLISH_START_WINDOW_REJECT_MSG,
 } from '@/constants/homeActivityList'
 import { ensurePhoneBound, PHONE_GATE_REASON } from '@/utils/phoneGate'
+import { confirmCancelActivity } from '@/utils/activityCancel'
 
 export default {
   components: { WmIcon, PublishPayModal },
   data() {
     return {
+      editActivityId: '',
+      editEnrolledCount: 1,
+      editActivityStatus: '',
+      editLoaded: false,
+      editLoading: false,
+      saveEventChannel: null,
       categoryTree: normalizeCategoryList(FALLBACK_ACTIVITY_CATEGORIES),
       form: {
         title: '',
@@ -265,13 +297,33 @@ export default {
     }
   },
   computed: {
+    isEditMode() {
+      return !!this.editActivityId
+    },
+    navTitle() {
+      return this.isEditMode ? '编辑活动' : '发布活动'
+    },
+    editInProgressOnly() {
+      if (!this.isEditMode) return false
+      if (this.editActivityStatus === 'ended' || this.editActivityStatus === 'cancelled') return false
+      const startAt = this.buildStartAt()
+      if (!startAt) return false
+      return new Date(startAt).getTime() <= Date.now()
+    },
+    editCancelledClosed() {
+      return this.editActivityStatus === 'ended' || this.editActivityStatus === 'cancelled'
+    },
     publishFeeText() {
       return publishFeeLabel(this.publishFeeYuan || PUBLISH_FEE_YUAN)
     },
     publishBtnText() {
+      if (this.isEditMode) return this.editLoading ? '保存中…' : '保存修改'
       return this.publishPayEnabled ? `发布活动（${this.publishFeeText}）` : '发布活动'
     },
     publishDisclaimer() {
+      if (this.isEditMode) {
+        return '保存后，时间/地点/人数等变更将通知已报名成员（活动群聊内）。'
+      }
       if (this.publishPayEnabled) {
         return `发布即表示同意《旅聚社区规范》，请确保活动信息真实有效。发布前需支付服务费 ${this.publishFeeText}。`
       }
@@ -306,16 +358,37 @@ export default {
       return PUBLISH_START_WINDOW_HINT
     },
   },
+  onLoad(options) {
+    const mode = String(options?.mode || '').trim()
+    const id = options?.id || options?.activityId || ''
+    if (mode === 'edit' && id) {
+      this.editActivityId = String(id).trim()
+    }
+    try {
+      this.saveEventChannel = this.getOpenerEventChannel?.() || null
+    } catch (_) {
+      this.saveEventChannel = null
+    }
+  },
   async onShow() {
+    const pagePath = this.isEditMode
+      ? `/pages/publish/publish?mode=edit&id=${encodeURIComponent(this.editActivityId)}`
+      : '/pages/publish/publish'
     if (!isLoggedIn()) {
-      redirectToLogin('/pages/publish/publish')
+      redirectToLogin(pagePath)
       return
     }
     const phoneOk = await ensurePhoneBound({
-      redirectPath: '/pages/publish/publish',
+      redirectPath: pagePath,
       reason: PHONE_GATE_REASON.PUBLISH,
     })
     if (!phoneOk) return
+    if (this.isEditMode) {
+      if (!this.editLoaded && !this.editLoading) {
+        await this.loadActivityForEdit()
+      }
+      return
+    }
     try {
       const cfg = await loadPublishPayConfig(true)
       this.publishPayEnabled = !!cfg.enabled
@@ -473,6 +546,17 @@ export default {
         uni.showToast({ title: '请填写活动地点', icon: 'none' })
         return null
       }
+      const minCap = this.isEditMode ? Math.max(1, Number(this.editEnrolledCount) || 1) : 2
+      const cap = Number(this.form.capacity)
+      if (!Number.isFinite(cap) || cap < minCap) {
+        uni.showToast({
+          title: this.isEditMode
+            ? `人数上限不能少于已报名 ${minCap} 人`
+            : '请填写有效的人数上限',
+          icon: 'none',
+        })
+        return null
+      }
       if (!/^\d{6}$/.test(this.form.cityCode || '')) {
         uni.showToast({ title: '请从地图选择地点，以便确定城市编码', icon: 'none' })
         return null
@@ -513,7 +597,162 @@ export default {
         endAt,
         lat,
         lng,
+        maxMembers: cap,
       }
+    },
+    splitDateTimeFromIso(iso) {
+      const s = String(iso || '').trim()
+      if (!s) return { date: '', clock: '' }
+      const m = s.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/)
+      if (m) return { date: m[1], clock: m[2] }
+      const d = new Date(s)
+      if (Number.isNaN(d.getTime())) return { date: '', clock: '' }
+      const pad = (n) => String(n).padStart(2, '0')
+      return {
+        date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+        clock: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+      }
+    },
+    async loadActivityForEdit() {
+      const pathId = apiActivityPathId(this.editActivityId)
+      if (!pathId) {
+        uni.showToast({ title: '活动无效', icon: 'none' })
+        setTimeout(() => this.onCancel(), 400)
+        return
+      }
+      this.editLoading = true
+      try {
+        const [detail, me] = await Promise.all([getActivityDetail(pathId), getMe()])
+        if (!detail) {
+          uni.showToast({ title: '活动不存在', icon: 'none' })
+          setTimeout(() => this.onCancel(), 400)
+          return
+        }
+        const orgId = detail.organizer?.userId || ''
+        if (!orgId || String(me?.userId || '') !== String(orgId)) {
+          uni.showToast({ title: '仅发起人可编辑', icon: 'none' })
+          setTimeout(() => this.onCancel(), 400)
+          return
+        }
+        if (detail.activityStatus === 'ended' || detail.activityStatus === 'cancelled') {
+          uni.showToast({ title: '活动已结束或已取消', icon: 'none' })
+          setTimeout(() => this.onCancel(), 400)
+          return
+        }
+        this.editEnrolledCount = Math.max(1, Number(detail.enrolledCount) || 1)
+        this.editActivityStatus = detail.activityStatus || 'published'
+        this.form.title = detail.title || ''
+        const desc = String(detail.description || '').trim()
+        this.form.description = desc === '暂无说明' ? '' : desc
+        this.form.categoryId = detail.categoryId || 'dining'
+        this.form.subCategoryId = detail.subCategoryId || ''
+        this.form.categoryTheme =
+          detail.categoryId === ACTIVITY_CATEGORY_OTHER ? detail.categoryLabel || '' : ''
+        const start = this.splitDateTimeFromIso(detail.startAt)
+        this.form.startDate = start.date
+        this.form.startClock = start.clock
+        this.mergeStartDateTime()
+        const end = this.splitDateTimeFromIso(detail.endAt)
+        this.form.endDate = end.date
+        this.form.endClock = end.clock
+        this.mergeEndDateTime()
+        this.form.location = detail.locationName || ''
+        this.form.cityCode = detail.cityCode || ''
+        this.form.lat = detail.lat != null ? Number(detail.lat) : null
+        this.form.lng = detail.lng != null ? Number(detail.lng) : null
+        this.form.capacity = String(detail.maxMembers || this.editEnrolledCount)
+        this.editLoaded = true
+        await this.loadCategories()
+      } catch (e) {
+        uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+        setTimeout(() => this.onCancel(), 400)
+      } finally {
+        this.editLoading = false
+      }
+    },
+    buildUpdatePayload(validated) {
+      return {
+        title: this.form.title.trim(),
+        description: (this.form.description || '').trim() || '暂无说明',
+        categoryId: validated.categoryId || this.form.categoryId,
+        subCategoryId: validated.subCategoryId || undefined,
+        categoryLabel:
+          validated.categoryId === ACTIVITY_CATEGORY_OTHER ? validated.categoryTheme : null,
+        startAt: validated.startAt,
+        endAt: validated.endAt,
+        locationName: this.form.location.trim(),
+        lat: validated.lat,
+        lng: validated.lng,
+        maxMembers: validated.maxMembers,
+      }
+    },
+    async doUpdateActivity(validated) {
+      const pathId = apiActivityPathId(this.editActivityId)
+      if (!pathId) return
+      try {
+        if (this.editInProgressOnly) {
+          const desc = (this.form.description || '').trim() || '暂无说明'
+          await ensureTextFieldsSafe({ description: desc }, SEC_SCENE.FORUM)
+          await updateActivity(pathId, { description: desc })
+        } else {
+          await ensureTextFieldsSafe(
+            {
+              title: this.form.title.trim(),
+              description: (this.form.description || '').trim() || '暂无说明',
+              locationName: this.form.location.trim(),
+            },
+            SEC_SCENE.FORUM,
+          )
+          await updateActivity(pathId, this.buildUpdatePayload(validated))
+        }
+      } catch (e) {
+        if (e?.needLogin || e?.isAuthError) {
+          redirectToLogin(`/pages/publish/publish?mode=edit&id=${encodeURIComponent(pathId)}`)
+          return
+        }
+        uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+        throw e
+      }
+      uni.showToast({ title: '已保存', icon: 'success' })
+      try {
+        this.saveEventChannel?.emit?.('saved')
+      } catch (_) {
+        /* ignore */
+      }
+      setTimeout(() => uni.navigateBack(), 500)
+    },
+    async onSave() {
+      if (this.publishing || this.editLoading) return
+      if (this.editInProgressOnly) {
+        this.publishing = true
+        try {
+          await this.doUpdateActivity(null)
+        } finally {
+          this.publishing = false
+        }
+        return
+      }
+      const payload = this.validatePublishForm()
+      if (!payload) return
+      this.publishing = true
+      try {
+        await this.doUpdateActivity(payload)
+      } finally {
+        this.publishing = false
+      }
+    },
+    onCancelActivity() {
+      if (!this.isEditMode || this.publishing || this.editLoading) return
+      confirmCancelActivity(this.editActivityId, {
+        onSuccess: () => {
+          try {
+            this.saveEventChannel?.emit?.('saved')
+          } catch (_) {
+            /* ignore */
+          }
+          setTimeout(() => uni.navigateBack(), 500)
+        },
+      })
     },
     async doCreateActivity(payload) {
       try {
@@ -610,7 +849,7 @@ export default {
 .publish {
   min-height: 100vh;
   background: transparent;
-  padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(200rpx + env(safe-area-inset-bottom));
 
   &__nav {
     position: sticky;
@@ -663,6 +902,11 @@ export default {
     color: $wm-primary-deep;
     line-height: 1.5;
     font-weight: 500;
+
+    &--warn {
+      background: rgba(251, 191, 36, 0.12);
+      color: #92400e;
+    }
   }
 
   &__action {
@@ -670,13 +914,26 @@ export default {
     left: 0;
     right: 0;
     bottom: 0;
+    z-index: 50;
     padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
     background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(16px);
-    z-index: 50;
+    border-top: 1rpx solid rgba(148, 163, 184, 0.2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16rpx;
+  }
+
+  &__cancel-activity {
+    font-size: 26rpx;
+    color: #dc2626;
+    font-weight: 600;
+    padding: 8rpx 16rpx;
   }
 
   &__btn {
+    width: 100%;
     height: 96rpx;
     border-radius: $wm-radius-xl;
     background: $wm-gradient-primary;

@@ -6,6 +6,7 @@ import {
   clearAcquisitionAfterLogin,
   getLoginAcquisitionPayload,
 } from '@/utils/acquisitionSource'
+import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
 
 const SKIP_SILENT_LOGIN_KEY = 'wm_skip_silent_login'
 const REDIRECT_URL_KEY = 'REDIRECT_URL'
@@ -139,9 +140,7 @@ export function getWxLoginCode() {
 export function applyLoginTokens(data) {
   if (data?.accessToken) setAccessToken(data.accessToken)
   if (data?.refreshToken) setRefreshToken(data.refreshToken)
-  import('@/utils/messageUnread')
-    .then((m) => m.refreshMessageUnreadSummary())
-    .catch(() => {})
+  refreshMessageUnreadSummary().catch(() => {})
 }
 
 /** 未完成极简引导：无 onboardingCompletedAt 或未选性别 */

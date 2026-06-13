@@ -127,17 +127,7 @@
 
     <!-- Activity list -->
     <view v-else class="home__list">
-      <view class="home__section-head">
-        <view class="home__section-title-wrap">
-          <view class="home__section-accent" />
-          <text class="home__section-title">
-            <text class="home__slogan-a">找搭子</text>
-            <text class="home__slogan-sep"> · </text>
-            <text class="home__slogan-b">今天见面</text>
-          </text>
-        </view>
-        <text v-if="weekActivityCount > 0" class="home__section-meta">近 7 天 {{ weekActivityCount }} 场可加入</text>
-      </view>
+      <text v-if="weekActivityCount > 0" class="home__list-meta">近 7 天 {{ weekActivityCount }} 场可加入</text>
       <view v-if="listFallbackHint" class="home__fallback-hint">
         <text>{{ listFallbackHint }}</text>
       </view>
@@ -1066,41 +1056,13 @@ export default {
     gap: 28rpx;
   }
 
-  &__section-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16rpx;
-    margin-bottom: -8rpx;
-  }
-
-  &__section-title-wrap {
-    display: flex;
-    align-items: center;
-    gap: 12rpx;
-    min-width: 0;
-  }
-
-  &__section-accent {
-    flex-shrink: 0;
-    width: 8rpx;
-    height: 36rpx;
-    border-radius: 999rpx;
-    background: linear-gradient(180deg, #fdba74 0%, #fb923c 100%);
-    box-shadow: 0 2rpx 12rpx rgba(251, 146, 60, 0.32);
-  }
-
-  &__section-title {
-    font-size: 36rpx;
-    font-weight: 800;
-    letter-spacing: 1rpx;
-    line-height: 1.35;
-  }
-
-  &__section-meta {
+  &__list-meta {
+    display: block;
+    text-align: right;
     font-size: 24rpx;
     color: $wm-text-3;
     font-weight: 500;
+    margin-bottom: -12rpx;
   }
 }
 
