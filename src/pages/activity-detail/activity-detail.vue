@@ -72,11 +72,11 @@
             <text class="meta-item__value">{{ activity.time }}</text>
           </view>
         </view>
-        <view class="meta-item">
+        <view class="meta-item" @click="openActivityLocation">
           <wm-icon name="mapPin" :size="30" color="#6366f1" />
           <view class="meta-item__body">
             <text class="meta-item__label">活动地点</text>
-            <text class="meta-item__value">{{ activity.location }} · {{ activity.distance }}</text>
+            <text class="meta-item__value">{{ activity.location }}<text v-if="activity.distance"> · {{ activity.distance }}</text></text>
           </view>
         </view>
         <view class="meta-item">
@@ -197,6 +197,7 @@ import {
 import { SHARE_SRC_FRIEND, SHARE_SRC_TIMELINE } from '@/utils/acquisitionSource'
 import { ensurePhoneBound, PHONE_GATE_REASON } from '@/utils/phoneGate'
 import { confirmCancelActivity } from '@/utils/activityCancel'
+import { openChatLocationOnMap } from '@/utils/chatLocation'
 
 export default {
   components: { WmIcon, FeedPostCard },
@@ -265,6 +266,14 @@ export default {
       if (this.activity.isFull) return '人数已满，报名通道暂时关闭。'
       if (this.activity.statusKey === 'pending') return '活动正在审核中，通过后可开放报名。'
       return `还剩 ${Math.max(0, Number(this.activity.total) - Number(this.activity.joined))} 个名额`
+    },
+    activityLocationMessage() {
+      return {
+        locationName: this.activity?.locationName || this.activity?.location || '',
+        address: this.activity?.address || '',
+        lat: this.activity?.lat,
+        lng: this.activity?.lng,
+      }
     },
   },
   onLoad(query) {
@@ -374,6 +383,8 @@ export default {
           time: formatActivityTimeRange(detail.startAt, detail.endAt),
           startAt: detail.startAt,
           endAt: detail.endAt,
+          locationName: detail.locationName || '',
+          address: detail.addressDetail || '',
           location: detail.locationName,
           lat: detail.lat != null ? Number(detail.lat) : null,
           lng: detail.lng != null ? Number(detail.lng) : null,
@@ -447,6 +458,9 @@ export default {
         this.activityPosts = []
       }
     },
+    openActivityLocation() {
+      openChatLocationOnMap(this.activityLocationMessage)
+    },
     onEditActivity() {
       const actId = apiActivityPathId(this.activity?.id || this.activityId)
       if (!actId) {
@@ -483,8 +497,8 @@ export default {
       }
       const q = [`activityId=${encodeURIComponent(actId)}`]
       const a = this.activity
-      if (a?.location && a.lat != null && a.lng != null) {
-        q.push(`locationName=${encodeURIComponent(a.location)}`)
+      if (a?.locationName && a.lat != null && a.lng != null) {
+        q.push(`locationName=${encodeURIComponent(a.locationName)}`)
         q.push(`lat=${encodeURIComponent(String(a.lat))}`)
         q.push(`lng=${encodeURIComponent(String(a.lng))}`)
       }
