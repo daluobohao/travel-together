@@ -880,6 +880,55 @@ export const getActivityCategories = () =>
     mockHandler: () => ok({ categories: normalizeCategoryList(FALLBACK_ACTIVITY_CATEGORIES) }),
   })
 
+export const getActivityGuideTemplate = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/meta/activity-guide',
+    needAuth: false,
+    mockHandler: () =>
+      ok({
+        sections: [
+          { key: 'itinerary', label: '行程安排', ordinal: '二', placeholder: '按时间列出集合、出发、下撤等。' },
+          { key: 'equipment', label: '装备要求', ordinal: '三', placeholder: '必备 / 建议 / 禁止装备。' },
+          { key: 'enrollmentRequirements', label: '报名条件', ordinal: '四', placeholder: '年龄、经验、健康要求等。' },
+          { key: 'feeNote', label: '费用说明', ordinal: '五', placeholder: '补充包含/不含、退改政策。' },
+          { key: 'registration', label: '报名方式', ordinal: '六', placeholder: '进群、联系微信等。' },
+          { key: 'risk', label: '风险提示', ordinal: '七', placeholder: '天气、路况、免责提示。' },
+          { key: 'environment', label: '环保要求', ordinal: '八', placeholder: '无痕山野等。' },
+        ],
+      }),
+  })
+
+function mockActivityGuideExtras(row) {
+  const sections = row.guideSections || null
+  const guideFilled =
+    sections && typeof sections === 'object'
+      ? Object.values(sections).some((v) => String(v || '').trim())
+      : false
+  const feeLabel =
+    !row.feeType || row.feeType === 'free'
+      ? '免费'
+      : row.feeAmount
+        ? `${row.feeAmount} 元`
+        : 'AA 制'
+  return {
+    guideSections: sections,
+    guideFilled: !!guideFilled,
+    guideOverview: {
+      title: row.title,
+      startAt: row.startAt,
+      endAt: row.endAt || null,
+      locationName: row.locationName,
+      addressDetail: row.addressDetail || null,
+      maxMembers: row.maxMembers,
+      enrolledCount: row.enrolledCount || 1,
+      feeType: row.feeType || 'free',
+      feeAmount: row.feeAmount || null,
+      feeLabel,
+    },
+  }
+}
+
 export const getCityGroupsMeta = () =>
   wmRequest({
     method: 'GET',
@@ -1311,7 +1360,9 @@ export const getActivityDetail = (activityId, query = {}) =>
         ? wmDB.activities.filter((x) => x.organizer?.userId === organizerId).length
         : 0
       const organizer = mergeOrganizerPublic(row)
-      return ok({ ...row, organizer, organizerHostedCount })
+      const meId = wmDB.profile?.userId || ''
+      const isOrganizer = !!(meId && row.organizer?.userId && meId === row.organizer.userId)
+      return ok({ ...row, organizer, organizerHostedCount, isOrganizer, ...mockActivityGuideExtras(row) })
     },
   })
 
@@ -1385,6 +1436,7 @@ export const createActivity = (payload) =>
         coverImageUrl: Array.isArray(data.images) && data.images.length ? data.images[0] : null,
         images: Array.isArray(data.images) ? data.images : null,
         imagesAuditStatus: Array.isArray(data.images) && data.images.length ? 'pass' : 'none',
+        guideSections: data.guideSections || null,
         organizer: { userId: wmDB.profile.userId, nickname: wmDB.profile.nickname, avatarUrl: null, verificationBadge: true },
         enrolledCount: 1,
         myEnrollment: { status: 'joined' },
@@ -1413,14 +1465,21 @@ export const updateActivity = (activityId, payload) =>
         (x) => String(x.activityId).replace(/^act_/, '') === bare,
       )
       if (idx === -1) return ok(null)
-      const merged = { ...wmDB.activities[idx], ...data }
+      const row = wmDB.activities[idx]
+      if (row.organizer?.userId !== wmDB.profile.userId) {
+        return { code: 403, message: 'Only organizer can update activity', data: null }
+      }
+      const merged = { ...row, ...data }
       if (Array.isArray(data.images)) {
         merged.images = data.images
         merged.coverImageUrl = data.images.length ? data.images[0] : null
         merged.imagesAuditStatus = data.images.length ? 'pass' : 'none'
       }
+      if (data.guideSections != null) {
+        merged.guideSections = data.guideSections
+      }
       wmDB.activities[idx] = merged
-      return ok(wmDB.activities[idx])
+      return ok({ ...wmDB.activities[idx], ...mockActivityGuideExtras(wmDB.activities[idx]) })
     },
   })
 

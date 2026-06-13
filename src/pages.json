@@ -17,6 +17,20 @@
 			}
 		},
 		{
+			"path": "pages/activity-guide/activity-guide",
+			"style": {
+				"navigationBarTitleText": "活动说明",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/activity-guide-edit/activity-guide-edit",
+			"style": {
+				"navigationBarTitleText": "编辑活动说明",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/user-public/user-public",
 			"style": {
 				"navigationBarTitleText": "发起人资料",

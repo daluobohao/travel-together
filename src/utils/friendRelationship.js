@@ -6,6 +6,12 @@ export function normalizeUserId(userId) {
   return raw.startsWith('u_') ? raw : `u_${raw}`
 }
 
+export function isSameUserId(a, b) {
+  const left = normalizeUserId(a)
+  const right = normalizeUserId(b)
+  return !!left && left === right
+}
+
 export function confirmRemoveFriend({ threadId, nickname, onSuccess }) {
   uni.showModal({
     title: '删除好友',

@@ -170,7 +170,7 @@
       </view>
 
       <view class="field">
-        <text class="field__label">活动说明</text>
+        <text class="field__label">活动简介</text>
         <textarea
           v-model="form.description"
           class="field__textarea"
@@ -179,6 +179,17 @@
           :maxlength="300"
         />
         <text class="field__counter">{{ (form.description || '').length }} / 300</text>
+      </view>
+
+      <view v-if="!isEditMode || editLoaded" class="field field--link" @click="onEditActivityGuide">
+        <text class="field__label">完整活动说明</text>
+        <view class="field__select field__select--clickable">
+          <text :class="['field__select-text', { 'field__placeholder': !guideEntryFilled }]">
+            {{ guideEntryText }}
+          </text>
+          <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
+        </view>
+        <text v-if="!isEditMode" class="field__hint">可选；发布时一并保存。概况中的时间、地点、人数将引用上方填写内容。</text>
       </view>
 
       <view class="field">
@@ -198,15 +209,25 @@
       </template>
 
       <view v-else class="field">
-        <text class="field__label">活动说明</text>
+        <text class="field__label">活动简介</text>
         <textarea
           v-model="form.description"
           class="field__textarea"
-          placeholder="介绍一下活动的亮点、参与要求等"
+          placeholder="简短介绍活动亮点，详情页展示；完整说明可在「活动说明页」编辑"
           placeholder-class="field__placeholder"
           :maxlength="300"
         />
         <text class="field__counter">{{ (form.description || '').length }} / 300</text>
+      </view>
+
+      <view v-if="editLoaded" class="field field--link" @click="onEditActivityGuide">
+        <text class="field__label">完整活动说明</text>
+        <view class="field__select field__select--clickable">
+          <text :class="['field__select-text', { 'field__placeholder': !guideEntryFilled }]">
+            {{ guideEntryText }}
+          </text>
+          <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
+        </view>
       </view>
 
       <view class="publish__tip">
@@ -268,6 +289,12 @@ import {
 } from '@/constants/homeActivityList'
 import { ensurePhoneBound, PHONE_GATE_REASON } from '@/utils/phoneGate'
 import { confirmCancelActivity } from '@/utils/activityCancel'
+import {
+  clearPublishGuideDraft,
+  guideSectionsHasContent,
+  readPublishGuideDraft,
+  writePublishGuideDraftContext,
+} from '@/constants/activityGuide'
 
 export default {
   components: { WmIcon, PublishPayModal },
@@ -312,6 +339,8 @@ export default {
         mockMode: false,
         feeYuan: '',
       },
+      publishGuideDraftFilled: false,
+      editGuideFilled: false,
     }
   },
   computed: {
@@ -375,6 +404,14 @@ export default {
     publishStartWindowHint() {
       return PUBLISH_START_WINDOW_HINT
     },
+    guideEntryFilled() {
+      return this.isEditMode ? this.editGuideFilled : this.publishGuideDraftFilled
+    },
+    guideEntryText() {
+      return this.guideEntryFilled
+        ? '已填写，点击继续编辑'
+        : '编辑活动说明页（概况/行程/装备等）'
+    },
   },
   onLoad(options) {
     const mode = String(options?.mode || '').trim()
@@ -404,9 +441,12 @@ export default {
     if (this.isEditMode) {
       if (!this.editLoaded && !this.editLoading) {
         await this.loadActivityForEdit()
+      } else if (this.editLoaded) {
+        await this.refreshEditGuideStatus()
       }
       return
     }
+    this.refreshPublishGuideDraft()
     try {
       const cfg = await loadPublishPayConfig(true)
       this.publishPayEnabled = !!cfg.enabled
@@ -682,6 +722,7 @@ export default {
         const imgs = Array.isArray(detail.images) ? detail.images : []
         this.activityImages = [...imgs]
         this.uploadedActivityImages = [...imgs]
+        this.editGuideFilled = !!detail.guideFilled
         this.editLoaded = true
         await this.loadCategories()
       } catch (e) {
@@ -796,6 +837,36 @@ export default {
         this.publishing = false
       }
     },
+    onEditActivityGuide() {
+      if (this.isEditMode) {
+        const pathId = apiActivityPathId(this.editActivityId)
+        if (!pathId) return
+        uni.navigateTo({
+          url: `/pages/activity-guide-edit/activity-guide-edit?id=${encodeURIComponent(pathId)}`,
+        })
+        return
+      }
+      writePublishGuideDraftContext({
+        feeLabel: (this.form.cost || '').trim() || '免费',
+        title: (this.form.title || '').trim(),
+      })
+      uni.navigateTo({
+        url: '/pages/activity-guide-edit/activity-guide-edit?mode=draft',
+      })
+    },
+    refreshPublishGuideDraft() {
+      this.publishGuideDraftFilled = guideSectionsHasContent(readPublishGuideDraft())
+    },
+    async refreshEditGuideStatus() {
+      const pathId = apiActivityPathId(this.editActivityId)
+      if (!pathId) return
+      try {
+        const detail = await getActivityDetail(pathId)
+        this.editGuideFilled = !!detail?.guideFilled
+      } catch (_) {
+        /* ignore */
+      }
+    },
     onCancelActivity() {
       if (!this.isEditMode || this.publishing || this.editLoading) return
       confirmCancelActivity(this.editActivityId, {
@@ -835,6 +906,10 @@ export default {
           feeType: 'aa',
           feeAmount: null,
           images: this.uploadedActivityImages.length ? this.uploadedActivityImages : undefined,
+          guideSections: (() => {
+            const sections = readPublishGuideDraft()
+            return guideSectionsHasContent(sections) ? sections : undefined
+          })(),
           rulesAccepted: { noHarassment: true, noPromotion: true, noInappropriate: true },
         })
       } catch (e) {
@@ -845,6 +920,7 @@ export default {
         uni.showToast({ title: e?.message || '发布失败', icon: 'none' })
         throw e
       }
+      clearPublishGuideDraft()
       uni.showToast({ title: '发布成功！', icon: 'success' })
       setTimeout(() => uni.reLaunch({ url: '/pages/home/home' }), 800)
     },

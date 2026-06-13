@@ -90,11 +90,11 @@
             <text class="meta-item__value">{{ activity.time }}</text>
           </view>
         </view>
-        <view class="meta-item" @click="openActivityLocation">
+        <view class="meta-item">
           <wm-icon name="mapPin" :size="30" color="#6366f1" />
           <view class="meta-item__body">
             <text class="meta-item__label">活动地点</text>
-            <text class="meta-item__value">{{ activity.location }}<text v-if="activity.distance"> · {{ activity.distance }}</text></text>
+            <text class="meta-item__value">{{ activity.location }} · {{ activity.distance }}</text>
           </view>
         </view>
         <view class="meta-item">
@@ -106,8 +106,20 @@
         </view>
       </view>
 
-      <view class="panel">
-        <text class="section-title">活动说明</text>
+      <view class="panel panel--intro">
+        <view class="detail__tabbar">
+          <view class="detail__tab detail__tab--active">
+            <text>活动简介</text>
+          </view>
+          <view class="detail__tab detail__tab--guide" hover-class="detail__tab--hover" @click="onOpenActivityGuide">
+            <text>活动说明</text>
+            <wm-icon name="chevronRight" :size="24" color="#6366f1" />
+          </view>
+        </view>
+        <view v-if="canEditActivity" class="detail__guide-edit">
+          <text class="detail__guide-edit-tip">行程、装备、费用等完整说明</text>
+          <text class="detail__guide-edit-link" @click="onEditActivityGuide">编辑活动说明</text>
+        </view>
         <text class="desc">{{ activity.description }}</text>
       </view>
 
@@ -215,7 +227,7 @@ import {
 import { SHARE_SRC_FRIEND, SHARE_SRC_TIMELINE } from '@/utils/acquisitionSource'
 import { ensurePhoneBound, PHONE_GATE_REASON } from '@/utils/phoneGate'
 import { confirmCancelActivity } from '@/utils/activityCancel'
-import { openChatLocationOnMap } from '@/utils/chatLocation'
+import { isActivityOrganizer } from '@/utils/activityPermission'
 
 export default {
   components: { WmIcon, FeedPostCard },
@@ -233,8 +245,10 @@ export default {
   },
   computed: {
     isOrganizer() {
-      if (!this.activity?.organizerId || !this.currentUserId) return false
-      return String(this.currentUserId) === String(this.activity.organizerId)
+      if (!this.activity) return false
+      if (typeof this.activity.isOrganizer === 'boolean') return this.activity.isOrganizer
+      if (!this.activity.organizerId || !this.currentUserId) return false
+      return isActivityOrganizer(this.activity, this.currentUserId)
     },
     canEditActivity() {
       if (!this.isOrganizer || !this.activity) return false
@@ -284,14 +298,6 @@ export default {
       if (this.activity.isFull) return '人数已满，报名通道暂时关闭。'
       if (this.activity.statusKey === 'pending') return '活动正在审核中，通过后可开放报名。'
       return `还剩 ${Math.max(0, Number(this.activity.total) - Number(this.activity.joined))} 个名额`
-    },
-    activityLocationMessage() {
-      return {
-        locationName: this.activity?.locationName || this.activity?.location || '',
-        address: this.activity?.address || '',
-        lat: this.activity?.lat,
-        lng: this.activity?.lng,
-      }
     },
   },
   onLoad(query) {
@@ -391,7 +397,7 @@ export default {
         const org = detail.organizer || {}
         const status = computeActivityStatus(detail)
         const catTag = resolveActivityCategoryTag(detail)
-        const meIsOrganizer = !!(meId && org.userId && String(org.userId) === String(meId))
+        const meIsOrganizer = isActivityOrganizer(detail, meId)
         const auditStatus = detail.imagesAuditStatus || 'none'
         const imageList = Array.isArray(detail.images) ? detail.images.filter(Boolean) : []
         let displayImages = []
@@ -402,6 +408,7 @@ export default {
         }
         this.activity = {
           id: String(detail.activityId || actId),
+          isOrganizer: meIsOrganizer,
           category: catTag.label,
           tagColor: catTag.color,
           tagBg: catTag.bg,
@@ -413,8 +420,6 @@ export default {
           time: formatActivityTimeRange(detail.startAt, detail.endAt),
           startAt: detail.startAt,
           endAt: detail.endAt,
-          locationName: detail.locationName || '',
-          address: detail.addressDetail || '',
           location: detail.locationName,
           lat: detail.lat != null ? Number(detail.lat) : null,
           lng: detail.lng != null ? Number(detail.lng) : null,
@@ -429,6 +434,7 @@ export default {
           organizerVerified: !!org.verificationBadge,
           hostedCount: Number(detail.organizerHostedCount || 0),
           description: detail.description || '暂无说明',
+          guideFilled: !!detail.guideFilled,
           enrollmentStatus: detail.myEnrollment?.status || null,
           ...status,
         }
@@ -488,9 +494,6 @@ export default {
         this.activityPosts = []
       }
     },
-    openActivityLocation() {
-      openChatLocationOnMap(this.activityLocationMessage)
-    },
     onEditActivity() {
       const actId = apiActivityPathId(this.activity?.id || this.activityId)
       if (!actId) {
@@ -527,8 +530,8 @@ export default {
       }
       const q = [`activityId=${encodeURIComponent(actId)}`]
       const a = this.activity
-      if (a?.locationName && a.lat != null && a.lng != null) {
-        q.push(`locationName=${encodeURIComponent(a.locationName)}`)
+      if (a?.location && a.lat != null && a.lng != null) {
+        q.push(`locationName=${encodeURIComponent(a.location)}`)
         q.push(`lat=${encodeURIComponent(String(a.lat))}`)
         q.push(`lng=${encodeURIComponent(String(a.lng))}`)
       }
@@ -691,6 +694,20 @@ export default {
         fail: () => {
           uni.showToast({ title: '复制失败', icon: 'none' })
         },
+      })
+    },
+    onOpenActivityGuide() {
+      const pathId = apiActivityPathId(this.activity?.id || this.activityId)
+      if (!pathId) return
+      uni.navigateTo({
+        url: `/pages/activity-guide/activity-guide?id=${encodeURIComponent(pathId)}`,
+      })
+    },
+    onEditActivityGuide() {
+      const pathId = apiActivityPathId(this.activity?.id || this.activityId)
+      if (!pathId) return
+      uni.navigateTo({
+        url: `/pages/activity-guide-edit/activity-guide-edit?id=${encodeURIComponent(pathId)}`,
       })
     },
   },
@@ -1018,6 +1035,71 @@ export default {
   font-weight: 700;
   color: $wm-text-1;
   margin-bottom: 16rpx;
+}
+
+.panel--intro {
+  padding-top: 20rpx;
+}
+
+.detail__tabbar {
+  display: flex;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+  padding: 6rpx;
+  border-radius: $wm-radius-lg;
+  background: #f1f5f9;
+}
+
+.detail__tab {
+  flex: 1;
+  height: 72rpx;
+  border-radius: $wm-radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: $wm-text-3;
+
+  &--active {
+    background: #ffffff;
+    color: $wm-text-1;
+    box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.08);
+  }
+
+  &--guide {
+    color: $wm-primary;
+  }
+
+  &--hover {
+    opacity: 0.85;
+  }
+}
+
+.detail__guide-edit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+  padding: 16rpx 20rpx;
+  border-radius: $wm-radius-md;
+  background: $wm-primary-soft;
+}
+
+.detail__guide-edit-tip {
+  flex: 1;
+  font-size: 24rpx;
+  color: $wm-text-3;
+  line-height: 1.5;
+}
+
+.detail__guide-edit-link {
+  flex-shrink: 0;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: $wm-primary;
 }
 
 .desc {
