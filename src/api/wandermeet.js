@@ -484,19 +484,40 @@ export const sendSmsCode = (payload) =>
     mockHandler: () => ok({ expireInSeconds: 300 }),
   })
 
+function computeMockProfileComplete(profile) {
+  const n = String(profile?.nickname || '').trim()
+  if (!n || /^旅人.{1,28}$/.test(n)) return false
+  if (profile?.gender !== 'male' && profile?.gender !== 'female') return false
+  if (profile?.birthDate) return true
+  return !!profile?.onboardingCompletedAt
+}
+
+function withMockProfileFields(profile) {
+  const p = { ...profile }
+  p.profileComplete = computeMockProfileComplete(p)
+  return p
+}
+
 function mockAuthLoginData(tokenSuffix = 'mock') {
+  const user = withMockProfileFields({
+    userId: wmDB.profile.userId,
+    nickname: wmDB.profile.nickname,
+    avatarUrl: wmDB.profile.avatarUrl,
+    gender: wmDB.profile.gender,
+    birthDate: wmDB.profile.birthDate,
+    status: wmDB.profile.status,
+    onboardingCompletedAt: wmDB.profile.onboardingCompletedAt,
+    profileComplete: false,
+  })
+  user.profileComplete = computeMockProfileComplete({
+    ...wmDB.profile,
+    ...user,
+  })
   const data = {
     accessToken: `wm_at_${tokenSuffix}`,
     expiresIn: 7200,
     refreshToken: `wm_rt_${tokenSuffix}`,
-    user: {
-      userId: wmDB.profile.userId,
-      nickname: wmDB.profile.nickname,
-      avatarUrl: wmDB.profile.avatarUrl,
-      gender: wmDB.profile.gender,
-      status: wmDB.profile.status,
-      onboardingCompletedAt: wmDB.profile.onboardingCompletedAt,
-    },
+    user,
   }
   setAccessToken(data.accessToken)
   setRefreshToken(data.refreshToken)
@@ -615,14 +636,15 @@ export const loginByWechat = (payload) =>
         accessToken: `wm_at_${openidKey}`,
         expiresIn: 7200,
         refreshToken: `wm_rt_${openidKey}`,
-        user: {
+        user: withMockProfileFields({
           userId: wmDB.profile.userId,
           nickname: wmDB.profile.nickname || '微信用户',
           avatarUrl: wmDB.profile.avatarUrl,
           gender: wmDB.profile.gender,
+          birthDate: wmDB.profile.birthDate,
           status: wmDB.profile.status || 'active',
           onboardingCompletedAt: wmDB.profile.onboardingCompletedAt,
-        },
+        }),
       }
       setAccessToken(dataOut.accessToken)
       setRefreshToken(dataOut.refreshToken)
@@ -703,7 +725,7 @@ export const getMe = () =>
   wmRequest({
     method: 'GET',
     path: '/me',
-    mockHandler: () => ok(wmDB.profile),
+    mockHandler: () => ok(withMockProfileFields(wmDB.profile)),
   })
 
 export const getMyStats = () =>
@@ -726,6 +748,9 @@ export const updateMe = (payload) =>
     data: payload,
     mockHandler: ({ data }) => {
       if (data.gender != null) {
+        if (data.gender === 'unspecified') {
+          return { code: 400, message: '请选择男或女', data: null }
+        }
         if (wmDB.profile.gender != null && data.gender !== wmDB.profile.gender) {
           return { code: 400, message: '提交后不可修改性别', data: null }
         }
@@ -739,6 +764,7 @@ export const updateMe = (payload) =>
         avatarUrl: data.avatarUrl ?? wmDB.profile.avatarUrl,
         tags: data.tags ?? wmDB.profile.tags,
         bio: data.bio ?? wmDB.profile.bio,
+        birthDate: data.birthDate ?? wmDB.profile.birthDate,
         countryCode: data.countryCode ?? wmDB.profile.countryCode,
         travelerRoles: data.travelerRoles ?? wmDB.profile.travelerRoles,
         currentPlace: data.currentPlace ?? wmDB.profile.currentPlace,
@@ -749,13 +775,23 @@ export const updateMe = (payload) =>
         showDistance: data.showDistance ?? wmDB.profile.showDistance,
       }
       if (data.completeOnboarding) {
+        const n = String(wmDB.profile.nickname || '').trim()
+        const incomplete =
+          !n ||
+          /^旅人.{1,28}$/.test(n) ||
+          (wmDB.profile.gender !== 'male' && wmDB.profile.gender !== 'female') ||
+          !wmDB.profile.birthDate
+        if (incomplete) {
+          return { code: 400, message: '请完善昵称、性别与出生日期', data: null }
+        }
         wmDB.profile.onboardingCompletedAt = new Date().toISOString()
       }
+      wmDB.profile.profileComplete = computeMockProfileComplete(wmDB.profile)
       const uid = wmDB.profile.userId
       if (uid && wmDB.users?.[uid]) {
         wmDB.users[uid] = { ...wmDB.users[uid], gender: wmDB.profile.gender }
       }
-      return ok(wmDB.profile)
+      return ok(withMockProfileFields(wmDB.profile))
     },
   })
 

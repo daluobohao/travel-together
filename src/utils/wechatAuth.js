@@ -7,6 +7,9 @@ import {
   getLoginAcquisitionPayload,
 } from '@/utils/acquisitionSource'
 import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
+import { gateProfileAfterSilentLogin, needsMinimalProfile } from '@/utils/profileGate'
+
+export { needsMinimalProfile } from '@/utils/profileGate'
 
 const SKIP_SILENT_LOGIN_KEY = 'wm_skip_silent_login'
 const REDIRECT_URL_KEY = 'REDIRECT_URL'
@@ -143,14 +146,6 @@ export function applyLoginTokens(data) {
   refreshMessageUnreadSummary().catch(() => {})
 }
 
-/** 未完成极简引导：无 onboardingCompletedAt 或未选性别 */
-function needsMinimalProfile(user) {
-  if (user == null) return false
-  const oc = user.onboardingCompletedAt
-  const g = user.gender
-  const needGender = g === null || g === undefined || g === ''
-  return !oc || needGender
-}
 
 function reLaunchAfterLogin(url) {
   uni.reLaunch({
@@ -212,6 +207,7 @@ export function trySilentWechatLogin() {
       if (shouldSkipSilentLogin()) return false
       applyLoginTokens(data)
       clearAcquisitionAfterLogin()
+      gateProfileAfterSilentLogin(data.user)
       return true
     } catch {
       return false

@@ -12,6 +12,8 @@ export const wmDB = {
     nickname: '小林',
     avatarUrl: null,
     gender: null,
+    birthDate: null,
+    profileComplete: false,
     bio: '数字游民 · 周末出行爱好者',
     tags: ['digital_nomad', 'weekend'],
     status: 'active',

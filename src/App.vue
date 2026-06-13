@@ -2,6 +2,7 @@
 import { setMockEnabled } from '@/api'
 import { loadOnboardingConfig } from '@/config/onboarding'
 import { trySilentWechatLogin } from '@/utils/wechatAuth'
+import { redirectIfProfileIncomplete } from '@/utils/profileGate'
 import { captureLaunchAttribution } from '@/utils/acquisitionSource'
 import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
 // #ifdef MP-TOUTIAO
@@ -15,10 +16,14 @@ export default {
     console.log('WanderMeet App Launch', 'mock=', false)
     loadOnboardingConfig()
     // #ifdef MP-WEIXIN
-    trySilentWechatLogin().finally(() => refreshMessageUnreadSummary())
+    trySilentWechatLogin()
+      .then((ok) => (ok ? redirectIfProfileIncomplete() : false))
+      .finally(() => refreshMessageUnreadSummary())
     // #endif
     // #ifdef MP-TOUTIAO
-    trySilentDouyinLogin().finally(() => refreshMessageUnreadSummary())
+    trySilentDouyinLogin()
+      .then((ok) => (ok ? redirectIfProfileIncomplete() : false))
+      .finally(() => refreshMessageUnreadSummary())
     // #endif
     // #ifndef MP-WEIXIN || MP-TOUTIAO
     refreshMessageUnreadSummary()

@@ -269,6 +269,7 @@ import {
 } from '@/utils/activityShare'
 import { resolveChatBadgeCount } from '@/utils/chatBadge'
 import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
+import { redirectIfProfileIncomplete } from '@/utils/profileGate'
 
 export default {
   components: { WmIcon, WmTabBar, HomeFilterSheet },
@@ -400,7 +401,8 @@ export default {
     if (sharedId) this.sharedActivityId = sharedId
     this.loadCategoryTree()
   },
-  onShow() {
+  async onShow() {
+    if (await redirectIfProfileIncomplete()) return
     refreshMessageUnreadSummary()
     // #ifdef MP-WEIXIN
     try {

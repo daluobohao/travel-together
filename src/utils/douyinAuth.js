@@ -4,11 +4,8 @@ import {
   clearAcquisitionAfterLogin,
   getLoginAcquisitionPayload,
 } from '@/utils/acquisitionSource'
-import {
-  applyLoginTokens,
-  setSkipSilentLogin,
-  shouldSkipSilentLogin,
-} from '@/utils/wechatAuth'
+import { applyLoginTokens, setSkipSilentLogin, shouldSkipSilentLogin } from '@/utils/wechatAuth'
+import { gateProfileAfterSilentLogin } from '@/utils/profileGate'
 
 const TT_LOGIN_TIMEOUT_MS = 12000
 const LOG_PREFIX = '[douyinAuth]'
@@ -151,6 +148,7 @@ export function trySilentDouyinLogin() {
       if (shouldSkipSilentLogin()) return false
       applyLoginTokens(data)
       clearAcquisitionAfterLogin()
+      gateProfileAfterSilentLogin(data.user)
       console.log(`${LOG_PREFIX} 静默登录成功`)
       return true
     } catch (e) {

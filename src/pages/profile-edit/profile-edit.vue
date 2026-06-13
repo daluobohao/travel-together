@@ -1,16 +1,17 @@
 <template>
   <view class="page profile-edit">
     <view class="profile-edit__header">
-      <view class="profile-edit__back" @click="goBack">
+      <view v-if="!firstCompleteHint" class="profile-edit__back" @click="goBack">
         <wm-icon name="chevronLeft" :size="34" color="#0f172a" />
       </view>
+      <view v-else class="profile-edit__back profile-edit__back--placeholder" />
       <text class="profile-edit__title">{{ firstCompleteHint ? '完善资料' : '编辑个人信息' }}</text>
       <text class="profile-edit__save" @click="saveProfile">{{ firstCompleteHint ? '进入去旅聚' : '保存' }}</text>
     </view>
 
     <view class="profile-edit__content">
       <view v-if="firstCompleteHint" class="first-hint">
-        <text>设置昵称与性别即可开始；性别保存后不可修改，其余资料可在「我的」中补充</text>
+        <text>请填写昵称、性别与出生日期后再进入；性别保存后不可修改</text>
       </view>
       <view class="avatar-card" @click="onChooseAvatar">
         <view class="avatar-card__avatar">
@@ -53,6 +54,19 @@
         />
       </view>
 
+      <view class="field-card">
+        <text class="field-card__label">出生日期</text>
+        <picker mode="date" :value="form.birthDate" :end="todayStr" @change="onBirthDateChange">
+          <view class="field-card__picker">
+            <text :class="{ 'field-card__picker-placeholder': !form.birthDate }">
+              {{ birthDateDisplay }}
+            </text>
+            <wm-icon name="chevronRight" :size="28" color="#94a3b8" />
+          </view>
+        </picker>
+        <text v-if="firstCompleteHint" class="field-card__hint">用于展示年龄，默认 18 岁，可修改</text>
+      </view>
+
       <view v-if="!firstCompleteHint" class="field-card">
         <text class="field-card__label">个人简介</text>
         <textarea
@@ -74,6 +88,11 @@ import { formatUserGenderLabel, getMe, updateMe } from '@/api'
 import { ensureTextFieldsSafe, SEC_SCENE } from '@/utils/contentSecurity'
 import { chooseAndUploadAvatar } from '@/utils/avatarPicker'
 import { displayAvatarUrl } from '@/utils/avatarDisplay'
+import {
+  defaultBirthDate18YearsAgo,
+  isAutoNickname,
+  todayDateString,
+} from '@/utils/profileGate'
 
 export default {
   components: { WmIcon },
@@ -86,12 +105,13 @@ export default {
       genderOptions: [
         { value: 'male', label: '男' },
         { value: 'female', label: '女' },
-        { value: 'unspecified', label: '保密' },
       ],
+      todayStr: todayDateString(),
       form: {
-        name: '小林',
-        bio: '数字游民 · 周末出行爱好者',
+        name: '',
+        bio: '',
         gender: null,
+        birthDate: defaultBirthDate18YearsAgo(),
       },
     }
   },
@@ -105,6 +125,16 @@ export default {
     genderReadonlyDisplay() {
       return formatUserGenderLabel(this.serverGender) || '—'
     },
+    birthDateDisplay() {
+      return this.form.birthDate || '请选择出生日期'
+    },
+  },
+  onBackPress() {
+    if (this.firstCompleteHint) {
+      uni.showToast({ title: '请先完善资料', icon: 'none' })
+      return true
+    }
+    return false
   },
   async onLoad(query) {
     this.firstCompleteHint = query?.first === '1'
@@ -113,11 +143,13 @@ export default {
       const g = me.gender != null && me.gender !== '' ? me.gender : null
       this.serverGender = g
       this.avatarUrl = me.avatarUrl || ''
+      const nick = isAutoNickname(me.nickname) && this.firstCompleteHint ? '' : me.nickname || ''
       this.form = {
         ...this.form,
-        name: me.nickname || this.form.name,
+        name: nick,
         bio: me.bio || this.form.bio,
         gender: g,
+        birthDate: me.birthDate || this.form.birthDate || defaultBirthDate18YearsAgo(),
       }
       return
     } catch (e) {}
@@ -153,6 +185,10 @@ export default {
       if (this.genderLocked) return
       this.form.gender = value
     },
+    onBirthDateChange(e) {
+      const v = e?.detail?.value
+      if (v) this.form.birthDate = v
+    },
     goToAfterSave() {
       if (this.firstCompleteHint) {
         uni.reLaunch({ url: '/pages/home/home' })
@@ -166,7 +202,7 @@ export default {
     },
     goBack() {
       if (this.firstCompleteHint) {
-        uni.reLaunch({ url: '/pages/home/home' })
+        uni.showToast({ title: '请先完善资料', icon: 'none' })
         return
       }
       uni.navigateBack({
@@ -181,8 +217,16 @@ export default {
         uni.showToast({ title: '昵称不能为空', icon: 'none' })
         return
       }
+      if (isAutoNickname(name)) {
+        uni.showToast({ title: '请填写自己的昵称', icon: 'none' })
+        return
+      }
       if (!this.genderLocked && !this.form.gender) {
         uni.showToast({ title: '请选择性别', icon: 'none' })
+        return
+      }
+      if (!this.form.birthDate) {
+        uni.showToast({ title: '请选择出生日期', icon: 'none' })
         return
       }
 
@@ -201,6 +245,7 @@ export default {
       if (!this.genderLocked && this.form.gender) {
         payload.gender = this.form.gender
       }
+      payload.birthDate = this.form.birthDate
       if (this.firstCompleteHint) {
         payload.completeOnboarding = true
       }
@@ -254,6 +299,10 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
+
+    &--placeholder {
+      visibility: hidden;
+    }
   }
 
   &__title {
@@ -455,6 +504,23 @@ export default {
     font-size: 30rpx;
     color: $wm-text-1;
     font-weight: 600;
+  }
+
+  &__picker {
+    height: 84rpx;
+    border-radius: $wm-radius-md;
+    padding: 0 20rpx;
+    background: #fafafa;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 30rpx;
+    color: $wm-text-1;
+    font-weight: 500;
+  }
+
+  &__picker-placeholder {
+    color: $wm-text-3;
   }
 
   &__hint {

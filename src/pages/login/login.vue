@@ -228,8 +228,8 @@ export default {
   async onShow() {
     if (getAccessToken()) {
       try {
-        await getMe()
-        uni.reLaunch({ url: consumePostLoginRedirect('/pages/home/home') })
+        const me = await getMe()
+        navigateAfterLogin(me, { showToast: false })
         return
       } catch {
         clearWmAuthTokens()
