@@ -1382,6 +1382,9 @@ export const createActivity = (payload) =>
         feeAmount: data.feeAmount || null,
         rulesAccepted: data.rulesAccepted,
         activityStatus: 'pending_review',
+        coverImageUrl: Array.isArray(data.images) && data.images.length ? data.images[0] : null,
+        images: Array.isArray(data.images) ? data.images : null,
+        imagesAuditStatus: Array.isArray(data.images) && data.images.length ? 'pass' : 'none',
         organizer: { userId: wmDB.profile.userId, nickname: wmDB.profile.nickname, avatarUrl: null, verificationBadge: true },
         enrolledCount: 1,
         myEnrollment: { status: 'joined' },
@@ -1410,7 +1413,13 @@ export const updateActivity = (activityId, payload) =>
         (x) => String(x.activityId).replace(/^act_/, '') === bare,
       )
       if (idx === -1) return ok(null)
-      wmDB.activities[idx] = { ...wmDB.activities[idx], ...data }
+      const merged = { ...wmDB.activities[idx], ...data }
+      if (Array.isArray(data.images)) {
+        merged.images = data.images
+        merged.coverImageUrl = data.images.length ? data.images[0] : null
+        merged.imagesAuditStatus = data.images.length ? 'pass' : 'none'
+      }
+      wmDB.activities[idx] = merged
       return ok(wmDB.activities[idx])
     },
   })
@@ -2751,6 +2760,7 @@ export function mapActivityCard(card) {
     title: card.title,
     time: fmtTime(card.startAt),
     location: card.locationName,
+    coverImageUrl: card.coverImageUrl || null,
     distance: metersToKm(card.distanceMeters),
     joined: Number(card.enrolledCount || 0),
     total: Number(card.maxMembers || 0),

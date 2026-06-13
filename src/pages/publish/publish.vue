@@ -180,6 +180,21 @@
         />
         <text class="field__counter">{{ (form.description || '').length }} / 300</text>
       </view>
+
+      <view class="field">
+        <text class="field__label">活动图片（可选，最多 9 张）</text>
+        <text class="field__hint">首张为封面；审核通过前仅发起人可见</text>
+        <view class="img-grid">
+          <view v-for="(img, i) in activityImages" :key="i" class="img-cell">
+            <image :src="img" mode="aspectFill" class="img-cell__img" />
+            <text v-if="i === 0" class="img-cell__cover">封面</text>
+            <text class="img-cell__del" @click="removeActivityImage(i)">×</text>
+          </view>
+          <view v-if="activityImages.length < 9" class="img-cell img-cell--add" @click="pickActivityImages">
+            <text>+</text>
+          </view>
+        </view>
+      </view>
       </template>
 
       <view v-else class="field">
@@ -230,9 +245,10 @@
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import PublishPayModal from '@/components/PublishPayModal/PublishPayModal.vue'
-import { createActivity, getActivityCategories, getActivityDetail, getMe, isLoggedIn, redirectToLogin, updateActivity } from '@/api'
+import { createActivity, getActivityCategories, getActivityDetail, getMe, isLoggedIn, redirectToLogin, updateActivity, uploadActivityImage } from '@/api'
 import { apiActivityPathId } from '@/utils/activityId'
 import { ensureTextFieldsSafe, SEC_SCENE } from '@/utils/contentSecurity'
+import { prepareChatImageForUpload, validateChatImageFile } from '@/utils/avatarImage'
 import { loadPublishPayConfig, payBeforePublishActivity } from '@/pay/publishPay'
 import { PUBLISH_FEE_YUAN, publishFeeLabel } from '@/pay/constants'
 
@@ -283,6 +299,8 @@ export default {
         cost: '',
         description: '',
       },
+      activityImages: [],
+      uploadedActivityImages: [],
       publishing: false,
       publishPayEnabled: false,
       publishFeeYuan: String(PUBLISH_FEE_YUAN),
@@ -661,6 +679,9 @@ export default {
         this.form.lat = detail.lat != null ? Number(detail.lat) : null
         this.form.lng = detail.lng != null ? Number(detail.lng) : null
         this.form.capacity = String(detail.maxMembers || this.editEnrolledCount)
+        const imgs = Array.isArray(detail.images) ? detail.images : []
+        this.activityImages = [...imgs]
+        this.uploadedActivityImages = [...imgs]
         this.editLoaded = true
         await this.loadCategories()
       } catch (e) {
@@ -684,7 +705,41 @@ export default {
         lat: validated.lat,
         lng: validated.lng,
         maxMembers: validated.maxMembers,
+        images: this.uploadedActivityImages,
       }
+    },
+    pickActivityImages() {
+      if (this.editInProgressOnly) return
+      uni.chooseImage({
+        count: 9 - this.activityImages.length,
+        sizeType: ['compressed'],
+        sourceType: ['album', 'camera'],
+        success: async (res) => {
+          const paths = res.tempFilePaths || []
+          const sizes = res.tempFiles || []
+          for (let i = 0; i < paths.length; i += 1) {
+            const p = paths[i]
+            try {
+              const err = await validateChatImageFile(p, sizes[i]?.size)
+              if (err) {
+                uni.showToast({ title: err, icon: 'none' })
+                continue
+              }
+              const compressed = await prepareChatImageForUpload(p)
+              this.activityImages.push(compressed)
+              const d = await uploadActivityImage(compressed)
+              if (d?.imageUrl) this.uploadedActivityImages.push(d.imageUrl)
+            } catch (e) {
+              uni.showToast({ title: e?.message || '图片上传失败', icon: 'none' })
+            }
+          }
+        },
+      })
+    },
+    removeActivityImage(index) {
+      if (this.editInProgressOnly) return
+      this.activityImages.splice(index, 1)
+      this.uploadedActivityImages.splice(index, 1)
     },
     async doUpdateActivity(validated) {
       const pathId = apiActivityPathId(this.editActivityId)
@@ -779,6 +834,7 @@ export default {
           maxMembers: Number(this.form.capacity) || 8,
           feeType: 'aa',
           feeAmount: null,
+          images: this.uploadedActivityImages.length ? this.uploadedActivityImages : undefined,
           rulesAccepted: { noHarassment: true, noPromotion: true, noInappropriate: true },
         })
       } catch (e) {
@@ -1155,6 +1211,59 @@ export default {
     background: $wm-primary-soft;
     border-color: rgba(2, 132, 199, 0.35);
     font-weight: 700;
+  }
+}
+
+.img-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.img-cell {
+  width: 200rpx;
+  height: 200rpx;
+  position: relative;
+  border-radius: 12rpx;
+  overflow: hidden;
+  background: #f1f5f9;
+
+  &--add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48rpx;
+    color: #94a3b8;
+  }
+
+  &__img {
+    width: 100%;
+    height: 100%;
+  }
+
+  &__cover {
+    position: absolute;
+    left: 8rpx;
+    bottom: 8rpx;
+    padding: 4rpx 12rpx;
+    border-radius: 999rpx;
+    font-size: 20rpx;
+    color: #fff;
+    background: rgba(15, 23, 42, 0.55);
+  }
+
+  &__del {
+    position: absolute;
+    top: 4rpx;
+    right: 8rpx;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    width: 36rpx;
+    height: 36rpx;
+    text-align: center;
+    line-height: 36rpx;
   }
 }
 </style>

@@ -143,6 +143,12 @@
         :style="{ animationDelay: `${index * 80}ms` }"
         @click="onOpenActivity(item)"
       >
+        <image
+          v-if="item.coverImageUrl"
+          class="card__cover"
+          :src="item.coverImageUrl"
+          mode="aspectFill"
+        />
         <view class="card__top">
           <view class="card__tags">
             <view v-if="item.sharedPin" class="tag tag--shared">
@@ -1210,6 +1216,13 @@ export default {
 
   &--shared-inactive {
     opacity: 0.92;
+  }
+
+  &__cover {
+    width: calc(100% + 64rpx);
+    height: 240rpx;
+    margin: -32rpx -32rpx 20rpx;
+    display: block;
   }
 
   &__top {

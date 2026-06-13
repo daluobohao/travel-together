@@ -51,17 +51,35 @@
     </view>
 
     <view class="detail__content" v-else-if="activity">
-      <view class="hero" :style="{ background: activity.cover }">
-        <view class="hero__tag-row">
-          <view class="hero__tag" :style="{ background: activity.tagBg, color: activity.tagColor }">
-            <text>{{ activity.category }}</text>
-          </view>
-          <view class="hero__tag hero__tag--verified">
-            <wm-icon name="check" :size="20" color="#10b981" />
-            <text>已认证</text>
-          </view>
+      <view class="hero" :class="{ 'hero--photo': activity.displayImages.length }">
+        <swiper
+          v-if="activity.displayImages.length"
+          class="hero__swiper"
+          circular
+          indicator-dots
+          indicator-color="rgba(255,255,255,0.45)"
+          indicator-active-color="#ffffff"
+        >
+          <swiper-item v-for="(img, idx) in activity.displayImages" :key="idx">
+            <image :src="img" mode="aspectFill" class="hero__photo" />
+          </swiper-item>
+        </swiper>
+        <view v-else class="hero__gradient" :style="{ background: activity.coverGradient }" />
+        <view v-if="activity.imagesAuditPending" class="hero__audit">
+          <text>图片审核中，通过后对所有人可见</text>
         </view>
-        <text class="hero__title">{{ activity.title }}</text>
+        <view class="hero__overlay">
+          <view class="hero__tag-row">
+            <view class="hero__tag" :style="{ background: activity.tagBg, color: activity.tagColor }">
+              <text>{{ activity.category }}</text>
+            </view>
+            <view class="hero__tag hero__tag--verified">
+              <wm-icon name="check" :size="20" color="#10b981" />
+              <text>已认证</text>
+            </view>
+          </view>
+          <text class="hero__title">{{ activity.title }}</text>
+        </view>
       </view>
 
       <view class="panel">
@@ -373,13 +391,25 @@ export default {
         const org = detail.organizer || {}
         const status = computeActivityStatus(detail)
         const catTag = resolveActivityCategoryTag(detail)
+        const meIsOrganizer = !!(meId && org.userId && String(org.userId) === String(meId))
+        const auditStatus = detail.imagesAuditStatus || 'none'
+        const imageList = Array.isArray(detail.images) ? detail.images.filter(Boolean) : []
+        let displayImages = []
+        if (auditStatus === 'pass' && imageList.length) {
+          displayImages = imageList
+        } else if (meIsOrganizer && imageList.length) {
+          displayImages = imageList
+        }
         this.activity = {
           id: String(detail.activityId || actId),
           category: catTag.label,
           tagColor: catTag.color,
           tagBg: catTag.bg,
           title: detail.title,
-          cover: 'linear-gradient(135deg, #a78bfa 0%, #6366f1 100%)',
+          coverGradient: 'linear-gradient(135deg, #a78bfa 0%, #6366f1 100%)',
+          displayImages,
+          imagesAuditPending: meIsOrganizer && auditStatus === 'pending' && imageList.length > 0,
+          imagesAuditStatus: auditStatus,
           time: formatActivityTimeRange(detail.startAt, detail.endAt),
           startAt: detail.startAt,
           endAt: detail.endAt,
@@ -823,10 +853,56 @@ export default {
 
 .hero {
   border-radius: $wm-radius-xl;
-  padding: 32rpx;
   color: #ffffff;
   position: relative;
   overflow: hidden;
+  min-height: 320rpx;
+
+  &--photo {
+    min-height: 420rpx;
+  }
+
+  &__gradient {
+    position: absolute;
+    inset: 0;
+  }
+
+  &__swiper,
+  &__photo {
+    width: 100%;
+    height: 420rpx;
+  }
+
+  &__overlay {
+    position: relative;
+    z-index: 2;
+    padding: 32rpx;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.05) 0%, rgba(15, 23, 42, 0.55) 100%);
+    min-height: 320rpx;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+
+  &--photo &__overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    min-height: auto;
+  }
+
+  &__audit {
+    position: absolute;
+    top: 24rpx;
+    right: 24rpx;
+    z-index: 3;
+    padding: 8rpx 16rpx;
+    border-radius: 999rpx;
+    background: rgba(15, 23, 42, 0.72);
+    font-size: 22rpx;
+    color: #fde68a;
+  }
 
   &::after {
     content: '';
@@ -835,8 +911,9 @@ export default {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, transparent 50%, rgba(0, 0, 0, 0.15) 100%);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, transparent 50%, rgba(0, 0, 0, 0.12) 100%);
     pointer-events: none;
+    z-index: 1;
   }
 
   &__tag-row {
