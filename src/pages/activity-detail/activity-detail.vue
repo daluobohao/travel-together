@@ -90,12 +90,20 @@
             <text class="meta-item__value">{{ activity.time }}</text>
           </view>
         </view>
-        <view class="meta-item">
+        <view
+          class="meta-item"
+          :class="{ 'meta-item--link': canOpenActivityLocation }"
+          @click="onOpenActivityLocation"
+        >
           <wm-icon name="mapPin" :size="30" color="#6366f1" />
-          <view class="meta-item__body">
+          <view class="meta-item__body meta-item__body--grow">
             <text class="meta-item__label">活动地点</text>
-            <text class="meta-item__value">{{ activity.location }} · {{ activity.distance }}</text>
+            <text
+              class="meta-item__value"
+              :class="{ 'meta-item__value--link': canOpenActivityLocation }"
+            >{{ locationDisplayText }}</text>
           </view>
+          <wm-icon v-if="canOpenActivityLocation" name="chevronRight" :size="28" color="#6366f1" />
         </view>
         <view class="meta-item">
           <wm-icon name="users" :size="30" color="#6366f1" />
@@ -228,6 +236,7 @@ import { SHARE_SRC_FRIEND, SHARE_SRC_TIMELINE } from '@/utils/acquisitionSource'
 import { ensurePhoneBound, PHONE_GATE_REASON } from '@/utils/phoneGate'
 import { confirmCancelActivity } from '@/utils/activityCancel'
 import { isActivityOrganizer } from '@/utils/activityPermission'
+import { openFeedLocationOnMap } from '@/utils/feedLocation'
 
 export default {
   components: { WmIcon, FeedPostCard },
@@ -267,6 +276,21 @@ export default {
         startAt: this.activity?.startAt,
         endAt: this.activity?.endAt,
       })
+    },
+    canOpenActivityLocation() {
+      const a = this.activity
+      if (!a) return false
+      const lat = Number(a.lat)
+      const lng = Number(a.lng)
+      return Number.isFinite(lat) && Number.isFinite(lng)
+    },
+    locationDisplayText() {
+      if (!this.activity) return ''
+      const loc = this.activity.location || '待定'
+      const parts = [loc]
+      if (this.activity.distance) parts.push(this.activity.distance)
+      else if (this.canOpenActivityLocation) parts.push('查看地图')
+      return parts.join(' · ')
     },
     actionText() {
       if (!this.activity) return ''
@@ -516,6 +540,17 @@ export default {
         onSuccess: () => {
           this.loadActivity(this.activityId)
         },
+      })
+    },
+    onOpenActivityLocation() {
+      if (!this.canOpenActivityLocation) {
+        uni.showToast({ title: '暂无位置坐标', icon: 'none' })
+        return
+      }
+      openFeedLocationOnMap({
+        lat: this.activity.lat,
+        lng: this.activity.lng,
+        locationName: this.activity.location,
       })
     },
     onPublishActivityPost() {
@@ -1006,14 +1041,21 @@ export default {
     border-bottom: none;
   }
 
-  &:active {
-    background: $wm-primary-soft;
+  &--link {
+    &:active {
+      background: $wm-primary-soft;
+    }
   }
 
   &__body {
     display: flex;
     flex-direction: column;
     gap: 6rpx;
+
+    &--grow {
+      flex: 1;
+      min-width: 0;
+    }
   }
 
   &__label {
@@ -1026,6 +1068,10 @@ export default {
     font-size: 30rpx;
     color: $wm-text-1;
     font-weight: 600;
+
+    &--link {
+      color: $wm-primary;
+    }
   }
 }
 

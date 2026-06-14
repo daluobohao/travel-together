@@ -6,6 +6,7 @@ import {
 } from '@/constants/activityCategories'
 import { wmRequest, paginate } from './client'
 import { clearWmAuthTokens, getMockEnabled, setAccessToken, setRefreshToken } from './config'
+import { filterPlatformNotifications, isPlatformNotificationType } from '@/utils/platformNotification'
 import cityHallPrefectures from './city_hall_prefectures.json'
 import { provinceDisplayName } from './china_province_display.js'
 import { wmDB, toActivityCard } from '@/mock/wandermeet-db'
@@ -1961,7 +1962,7 @@ export const getNotifications = (query = {}) =>
     path: '/notifications',
     query,
     mockHandler: ({ query: q }) => {
-      let list = wmDB.notifications.slice()
+      let list = filterPlatformNotifications(wmDB.notifications.slice())
       if (q.read === 'unread') list = list.filter((x) => !x.readAt)
       return ok(paginate(list, q.page, q.pageSize))
     },
@@ -1984,10 +1985,13 @@ export const readAllNotifications = () =>
     path: '/notifications/read-all',
     mockHandler: () => {
       const now = new Date().toISOString()
+      let updated = 0
       wmDB.notifications.forEach((x) => {
-        x.readAt = x.readAt || now
+        if (!isPlatformNotificationType(x.type) || x.readAt) return
+        x.readAt = now
+        updated += 1
       })
-      return ok({ updatedCount: wmDB.notifications.length })
+      return ok({ updatedCount: updated })
     },
   })
 
@@ -2896,9 +2900,13 @@ export const getMyChats = (query = {}) =>
   wmRequest({
     method: 'GET',
     path: '/me/chats',
-    query: { page: query.page || 1, pageSize: query.pageSize || 5 },
+    query: {
+      page: query.page || 1,
+      pageSize: query.pageSize || 5,
+      ...(query.activityKind ? { activityKind: query.activityKind } : {}),
+    },
     mockHandler: ({ query: q }) => {
-      const rows = wmDB.activities
+      let rows = wmDB.activities
         .filter(
           (x) =>
             (x.myEnrollment && x.myEnrollment.status === 'joined') ||
@@ -2917,6 +2925,7 @@ export const getMyChats = (query = {}) =>
               : 0
           return {
             activityId: String(activity.activityId),
+            activityKind: activity.activityKind || 'event',
             title: activity.title,
             activityStatus: activity.activityStatus || 'published',
             memberCount,
@@ -2930,6 +2939,20 @@ export const getMyChats = (query = {}) =>
           const tb = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0
           return tb - ta
         })
+      if (q.activityKind === 'city_hall') {
+        rows = rows.filter((x) => x.activityKind === 'city_hall')
+      } else if (q.activityKind === 'event') {
+        rows = rows.filter((x) => x.activityKind !== 'city_hall')
+      } else {
+        rows = rows.sort((a, b) => {
+          const aHall = a.activityKind === 'city_hall' ? 0 : 1
+          const bHall = b.activityKind === 'city_hall' ? 0 : 1
+          if (aHall !== bHall) return aHall - bHall
+          const ta = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0
+          const tb = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0
+          return tb - ta
+        })
+      }
       return ok(paginate(rows, q.page, q.pageSize))
     },
   })
@@ -2951,7 +2974,8 @@ export const getMessageUnreadSummary = () =>
         else chatUnread += 2
       })
       chatUnread += (wmDB.dmThreads || []).length > 0 ? 1 : 0
-      const notifUnread = (wmDB.notifications || []).filter((n) => !n.readAt).length
+      const notifUnread = filterPlatformNotifications(wmDB.notifications || []).filter((n) => !n.readAt)
+        .length
       return ok({ chatUnread, notifUnread })
     },
   })

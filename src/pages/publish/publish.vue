@@ -169,14 +169,24 @@
         </view>
       </view>
 
-      <view class="field">
-        <text class="field__label">活动简介</text>
+      <view class="field field--textarea">
+        <view class="field__label-row">
+          <text class="field__label">活动简介</text>
+          <view class="field__textarea-actions">
+            <text class="field__textarea-action" @click.stop="pasteDescription">粘贴</text>
+            <text class="field__textarea-action" @click.stop="copyDescription">复制</text>
+          </view>
+        </view>
         <textarea
           v-model="form.description"
           class="field__textarea"
           placeholder="介绍一下活动的亮点、参与要求等"
           placeholder-class="field__placeholder"
           :maxlength="300"
+          :adjust-position="true"
+          :show-confirm-bar="true"
+          :hold-keyboard="true"
+          :cursor-spacing="24"
         />
         <text class="field__counter">{{ (form.description || '').length }} / 300</text>
       </view>
@@ -208,14 +218,24 @@
       </view>
       </template>
 
-      <view v-else class="field">
-        <text class="field__label">活动简介</text>
+      <view v-else class="field field--textarea">
+        <view class="field__label-row">
+          <text class="field__label">活动简介</text>
+          <view class="field__textarea-actions">
+            <text class="field__textarea-action" @click.stop="pasteDescription">粘贴</text>
+            <text class="field__textarea-action" @click.stop="copyDescription">复制</text>
+          </view>
+        </view>
         <textarea
           v-model="form.description"
           class="field__textarea"
           placeholder="简短介绍活动亮点，详情页展示；完整说明可在「活动说明页」编辑"
           placeholder-class="field__placeholder"
           :maxlength="300"
+          :adjust-position="true"
+          :show-confirm-bar="true"
+          :hold-keyboard="true"
+          :cursor-spacing="24"
         />
         <text class="field__counter">{{ (form.description || '').length }} / 300</text>
       </view>
@@ -472,6 +492,44 @@ export default {
       const cc = String(picked.cityCode || '').trim()
       this.form.cityCode = /^\d{6}$/.test(cc) ? cc : ''
       uni.removeStorageSync('PUBLISH_LOCATION_PICK_RESULT')
+    },
+    pasteDescription() {
+      uni.getClipboardData({
+        success: (res) => {
+          const clip = String(res?.data || '')
+          if (!clip.trim()) {
+            uni.showToast({ title: '剪贴板为空', icon: 'none' })
+            return
+          }
+          const base = this.form.description || ''
+          const merged = base + clip
+          if (merged.length > 300) {
+            this.form.description = merged.slice(0, 300)
+            uni.showToast({ title: '已粘贴，超出部分已截断', icon: 'none' })
+            return
+          }
+          this.form.description = merged
+        },
+        fail: () => {
+          uni.showToast({ title: '无法读取剪贴板', icon: 'none' })
+        },
+      })
+    },
+    copyDescription() {
+      const text = String(this.form.description || '')
+      if (!text.trim()) {
+        uni.showToast({ title: '暂无内容可复制', icon: 'none' })
+        return
+      }
+      uni.setClipboardData({
+        data: text,
+        success: () => {
+          uni.showToast({ title: '已复制', icon: 'success' })
+        },
+        fail: () => {
+          uni.showToast({ title: '复制失败', icon: 'none' })
+        },
+      })
     },
     async loadCategories() {
       let list = []
@@ -1123,6 +1181,40 @@ export default {
     padding-right: 0;
   }
 
+  &--textarea {
+    overflow: visible;
+
+    &:active {
+      transform: none;
+      box-shadow: $wm-shadow-md;
+
+      &::before {
+        opacity: 0;
+      }
+    }
+  }
+
+  &__label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16rpx;
+  }
+
+  &__textarea-actions {
+    display: flex;
+    align-items: center;
+    gap: 20rpx;
+    flex-shrink: 0;
+  }
+
+  &__textarea-action {
+    font-size: 24rpx;
+    color: $wm-primary;
+    font-weight: 600;
+    padding: 4rpx 0;
+  }
+
   &__label {
     font-size: 26rpx;
     color: $wm-text-2;
@@ -1152,6 +1244,10 @@ export default {
     background: transparent;
     line-height: 1.6;
     font-weight: 500;
+    position: relative;
+    z-index: 1;
+    user-select: text;
+    -webkit-user-select: text;
   }
 
   &__placeholder {

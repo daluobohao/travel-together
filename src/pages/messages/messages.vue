@@ -12,12 +12,15 @@
           @click="activeTab = tab.key"
         >
           <text>{{ tab.label }}</text>
-          <view v-if="tab.key === 'group' ? hasUnreadGroup : tab.key === 'private' ? hasUnreadPrivate : tab.badge" class="tab__dot"></view>
+          <view
+            v-if="
+              (tab.key === 'group' && hasUnreadGroup) ||
+              (tab.key === 'private' && hasUnreadPrivate) ||
+              (tab.key === 'system' && hasUnreadNotif)
+            "
+            class="tab__dot"
+          ></view>
         </view>
-      </view>
-      <view class="messages__dm-entry" @click="goDmRequests">
-        <text class="messages__dm-entry-text">私聊申请</text>
-        <wm-icon name="chevronRight" :size="28" color="#6366f1" />
       </view>
     </view>
 
@@ -48,52 +51,122 @@
     <!-- Actual Content -->
     <template v-else>
       <!-- Group chats -->
-      <view v-if="activeTab === 'group'" class="messages__list">
-        <view v-if="!groupChats.length" class="messages__empty">
-          <text>还没有活动群聊，报名一个活动就能进群</text>
+      <view v-if="activeTab === 'group'" class="messages__group">
+        <view v-if="!cityHallChats.length && !eventChats.length" class="messages__empty">
+          <text>还没有群聊，加入城市大群或报名活动即可开始交流</text>
         </view>
-        <view
-          v-for="chat in groupChats"
-          :key="chat.id"
-          class="chat"
-          hover-class="chat--hover"
-          @click="onOpenGroup(chat)"
-        >
-          <view class="chat__avatar" :style="{ background: chat.color }">
-            <wm-icon name="message" :size="40" color="#ffffff" />
-          </view>
-          <view class="chat__body">
-            <view class="chat__top">
-              <text class="chat__name">{{ chat.name }}</text>
-              <view v-if="chat.isCityHall" class="chat__tag-city">
-                <text>同城</text>
+        <template v-else>
+          <view v-if="cityHallChats.length" class="messages__block">
+            <text class="messages__block-title">城市大群</text>
+            <text class="messages__block-desc">同城交流群，长期开放</text>
+            <view class="messages__block-list">
+              <view
+                v-for="chat in cityHallChats"
+                :key="chat.id"
+                class="chat chat--city-hall"
+                hover-class="chat--hover"
+                @click="onOpenGroup(chat)"
+              >
+                <view class="chat__avatar" :style="{ background: chat.color }">
+                  <wm-icon name="message" :size="40" color="#ffffff" />
+                </view>
+                <view class="chat__body">
+                  <view class="chat__top">
+                    <text class="chat__name">{{ chat.name }}</text>
+                    <text class="chat__time">{{ chat.time }}</text>
+                  </view>
+                  <view class="chat__bottom">
+                    <text class="chat__msg">
+                      <text class="chat__sender">{{ chat.sender }}：</text>{{ chat.preview }}
+                    </text>
+                    <view v-if="chat.unread" class="chat__badge">
+                      <text>{{ formatChatBadgeCount(chat.unread) }}</text>
+                    </view>
+                  </view>
+                </view>
               </view>
-              <text class="chat__time">{{ chat.time }}</text>
             </view>
-            <view class="chat__bottom">
-              <text class="chat__msg">
-                <text class="chat__sender">{{ chat.sender }}：</text>{{ chat.preview }}
-              </text>
-              <view v-if="chat.unread" class="chat__badge">
-                <text>{{ formatChatBadgeCount(chat.unread) }}</text>
-              </view>
+            <view
+              v-if="cityHallHasMore"
+              class="messages__more messages__more--section"
+              :class="{ 'messages__more--disabled': cityHallLoadingMore }"
+              @click="loadMoreCityHall"
+            >
+              <text v-if="cityHallLoadingMore">加载中…</text>
+              <text v-else>加载更多（{{ cityHallChats.length }}/{{ cityHallTotal }}）</text>
             </view>
           </view>
-        </view>
-        <view
-          v-if="groupChats.length"
-          class="messages__more"
-          :class="{ 'messages__more--disabled': groupLoadingMore || !groupHasMore }"
-          @click="loadMoreGroup"
-        >
-          <text v-if="groupLoadingMore">加载中…</text>
-          <text v-else-if="groupHasMore">加载更多（{{ groupChats.length }}/{{ groupTotal }}）</text>
-          <text v-else>没有更多了</text>
-        </view>
+          <view
+            v-else-if="eventChats.length"
+            class="messages__city-hall-hint"
+            hover-class="messages__city-hall-hint--hover"
+            @click="goCityHall"
+          >
+            <view class="messages__city-hall-hint-main">
+              <wm-icon name="users" :size="32" color="#6366f1" />
+              <view class="messages__city-hall-hint-text">
+                <text class="messages__city-hall-hint-title">加入城市大群</text>
+                <text class="messages__city-hall-hint-sub">与同城旅人长期交流，拼饭找搭子</text>
+              </view>
+            </view>
+            <wm-icon name="chevronRight" :size="28" color="#6366f1" />
+          </view>
+
+          <view v-if="eventChats.length" class="messages__block">
+            <text class="messages__block-title">普通群聊</text>
+            <text class="messages__block-desc">报名活动后自动加入</text>
+            <view class="messages__block-list">
+              <view
+                v-for="chat in eventChats"
+                :key="chat.id"
+                class="chat"
+                hover-class="chat--hover"
+                @click="onOpenGroup(chat)"
+              >
+                <view class="chat__avatar" :style="{ background: chat.color }">
+                  <wm-icon name="message" :size="40" color="#ffffff" />
+                </view>
+                <view class="chat__body">
+                  <view class="chat__top">
+                    <text class="chat__name">{{ chat.name }}</text>
+                    <text class="chat__time">{{ chat.time }}</text>
+                  </view>
+                  <view class="chat__bottom">
+                    <text class="chat__msg">
+                      <text class="chat__sender">{{ chat.sender }}：</text>{{ chat.preview }}
+                    </text>
+                    <view v-if="chat.unread" class="chat__badge">
+                      <text>{{ formatChatBadgeCount(chat.unread) }}</text>
+                    </view>
+                  </view>
+                </view>
+              </view>
+            </view>
+            <view
+              v-if="eventHasMore"
+              class="messages__more messages__more--section"
+              :class="{ 'messages__more--disabled': eventLoadingMore }"
+              @click="loadMoreEvent"
+            >
+              <text v-if="eventLoadingMore">加载中…</text>
+              <text v-else>加载更多（{{ eventChats.length }}/{{ eventTotal }}）</text>
+            </view>
+          </view>
+        </template>
       </view>
 
       <!-- 私聊 -->
       <view v-if="activeTab === 'private'" class="messages__list">
+        <view class="messages__dm-entry" @click="goDmRequests">
+          <view class="messages__dm-entry-main">
+            <wm-icon name="message" :size="32" color="#6366f1" />
+            <text class="messages__dm-entry-text">私聊申请</text>
+            <view v-if="pendingDmRequestCount > 0" class="messages__dm-entry-badge">
+              <text>{{ pendingDmRequestCount > 99 ? '99+' : pendingDmRequestCount }}</text>
+            </view>
+          </view>
+          <wm-icon name="chevronRight" :size="28" color="#6366f1" />
+        </view>
         <view v-if="!privateChats.length" class="messages__empty">
           <text>暂无私聊，可在活动群聊中点击对方头像申请私聊</text>
         </view>
@@ -175,36 +248,6 @@
         </view>
       </view>
 
-      <!-- Bottom: always show system section in group tab as preview -->
-      <view v-if="activeTab === 'group'" class="messages__section">
-        <view class="messages__section-head">
-          <text class="messages__section-title">系统通知</text>
-          <text v-if="systemNotifs.length" class="messages__section-more" @click="activeTab = 'system'">
-            查看全部
-          </text>
-        </view>
-        <view class="messages__list messages__list--tight">
-          <view
-            v-for="item in systemNotifs.slice(0, 3)"
-            :key="item.id"
-            class="system system--compact"
-            :class="{ 'system--unread': !item.read }"
-            @click="onTapNotif(item)"
-          >
-            <view class="system__icon" :style="{ background: item.bg, color: item.color }">
-              <wm-icon :name="item.icon" :size="32" :color="item.color" />
-            </view>
-            <view class="system__body">
-              <view class="system__top">
-                <text class="system__title">{{ item.title }}</text>
-                <text class="system__time">{{ item.time }}</text>
-              </view>
-              <text class="system__desc">{{ item.desc }}</text>
-            </view>
-            <view v-if="!item.read" class="system__dot"></view>
-          </view>
-        </view>
-      </view>
     </template>
 
     <wm-tab-bar
@@ -213,20 +256,12 @@
       :notif-unread="tabBarNotifUnread"
     />
 
-    <dm-request-action-sheet
-      :visible="dmRequestSheetVisible"
-      :request="dmRequestSheetRequest"
-      :current-user-id="currentUserId"
-      @update:visible="dmRequestSheetVisible = $event"
-      @done="onDmRequestDone"
-    />
   </view>
 </template>
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
-import DmRequestActionSheet from '@/components/DmRequestActionSheet/DmRequestActionSheet.vue'
 import {
   getMyChats,
   getDirectChats,
@@ -234,11 +269,11 @@ import {
   getNotifications,
   readAllNotifications,
   readNotification,
-  findDmRequest,
-  getMe,
+  listDmRequests,
   isLoggedIn,
   redirectToLogin,
 } from '@/api'
+import { filterPlatformNotifications } from '@/utils/platformNotification'
 import { formatChatBadgeCount } from '@/utils/chatBadge'
 import {
   publishTabUnreadFromLists,
@@ -270,6 +305,10 @@ const NOTIF_ICON_MAP = {
   default: { icon: 'bell', bg: '#eef2ff', color: '#6366f1' },
 }
 
+function mapNotifList(rows) {
+  return filterPlatformNotifications(rows || []).map(mapNotif)
+}
+
 function mapNotif(x) {
   const style = NOTIF_ICON_MAP[x.type] || NOTIF_ICON_MAP.default
   return {
@@ -287,20 +326,22 @@ function mapNotif(x) {
 }
 
 function mapGroupChat(item, idx) {
-  const colors = [
+  const isCityHall = item.activityKind === 'city_hall'
+  const eventColors = [
     'linear-gradient(135deg, #38bdf8, #0284c7)',
     'linear-gradient(135deg, #60a5fa, #6366f1)',
     'linear-gradient(135deg, #14b8a6, #0f7669)',
   ]
+  const cityHallColor = 'linear-gradient(135deg, #818cf8, #4f46e5)'
   return {
     id: String(item.activityId),
-    name: item.title || '活动群聊',
-    isCityHall: item.activityKind === 'city_hall',
+    name: item.title || (isCityHall ? '城市大群' : '活动群聊'),
+    isCityHall,
     sender: item.memberCount ? `${item.memberCount}人` : '群聊',
     preview: item.lastMessage || '暂无消息',
     time: relativeTime(item.lastMessageAt) || '最近',
     unread: Number(item.unreadCount || 0),
-    color: colors[idx % colors.length],
+    color: isCityHall ? cityHallColor : eventColors[idx % eventColors.length],
   }
 }
 
@@ -321,7 +362,7 @@ function mapPrivateChat(item) {
 }
 
 export default {
-  components: { WmIcon, WmTabBar, DmRequestActionSheet },
+  components: { WmIcon, WmTabBar },
   data() {
     return {
       activeTab: 'group',
@@ -330,14 +371,20 @@ export default {
         { key: 'private', label: '私聊', badge: false },
         { key: 'system', label: '系统通知' },
       ],
-      groupChats: [],
+      cityHallChats: [],
+      eventChats: [],
       privateChats: [],
       systemNotifs: [],
+      pendingDmRequestCount: 0,
       loading: false,
-      groupPage: 1,
-      groupTotal: 0,
-      groupHasMore: false,
-      groupLoadingMore: false,
+      cityHallPage: 1,
+      cityHallTotal: 0,
+      cityHallHasMore: false,
+      cityHallLoadingMore: false,
+      eventPage: 1,
+      eventTotal: 0,
+      eventHasMore: false,
+      eventLoadingMore: false,
       privatePage: 1,
       privateTotal: 0,
       privateHasMore: false,
@@ -347,16 +394,14 @@ export default {
       notifHasMore: false,
       notifLoadingMore: false,
       loggedIn: false,
-      currentUserId: '',
-      dmRequestSheetVisible: false,
-      dmRequestSheetRequest: null,
     }
   },
   computed: {
     hasUnreadGroup() {
-      return this.groupChats.some((x) => Number(x.unread || 0) > 0)
+      return [...this.cityHallChats, ...this.eventChats].some((x) => Number(x.unread || 0) > 0)
     },
     hasUnreadPrivate() {
+      if (this.pendingDmRequestCount > 0) return true
       return this.privateChats.some((x) => Number(x.unread || 0) > 0)
     },
     hasUnreadNotif() {
@@ -364,7 +409,10 @@ export default {
     },
     tabBarChatUnread() {
       let n = 0
-      this.groupChats.forEach((x) => {
+      this.cityHallChats.forEach((x) => {
+        n += Number(x.unread) || 0
+      })
+      this.eventChats.forEach((x) => {
         n += Number(x.unread) || 0
       })
       this.privateChats.forEach((x) => {
@@ -381,9 +429,11 @@ export default {
     this.loggedIn = isLoggedIn()
     if (!this.loggedIn) {
       this.loading = false
-      this.groupChats = []
+      this.cityHallChats = []
+      this.eventChats = []
       this.privateChats = []
       this.systemNotifs = []
+      this.pendingDmRequestCount = 0
       return
     }
     this.loadMessages()
@@ -398,39 +448,83 @@ export default {
       this[`${prefix}Total`] = total
       this[`${prefix}HasMore`] = listLength < total
     },
+    _applySectionPagination(prefix, data, listLength) {
+      const total = Number(data?.total) || 0
+      this[`${prefix}Total`] = total
+      this[`${prefix}HasMore`] = listLength < total
+    },
+    async fetchCityHallChats(reset) {
+      const page = reset ? 1 : this.cityHallPage + 1
+      const data = await getMyChats({
+        page,
+        pageSize: LIST_PAGE_SIZE,
+        activityKind: 'city_hall',
+      })
+      const rows = (data?.list || []).map((item, idx) =>
+        mapGroupChat(item, reset ? idx : this.cityHallChats.length + idx),
+      )
+      this.cityHallChats = reset ? rows : [...this.cityHallChats, ...rows]
+      this.cityHallPage = page
+      this._applySectionPagination('cityHall', data, this.cityHallChats.length)
+      return data
+    },
+    async fetchEventChats(reset) {
+      const page = reset ? 1 : this.eventPage + 1
+      const data = await getMyChats({
+        page,
+        pageSize: LIST_PAGE_SIZE,
+        activityKind: 'event',
+      })
+      const rows = (data?.list || []).map((item, idx) =>
+        mapGroupChat(item, reset ? idx : this.eventChats.length + idx),
+      )
+      this.eventChats = reset ? rows : [...this.eventChats, ...rows]
+      this.eventPage = page
+      this._applySectionPagination('event', data, this.eventChats.length)
+      return data
+    },
     async loadMessages() {
       this.loading = true
-      this.groupPage = 1
+      this.cityHallPage = 1
+      this.eventPage = 1
       this.privatePage = 1
       this.notifPage = 1
       try {
-        const [convData, dmData, notifData, me] = await Promise.all([
-          getMyChats({ page: 1, pageSize: LIST_PAGE_SIZE }),
+        const [, , dmData, notifData, dmPendingData] = await Promise.all([
+          this.fetchCityHallChats(true),
+          this.fetchEventChats(true),
           getDirectChats({ page: 1, pageSize: LIST_PAGE_SIZE }),
           getNotifications({ page: 1, pageSize: LIST_PAGE_SIZE }),
-          getMe().catch(() => null),
+          listDmRequests({ direction: 'incoming', status: 'pending', page: 1, pageSize: 50 }).catch(
+            () => ({ list: [], total: 0 }),
+          ),
         ])
-        this.currentUserId = me?.userId || ''
-        this.groupChats = (convData?.list || []).map((item, idx) => mapGroupChat(item, idx))
         this.privateChats = (dmData?.list || []).map(mapPrivateChat)
-        this.systemNotifs = (notifData?.list || []).map(mapNotif)
-        this._applyPaginationState('group', convData, this.groupChats.length)
+        this.systemNotifs = mapNotifList(notifData?.list)
+        this.pendingDmRequestCount = (dmPendingData?.list || []).length
         this._applyPaginationState('private', dmData, this.privateChats.length)
         this._applyPaginationState('notif', notifData, this.systemNotifs.length)
-        publishTabUnreadFromLists(this.groupChats, this.privateChats, this.systemNotifs)
+        publishTabUnreadFromLists(
+          [...this.cityHallChats, ...this.eventChats],
+          this.privateChats,
+          this.systemNotifs,
+        )
       } catch (e) {
         if (e.isAuthError) {
           this.loggedIn = false
-          this.groupChats = []
+          this.cityHallChats = []
+          this.eventChats = []
           this.privateChats = []
           this.systemNotifs = []
           uni.showToast({ title: '请先登录', icon: 'none' })
           return
         }
-        this.groupChats = []
+        this.cityHallChats = []
+        this.eventChats = []
         this.privateChats = []
         this.systemNotifs = []
-        this.groupHasMore = false
+        this.cityHallHasMore = false
+        this.eventHasMore = false
         this.privateHasMore = false
         this.notifHasMore = false
         uni.showToast({ title: e?.message || '消息加载失败', icon: 'none' })
@@ -439,21 +533,26 @@ export default {
         refreshMessageUnreadSummary()
       }
     },
-    async loadMoreGroup() {
-      if (!this.groupHasMore || this.groupLoadingMore || this.loading) return
-      this.groupLoadingMore = true
+    async loadMoreCityHall() {
+      if (!this.cityHallHasMore || this.cityHallLoadingMore || this.loading) return
+      this.cityHallLoadingMore = true
       try {
-        const next = this.groupPage + 1
-        const data = await getMyChats({ page: next, pageSize: LIST_PAGE_SIZE })
-        const base = this.groupChats.length
-        const incoming = (data?.list || []).map((item, idx) => mapGroupChat(item, base + idx))
-        this.groupChats = [...this.groupChats, ...incoming]
-        this.groupPage = next
-        this._applyPaginationState('group', data, this.groupChats.length)
+        await this.fetchCityHallChats(false)
       } catch (e) {
         uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
       } finally {
-        this.groupLoadingMore = false
+        this.cityHallLoadingMore = false
+      }
+    },
+    async loadMoreEvent() {
+      if (!this.eventHasMore || this.eventLoadingMore || this.loading) return
+      this.eventLoadingMore = true
+      try {
+        await this.fetchEventChats(false)
+      } catch (e) {
+        uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
+      } finally {
+        this.eventLoadingMore = false
       }
     },
     async loadMorePrivate() {
@@ -478,7 +577,7 @@ export default {
       try {
         const next = this.notifPage + 1
         const data = await getNotifications({ page: next, pageSize: LIST_PAGE_SIZE })
-        const incoming = (data?.list || []).map(mapNotif)
+        const incoming = mapNotifList(data?.list)
         this.systemNotifs = [...this.systemNotifs, ...incoming]
         this.notifPage = next
         this._applyPaginationState('notif', data, this.systemNotifs.length)
@@ -494,6 +593,13 @@ export default {
         return
       }
       uni.navigateTo({ url: '/pages/dm-requests/dm-requests' })
+    },
+    goCityHall() {
+      if (!this.loggedIn) {
+        this.goLogin()
+        return
+      }
+      uni.navigateTo({ url: '/pages/city-hall/city-hall' })
     },
     onOpenPrivate(chat) {
       if (!chat?.threadId) return
@@ -536,33 +642,7 @@ export default {
     },
     async onTapNotif(item) {
       if (!item) return
-      if (item.type === 'dm_request' && item.payload?.dmRequestId) {
-        uni.showLoading({ title: '加载中…', mask: true })
-        try {
-          if (!this.currentUserId) {
-            const me = await getMe().catch(() => null)
-            this.currentUserId = me?.userId || ''
-          }
-          const req = await findDmRequest(item.payload.dmRequestId)
-          if (!req) {
-            uni.showToast({ title: '申请不存在或已处理', icon: 'none' })
-            await this.markNotifRead(item)
-            return
-          }
-          this.dmRequestSheetRequest = req
-          this.dmRequestSheetVisible = true
-          await this.markNotifRead(item)
-        } catch (e) {
-          uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
-        } finally {
-          uni.hideLoading()
-        }
-        return
-      }
       await this.markNotifRead(item)
-    },
-    onDmRequestDone() {
-      this.loadMessages()
     },
     async onReadNotif(item) {
       await this.markNotifRead(item)
@@ -612,22 +692,129 @@ export default {
   }
 
   &__dm-entry {
-    margin-top: 8rpx;
-    padding: 12rpx 0 0;
+    background: #ffffff;
+    border-radius: $wm-radius-lg;
+    padding: 24rpx 28rpx;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    border: $wm-card-edge;
+    box-shadow: $wm-shadow-md;
+    margin-bottom: 4rpx;
+  }
+
+  &__dm-entry-main {
+    display: flex;
+    align-items: center;
+    gap: 14rpx;
+    min-width: 0;
   }
 
   &__dm-entry-text {
-    font-size: 28rpx;
-    color: $wm-primary;
+    font-size: 30rpx;
+    color: $wm-primary-deep;
     font-weight: 700;
+  }
+
+  &__dm-entry-badge {
+    min-width: 36rpx;
+    height: 36rpx;
+    padding: 0 10rpx;
+    border-radius: 999rpx;
+    background: $wm-danger;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    text {
+      font-size: 22rpx;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1;
+    }
   }
 
   &__tabs {
     display: flex;
     gap: 16rpx;
+  }
+
+  &__group {
+    padding: 28rpx 32rpx 0;
+  }
+
+  &__block {
+    margin-bottom: 28rpx;
+
+    &:last-of-type {
+      margin-bottom: 12rpx;
+    }
+  }
+
+  &__block-title {
+    display: block;
+    font-size: 28rpx;
+    font-weight: 700;
+    color: $wm-text-1;
+    margin-bottom: 8rpx;
+    padding-left: 4rpx;
+  }
+
+  &__block-desc {
+    display: block;
+    font-size: 22rpx;
+    color: $wm-text-3;
+    margin-bottom: 16rpx;
+    padding-left: 4rpx;
+  }
+
+  &__block-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20rpx;
+  }
+
+  &__city-hall-hint {
+    background: #ffffff;
+    border-radius: $wm-radius-lg;
+    padding: 24rpx 28rpx;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: $wm-card-edge;
+    box-shadow: $wm-shadow-md;
+    margin-bottom: 28rpx;
+  }
+
+  &__city-hall-hint--hover {
+    opacity: 0.92;
+  }
+
+  &__city-hall-hint-main {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__city-hall-hint-text {
+    display: flex;
+    flex-direction: column;
+    gap: 6rpx;
+    min-width: 0;
+  }
+
+  &__city-hall-hint-title {
+    font-size: 28rpx;
+    font-weight: 700;
+    color: $wm-primary-deep;
+  }
+
+  &__city-hall-hint-sub {
+    font-size: 22rpx;
+    color: $wm-text-3;
+    line-height: 1.4;
   }
 
   &__list {
@@ -640,18 +827,6 @@ export default {
       padding-top: 20rpx;
       gap: 16rpx;
     }
-  }
-
-  &__section {
-    padding: 44rpx 32rpx 32rpx;
-  }
-
-  &__section-title {
-    display: block;
-    font-size: 32rpx;
-    font-weight: 700;
-    color: $wm-text-1;
-    margin-bottom: 8rpx;
   }
 
   &__empty {
@@ -702,13 +877,17 @@ export default {
   }
 
   &__more {
-    margin: 8rpx 24rpx 24rpx;
+    margin: 8rpx 0 24rpx;
     padding: 24rpx;
     text-align: center;
     font-size: 26rpx;
     color: #6366f1;
     background: #f8fafc;
     border-radius: 12rpx;
+
+    &--section {
+      margin: 16rpx 0 0;
+    }
 
     &--disabled {
       color: #94a3b8;
@@ -731,19 +910,6 @@ export default {
     background: $wm-primary-soft;
     color: $wm-primary;
     font-size: 24rpx;
-    font-weight: 600;
-  }
-
-  &__section-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8rpx;
-  }
-
-  &__section-more {
-    font-size: 24rpx;
-    color: $wm-primary;
     font-weight: 600;
   }
 }
@@ -833,16 +999,6 @@ export default {
     color: $wm-text-1;
     flex: 1;
     min-width: 0;
-  }
-
-  &__tag-city {
-    padding: 4rpx 14rpx;
-    border-radius: 999rpx;
-    background: rgba(99, 102, 241, 0.12);
-    font-size: 20rpx;
-    color: #4f46e5;
-    font-weight: 600;
-    flex-shrink: 0;
   }
 
   &__time {

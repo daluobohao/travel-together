@@ -12,11 +12,6 @@
               <text class="home__slogan-b">今天见面</text>
             </text>
           </view>
-          <text class="home__subtitle">
-            <text v-if="citySubtitlePlace">{{ citySubtitlePlace }} · </text>
-            <text class="home__slogan-a">找搭子</text>
-            <text v-if="citySubtitleMeta"> · {{ citySubtitleMeta }}</text>
-          </text>
         </view>
         <view class="home__header-actions">
           <!-- #ifdef MP-WEIXIN -->
@@ -52,7 +47,6 @@
               <text v-if="!cityHallJoined" class="home__city-hall-badge">免费加入</text>
               <text v-else class="home__city-hall-badge home__city-hall-badge--joined">已加入</text>
             </view>
-            <text class="home__city-hall-desc">{{ cityHallDesc }}</text>
           </view>
           <view class="home__city-hall-cta">
             <view v-if="cityHallChatBadge" class="home__chat-badge">
@@ -62,26 +56,38 @@
           </view>
         </view>
       </view>
-      <view class="home__toolbar">
-        <view class="home__search" @click="onTapSearch">
-          <view class="home__search-inner">
-            <wm-icon name="search" :size="32" color="#94a3b8" />
-            <text class="home__search-text">{{ searchBarText }}</text>
-          </view>
-          <view
-            v-if="hasSearchAnchor"
-            class="home__search-clear"
-            @click.stop="onClearSearch"
-          >
-            <wm-icon name="close" :size="28" color="#64748b" />
+      <view class="home__toolbar-block">
+        <view class="home__toolbar">
+          <view class="home__search" @click="onTapSearch">
+            <view class="home__search-inner">
+              <wm-icon name="search" :size="32" color="#94a3b8" />
+              <text class="home__search-text">{{ searchBarText }}</text>
+            </view>
+            <view
+              v-if="hasSearchAnchor"
+              class="home__search-clear"
+              @click.stop="onClearSearch"
+            >
+              <wm-icon name="close" :size="28" color="#64748b" />
+            </view>
           </view>
         </view>
-        <view class="home__filter-btn" hover-class="home__filter-btn--hover" @click="openFilterSheet">
-          <text class="home__filter-btn-text">筛选</text>
-          <wm-icon name="chevronDown" :size="24" color="#64748b" />
-          <view v-if="filterBadgeCount" class="home__filter-badge">
-            <text>{{ filterBadgeCount }}</text>
+        <view v-if="!loading" class="home__toolbar-sub">
+          <view
+            class="home__filter-btn home__filter-btn--inline"
+            hover-class="home__filter-btn--hover"
+            @click.stop="openFilterSheet"
+          >
+            <wm-icon name="sliders" :size="28" color="#0f7669" />
+            <text class="home__filter-btn-text">筛选活动</text>
+            <wm-icon name="chevronDown" :size="26" color="#0f7669" />
+            <view v-if="filterBadgeCount" class="home__filter-badge">
+              <text>{{ filterBadgeCount }}</text>
+            </view>
           </view>
+          <text v-if="weekActivityCount > 0" class="home__list-meta">
+            近 7 天 {{ weekActivityCount }} 场可加入
+          </text>
         </view>
       </view>
       <view
@@ -127,7 +133,6 @@
 
     <!-- Activity list -->
     <view v-else class="home__list">
-      <text v-if="weekActivityCount > 0" class="home__list-meta">近 7 天 {{ weekActivityCount }} 场可加入</text>
       <view v-if="listFallbackHint" class="home__fallback-hint">
         <text>{{ listFallbackHint }}</text>
       </view>
@@ -297,34 +302,8 @@ export default {
     cityHallJoined() {
       return !!this.cityHallLookup?.joined
     },
-    cityHallMemberCount() {
-      return Number(this.cityHallLookup?.memberCount) || 0
-    },
     cityHallActivityId() {
       return this.cityHallLookup?.activityId || ''
-    },
-    citySubtitlePlace() {
-      const code = (this.activityAnchor?.cityCode && String(this.activityAnchor.cityCode).trim()) || ''
-      const fromCatalog = code ? resolveCityHallCityName(code) : ''
-      if (fromCatalog) return fromCatalog.replace(/市$/, '') || fromCatalog
-      const place =
-        (this.activityAnchor?.displayName && String(this.activityAnchor.displayName).trim()) ||
-        (this.cityHallCityLabel && String(this.cityHallCityLabel).trim()) ||
-        ''
-      if (!place || place === '定位中') return ''
-      return place
-    },
-    citySubtitleMeta() {
-      const parts = []
-      if (this.cityHallMemberCount > 0) {
-        parts.push(`${this.cityHallMemberCount} 人在聊`)
-      }
-      if (this.weekActivityCount > 0) {
-        parts.push(`近 7 天 ${this.weekActivityCount} 场可加入`)
-      } else {
-        parts.push('进群或报名活动')
-      }
-      return parts.join(' · ')
     },
     searchBarText() {
       if (this.hasSearchAnchor && this.activityAnchor?.displayName) {
@@ -346,15 +325,6 @@ export default {
     cityHallTitle() {
       if (this.cityHallCityLabel) return `【${this.cityHallCityLabel}】同城群`
       return '城市大群 · 选城市进群'
-    },
-    cityHallDesc() {
-      if (this.cityHallJoined && this.cityHallMemberCount > 0) {
-        return `${this.cityHallMemberCount} 位旅人在聊 · 找搭子先从这里开始`
-      }
-      if (this.cityHallMemberCount > 0) {
-        return `${this.cityHallMemberCount} 位旅人在聊 · 进群找搭子`
-      }
-      return '进群找搭子：拼饭、出行、周末局'
     },
     cityHallCtaText() {
       return this.cityHallJoined ? '进群找搭子' : '免费进群找搭子'
@@ -770,21 +740,23 @@ export default {
     font-weight: 600;
   }
 
-  &__subtitle {
-    font-size: 26rpx;
-    color: $wm-text-3;
-    line-height: 36rpx;
-    font-weight: 500;
-
-    .home__slogan-a {
-      font-weight: 800;
-    }
+  &__toolbar-block {
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
   }
 
   &__toolbar {
     display: flex;
     align-items: center;
     gap: 12rpx;
+  }
+
+  &__toolbar-sub {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 16rpx;
   }
 
   &__search {
@@ -808,6 +780,28 @@ export default {
     align-items: center;
     gap: 6rpx;
 
+    &--inline {
+      height: 64rpx;
+      min-width: 220rpx;
+      padding: 0 28rpx;
+      border-radius: $wm-radius-lg;
+      background: #ffffff;
+      border: 1rpx solid rgba(13, 148, 136, 0.28);
+      box-shadow: 0 4rpx 16rpx rgba(13, 148, 136, 0.12);
+      gap: 10rpx;
+
+      .home__filter-btn-text {
+        font-size: 30rpx;
+        font-weight: 700;
+        color: $wm-primary-deep;
+      }
+    }
+
+    &--inline#{&}--hover,
+    &--inline.home__filter-btn--hover {
+      background: $wm-primary-soft;
+      border-color: rgba(13, 148, 136, 0.4);
+    }
     &--hover {
       background: #f8fafc;
     }
@@ -961,12 +955,6 @@ export default {
     }
   }
 
-  &__city-hall-desc {
-    font-size: 24rpx;
-    color: #475569;
-    line-height: 1.45;
-  }
-
   &__city-hall-cta {
     position: relative;
     flex-shrink: 0;
@@ -1065,12 +1053,12 @@ export default {
   }
 
   &__list-meta {
-    display: block;
-    text-align: right;
+    flex-shrink: 0;
     font-size: 24rpx;
     color: $wm-text-3;
     font-weight: 500;
-    margin-bottom: -12rpx;
+    line-height: 1.35;
+    white-space: nowrap;
   }
 }
 
