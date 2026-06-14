@@ -134,6 +134,11 @@
     </scroll-view>
 
     <view class="chat-detail__footer">
+      <view v-if="!canSendMessage" class="chat-detail__blocked-bar" @click="goCompleteProfile">
+        <text class="chat-detail__blocked-text">{{ statusMessage || PROFILE_INCOMPLETE_MSG }}</text>
+        <text class="chat-detail__blocked-link">去完善</text>
+      </view>
+      <template v-else>
       <view class="chat-detail__composer">
         <input
           :value="draft"
@@ -196,6 +201,7 @@
           </view>
         </view>
       </view>
+      </template>
     </view>
 
     <view v-if="chainSheetVisible" class="chain-sheet-mask" @click="!chainSubmitting && closeChainSheet()">
@@ -277,7 +283,7 @@ import {
   isPhoneBindingRequiredError,
   PHONE_GATE_REASON,
 } from '@/utils/phoneGate'
-import { ensureProfileComplete } from '@/utils/profileGate'
+import { needsMinimalProfile, PROFILE_INCOMPLETE_MSG, buildProfileEditUrl } from '@/utils/profileGate'
 import {
   getLastServerMessageId,
   loadActivityChatCache,
@@ -330,6 +336,7 @@ export default {
   components: { WmIcon, ChatEmojiPanel, ChatLocationBubble, ChatChainBubble, ChatMentionText, ChatMentionPicker },
   data() {
     return {
+      PROFILE_INCOMPLETE_MSG,
       chatId: '',
       chat: { name: '聊天', subtitle: '' },
       activityKind: 'event',
@@ -362,6 +369,9 @@ export default {
       mentionPickerVisible: false,
       mentionQuery: '',
       pendingMentions: [],
+      canSendMessage: false,
+      statusMessage: '',
+      chatReturnUrl: '',
     }
   },
   computed: {
@@ -393,15 +403,13 @@ export default {
   },
   async onLoad(query) {
     this.chatId = query?.id ? String(query.id) : '1'
-    const chatUrl = `/pages/chat-detail/chat-detail?id=${encodeURIComponent(this.chatId)}`
+    this.chatReturnUrl = `/pages/chat-detail/chat-detail?id=${encodeURIComponent(this.chatId)}`
     if (!isLoggedIn()) {
-      redirectToLogin(chatUrl)
+      redirectToLogin(this.chatReturnUrl)
       return
     }
-    const profileOk = await ensureProfileComplete({ redirectPath: chatUrl })
-    if (!profileOk) return
     const phoneOk = await ensurePhoneBound({
-      redirectPath: chatUrl,
+      redirectPath: this.chatReturnUrl,
       reason: PHONE_GATE_REASON.CHAT,
     })
     if (!phoneOk) return
@@ -409,6 +417,7 @@ export default {
   },
   onShow() {
     this.pollingPaused = false
+    this.refreshSendPermission()
     this.trySendPickedLocation()
     // 回到前台先拉一次
     this.fetchIncremental().catch(() => {})
@@ -432,7 +441,27 @@ export default {
     this.closeSocket()
   },
   methods: {
+    async refreshSendPermission() {
+      if (!isLoggedIn()) {
+        this.canSendMessage = false
+        this.statusMessage = PROFILE_INCOMPLETE_MSG
+        return
+      }
+      try {
+        const user = await getMe()
+        this.canSendMessage = !needsMinimalProfile(user)
+        this.statusMessage = this.canSendMessage ? '' : PROFILE_INCOMPLETE_MSG
+      } catch (_) {
+        this.canSendMessage = false
+        this.statusMessage = PROFILE_INCOMPLETE_MSG
+      }
+    },
+    goCompleteProfile() {
+      const url = buildProfileEditUrl(this.chatReturnUrl)
+      uni.navigateTo({ url })
+    },
     async bootstrapGroup() {
+      await this.refreshSendPermission()
       await this.loadCurrentUser()
       await this.loadGroup()
       try {
@@ -833,6 +862,7 @@ export default {
       })
     },
     onMorePick(type) {
+      if (!this.canSendMessage) return
       if (type === 'image') {
         this.closeComposerPanels()
         this.sendImageMessage()
@@ -852,11 +882,12 @@ export default {
       this.draft = `${this.draft || ''}${emoji}`
     },
     onPickSticker(stickerId) {
+      if (!this.canSendMessage) return
       this.showEmojiPanel = false
       this.sendStickerMessage(stickerId)
     },
     async sendStickerMessage(stickerId) {
-      if (!stickerId || !this.chatId) return
+      if (!this.canSendMessage || !stickerId || !this.chatId) return
       const tempId = `temp_${Date.now()}`
       const nowIso = new Date().toISOString()
       const stickerEmoji = getStickerEmoji(stickerId)
@@ -916,7 +947,7 @@ export default {
       }
     },
     async sendImageMessage() {
-      if (this.sendingImage || !this.chatId) return
+      if (!this.canSendMessage || this.sendingImage || !this.chatId) return
       this.showEmojiPanel = false
       this.sendingImage = true
       let tempId = ''
@@ -986,6 +1017,7 @@ export default {
       uni.navigateTo({ url: '/pages/location-picker/location-picker?from=chat' })
     },
     trySendPickedLocation() {
+      if (!this.canSendMessage) return
       const loc = readChatLocationPickResult()
       if (!loc) return
       clearChatLocationPickResult()
@@ -1040,6 +1072,7 @@ export default {
     },
     async submitChainSheet() {
       if (this.chainSubmitting) return
+      if (!this.canSendMessage) return
       const note = (this.chainForm.note || '').trim()
       if (this.chainSheetMode === 'create') {
         const title = (this.chainForm.title || '').trim()
@@ -1118,7 +1151,7 @@ export default {
       })
     },
     async sendLocationMessage(loc) {
-      if (this.sendingLocation || !loc) return
+      if (!this.canSendMessage || this.sendingLocation || !loc) return
       this.showEmojiPanel = false
       this.sendingLocation = true
       const payload = buildLocationMessagePayload(loc)
@@ -1173,6 +1206,7 @@ export default {
       }
     },
     async sendMessage() {
+      if (!this.canSendMessage) return
       const text = (this.draft || '').trim()
       if (!text) return
       this.showEmojiPanel = false
@@ -1323,6 +1357,29 @@ export default {
     background: #ffffff;
     border-top: 1rpx solid #e5e7eb;
     padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  &__blocked-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12rpx;
+    padding: 20rpx 28rpx;
+    background: #fff7ed;
+    border-top: 1rpx solid #fed7aa;
+  }
+
+  &__blocked-text {
+    font-size: 24rpx;
+    color: #c2410c;
+    line-height: 1.5;
+  }
+
+  &__blocked-link {
+    font-size: 24rpx;
+    color: #6366f1;
+    font-weight: 600;
+    line-height: 1.5;
   }
 
   &__composer {

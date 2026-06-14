@@ -26,20 +26,11 @@ export function todayDateString() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-/** 登录后是否仍需完善昵称、性别、出生日期 */
+/** 登录后是否仍需完善昵称（系统默认「旅人xxxx」需改为自定义昵称） */
 export function needsMinimalProfile(user) {
   if (user == null) return false
   if (user.profileComplete === true) return false
-
-  const needNick = isAutoNickname(user.nickname)
-  const needGender = user.gender !== 'male' && user.gender !== 'female'
-  const needBirth = !user.birthDate
-
-  if (needNick || needGender) return true
-  if (!needBirth) return false
-  // 历史用户：曾走完极简引导，仅有昵称+性别
-  if (user.onboardingCompletedAt) return false
-  return true
+  return isAutoNickname(user.nickname)
 }
 
 export function isProfileIncompleteError(err) {

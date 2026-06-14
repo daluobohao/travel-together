@@ -488,9 +488,7 @@ export const sendSmsCode = (payload) =>
 function computeMockProfileComplete(profile) {
   const n = String(profile?.nickname || '').trim()
   if (!n || /^旅人.{1,28}$/.test(n)) return false
-  if (profile?.gender !== 'male' && profile?.gender !== 'female') return false
-  if (profile?.birthDate) return true
-  return !!profile?.onboardingCompletedAt
+  return true
 }
 
 function withMockProfileFields(profile) {
@@ -777,13 +775,9 @@ export const updateMe = (payload) =>
       }
       if (data.completeOnboarding) {
         const n = String(wmDB.profile.nickname || '').trim()
-        const incomplete =
-          !n ||
-          /^旅人.{1,28}$/.test(n) ||
-          (wmDB.profile.gender !== 'male' && wmDB.profile.gender !== 'female') ||
-          !wmDB.profile.birthDate
+        const incomplete = !n || /^旅人.{1,28}$/.test(n)
         if (incomplete) {
-          return { code: 400, message: '请完善昵称、性别与出生日期', data: null }
+          return { code: 400, message: '请填写昵称', data: null }
         }
         wmDB.profile.onboardingCompletedAt = new Date().toISOString()
       }

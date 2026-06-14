@@ -13,7 +13,7 @@
 
     <view class="profile-edit__content">
       <view v-if="firstCompleteHint" class="first-hint">
-        <text>报名、进群等操作需完善昵称、性别与出生日期；可先稍后再说继续浏览</text>
+        <text>报名、进群等操作需完善昵称并绑定手机号；可先稍后再说继续浏览</text>
       </view>
       <view class="avatar-card" @click="onChooseAvatar">
         <view class="avatar-card__avatar">
@@ -56,19 +56,6 @@
         />
       </view>
 
-      <view class="field-card">
-        <text class="field-card__label">出生日期</text>
-        <picker mode="date" :value="form.birthDate" :end="todayStr" @change="onBirthDateChange">
-          <view class="field-card__picker">
-            <text :class="{ 'field-card__picker-placeholder': !form.birthDate }">
-              {{ birthDateDisplay }}
-            </text>
-            <wm-icon name="chevronRight" :size="28" color="#94a3b8" />
-          </view>
-        </picker>
-        <text v-if="firstCompleteHint" class="field-card__hint">用于展示年龄，默认 18 岁，可修改</text>
-      </view>
-
       <view v-if="!firstCompleteHint" class="field-card">
         <text class="field-card__label">个人简介</text>
         <textarea
@@ -91,9 +78,7 @@ import { ensureTextFieldsSafe, SEC_SCENE } from '@/utils/contentSecurity'
 import { chooseAndUploadAvatar } from '@/utils/avatarPicker'
 import { displayAvatarUrl } from '@/utils/avatarDisplay'
 import {
-  defaultBirthDate18YearsAgo,
   isAutoNickname,
-  todayDateString,
 } from '@/utils/profileGate'
 
 export default {
@@ -109,12 +94,10 @@ export default {
         { value: 'male', label: '男' },
         { value: 'female', label: '女' },
       ],
-      todayStr: todayDateString(),
       form: {
         name: '',
         bio: '',
         gender: null,
-        birthDate: defaultBirthDate18YearsAgo(),
       },
     }
   },
@@ -127,9 +110,6 @@ export default {
     },
     genderReadonlyDisplay() {
       return formatUserGenderLabel(this.serverGender) || '—'
-    },
-    birthDateDisplay() {
-      return this.form.birthDate || '请选择出生日期'
     },
   },
   onBackPress() {
@@ -153,7 +133,6 @@ export default {
         name: nick,
         bio: me.bio || this.form.bio,
         gender: g,
-        birthDate: me.birthDate || this.form.birthDate || defaultBirthDate18YearsAgo(),
       }
       return
     } catch (e) {}
@@ -188,10 +167,6 @@ export default {
     setGender(value) {
       if (this.genderLocked) return
       this.form.gender = value
-    },
-    onBirthDateChange(e) {
-      const v = e?.detail?.value
-      if (v) this.form.birthDate = v
     },
     goToAfterSave() {
       if (this.firstCompleteHint) {
@@ -241,14 +216,6 @@ export default {
         uni.showToast({ title: '请填写自己的昵称', icon: 'none' })
         return
       }
-      if (!this.genderLocked && !this.form.gender) {
-        uni.showToast({ title: '请选择性别', icon: 'none' })
-        return
-      }
-      if (!this.form.birthDate) {
-        uni.showToast({ title: '请选择出生日期', icon: 'none' })
-        return
-      }
 
       const nextProfile = {
         name,
@@ -265,7 +232,6 @@ export default {
       if (!this.genderLocked && this.form.gender) {
         payload.gender = this.form.gender
       }
-      payload.birthDate = this.form.birthDate
       if (this.firstCompleteHint) {
         payload.completeOnboarding = true
       }
