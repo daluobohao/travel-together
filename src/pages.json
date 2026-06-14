@@ -68,14 +68,14 @@
 		{
 			"path": "pages/direct-chat-detail/direct-chat-detail",
 			"style": {
-				"navigationBarTitleText": "私聊",
+				"navigationBarTitleText": "好友",
 				"navigationStyle": "custom"
 			}
 		},
 		{
 			"path": "pages/dm-requests/dm-requests",
 			"style": {
-				"navigationBarTitleText": "私聊申请",
+				"navigationBarTitleText": "好友申请",
 				"navigationStyle": "custom"
 			}
 		},

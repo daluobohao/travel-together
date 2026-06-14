@@ -3197,8 +3197,8 @@ export const createDmRequest = (activityId, payload) =>
       wmDB.notifications.unshift({
         notificationId: `ntf_dm_${nextId}`,
         type: 'dm_request',
-        title: '私聊申请',
-        body: `${wmDB.profile.nickname} 申请与你私聊`,
+        title: '好友申请',
+        body: `${wmDB.profile.nickname} 申请加你为好友`,
         payload: { dmRequestId: `dmreq_${nextId}`, activityId: `act_${aid}`, fromUserId: me },
         readAt: null,
         createdAt: new Date().toISOString(),

@@ -3,7 +3,7 @@
     <view class="dra__mask" :class="{ 'dra__mask--in': animating }" @click="onClose" />
     <view class="dra__panel" :class="{ 'dra__panel--in': animating }">
       <view class="dra__handle" />
-      <text class="dra__title">私聊申请</text>
+      <text class="dra__title">好友申请</text>
 
       <view v-if="request" class="dra__card">
         <view class="dra__head">
@@ -69,8 +69,8 @@ export default {
     },
     statusHint() {
       const m = {
-        pending: this.isIncoming ? '对方申请与你私聊，待你处理' : '等待对方同意',
-        accepted: '已同意，可以私聊',
+        pending: this.isIncoming ? '对方申请加你为好友，待你处理' : '等待对方同意',
+        accepted: '已同意，可以开始聊天',
         rejected: '已拒绝',
         cancelled: '已撤回',
       }

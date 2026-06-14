@@ -234,6 +234,7 @@ import {
   redirectToLogin,
 } from '@/api'
 import { ensurePhoneBound, PHONE_GATE_REASON } from '@/utils/phoneGate'
+import { ensureProfileComplete } from '@/utils/profileGate'
 
 function stripCityHallSuffix(name) {
   return String(name || '')
@@ -618,6 +619,8 @@ export default {
         if (label) q.push(`cityLabel=${encodeURIComponent(label)}`)
         return `/pages/city-hall/city-hall?${q.join('&')}`
       })()
+      const profileOk = await ensureProfileComplete({ redirectPath: back })
+      if (!profileOk) return
       const phoneOk = await ensurePhoneBound({
         redirectPath: back,
         reason: PHONE_GATE_REASON.CITY_HALL,

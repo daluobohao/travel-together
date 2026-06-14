@@ -251,8 +251,8 @@ export const wmDB = {
     {
       notificationId: 'ntf_dm_1',
       type: 'dm_request',
-      title: '私聊申请',
-      body: '阿文 申请与你私聊',
+      title: '好友申请',
+      body: '阿文 申请加你为好友',
       payload: { dmRequestId: 'dmreq_1', activityId: 'act_1', fromUserId: 'u_10002' },
       readAt: null,
       createdAt: now(),

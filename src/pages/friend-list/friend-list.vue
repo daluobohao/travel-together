@@ -9,13 +9,13 @@
     </view>
 
     <view class="friend-list__hint">
-      <text>通过私聊申请并同意后，即可成为好友</text>
+      <text>通过好友申请并同意后，即可出现在好友列表</text>
     </view>
 
     <view v-if="loading" class="friend-list__state"><text>加载中…</text></view>
     <view v-else-if="!friends.length" class="friend-list__state">
       <text>还没有好友</text>
-      <text class="friend-list__state-sub">可在活动群聊中申请私聊，对方同意后会出现在这里</text>
+      <text class="friend-list__state-sub">可在活动群聊中申请加好友，对方同意后会出现在这里</text>
     </view>
     <view v-else class="friend-list__body">
       <view

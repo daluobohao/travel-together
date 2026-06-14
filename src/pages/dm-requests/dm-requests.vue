@@ -4,7 +4,7 @@
       <view class="dm-req__back" @click="goBack">
         <wm-icon name="chevronLeft" :size="36" color="#0f172a" />
       </view>
-      <text class="dm-req__title">私聊申请</text>
+      <text class="dm-req__title">好友申请</text>
       <view class="dm-req__placeholder" />
     </view>
 

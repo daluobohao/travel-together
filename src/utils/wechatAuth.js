@@ -7,7 +7,6 @@ import {
   getLoginAcquisitionPayload,
 } from '@/utils/acquisitionSource'
 import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
-import { gateProfileAfterSilentLogin, needsMinimalProfile } from '@/utils/profileGate'
 
 export { needsMinimalProfile } from '@/utils/profileGate'
 
@@ -172,8 +171,6 @@ export function navigateAfterLogin(user, { showToast = true } = {}) {
         const { fullEnabled } = await loadOnboardingConfig()
         if (fullEnabled && !user?.onboardingCompletedAt) {
           target = '/pages/onboarding/onboarding'
-        } else if (needsMinimalProfile(user)) {
-          target = '/pages/profile-edit/profile-edit?first=1'
         } else {
           target = consumePostLoginRedirect('/pages/home/home')
         }
@@ -207,7 +204,6 @@ export function trySilentWechatLogin() {
       if (shouldSkipSilentLogin()) return false
       applyLoginTokens(data)
       clearAcquisitionAfterLogin()
-      gateProfileAfterSilentLogin(data.user)
       return true
     } catch {
       return false

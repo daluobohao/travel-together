@@ -277,6 +277,7 @@ import {
   isPhoneBindingRequiredError,
   PHONE_GATE_REASON,
 } from '@/utils/phoneGate'
+import { ensureProfileComplete } from '@/utils/profileGate'
 import {
   getLastServerMessageId,
   loadActivityChatCache,
@@ -397,6 +398,8 @@ export default {
       redirectToLogin(chatUrl)
       return
     }
+    const profileOk = await ensureProfileComplete({ redirectPath: chatUrl })
+    if (!profileOk) return
     const phoneOk = await ensurePhoneBound({
       redirectPath: chatUrl,
       reason: PHONE_GATE_REASON.CHAT,

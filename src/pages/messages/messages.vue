@@ -26,7 +26,7 @@
 
     <view v-if="!loggedIn" class="messages__login-prompt">
       <text class="messages__login-prompt-title">登录后查看消息</text>
-      <text class="messages__login-prompt-sub">活动群聊、私聊与系统通知需登录后使用</text>
+      <text class="messages__login-prompt-sub">活动群聊、好友与系统通知需登录后使用</text>
       <view class="messages__login-btn" @click="goLogin">去登录</view>
     </view>
 
@@ -155,12 +155,12 @@
         </template>
       </view>
 
-      <!-- 私聊 -->
+      <!-- 好友 -->
       <view v-if="activeTab === 'private'" class="messages__list">
         <view class="messages__dm-entry" @click="goDmRequests">
           <view class="messages__dm-entry-main">
             <wm-icon name="message" :size="32" color="#6366f1" />
-            <text class="messages__dm-entry-text">私聊申请</text>
+            <text class="messages__dm-entry-text">好友申请</text>
             <view v-if="pendingDmRequestCount > 0" class="messages__dm-entry-badge">
               <text>{{ pendingDmRequestCount > 99 ? '99+' : pendingDmRequestCount }}</text>
             </view>
@@ -168,7 +168,7 @@
           <wm-icon name="chevronRight" :size="28" color="#6366f1" />
         </view>
         <view v-if="!privateChats.length" class="messages__empty">
-          <text>暂无私聊，可在活动群聊中点击对方头像申请私聊</text>
+          <text>暂无好友，可在活动群聊中点击对方头像申请加好友</text>
         </view>
         <view
           v-for="chat in privateChats"
@@ -187,7 +187,7 @@
             </view>
             <view class="chat__bottom">
               <text class="chat__msg">
-                <text class="chat__sender">私聊：</text>{{ chat.preview }}
+                <text class="chat__sender">{{ chat.name }}：</text>{{ chat.preview }}
               </text>
               <view v-if="chat.unread" class="chat__badge">
                 <text>{{ formatChatBadgeCount(chat.unread) }}</text>
@@ -368,7 +368,7 @@ export default {
       activeTab: 'group',
       tabs: [
         { key: 'group', label: '活动群聊', badge: true },
-        { key: 'private', label: '私聊', badge: false },
+        { key: 'private', label: '好友', badge: false },
         { key: 'system', label: '系统通知' },
       ],
       cityHallChats: [],

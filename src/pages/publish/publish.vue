@@ -308,6 +308,7 @@ import {
   PUBLISH_START_WINDOW_REJECT_MSG,
 } from '@/constants/homeActivityList'
 import { ensurePhoneBound, PHONE_GATE_REASON } from '@/utils/phoneGate'
+import { ensureProfileComplete } from '@/utils/profileGate'
 import { confirmCancelActivity } from '@/utils/activityCancel'
 import {
   clearPublishGuideDraft,
@@ -453,6 +454,8 @@ export default {
       redirectToLogin(pagePath)
       return
     }
+    const profileOk = await ensureProfileComplete({ redirectPath: pagePath })
+    if (!profileOk) return
     const phoneOk = await ensurePhoneBound({
       redirectPath: pagePath,
       reason: PHONE_GATE_REASON.PUBLISH,

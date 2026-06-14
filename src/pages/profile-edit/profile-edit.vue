@@ -4,14 +4,16 @@
       <view v-if="!firstCompleteHint" class="profile-edit__back" @click="goBack">
         <wm-icon name="chevronLeft" :size="34" color="#0f172a" />
       </view>
-      <view v-else class="profile-edit__back profile-edit__back--placeholder" />
+      <view v-else class="profile-edit__back" @click="skipForNow">
+        <text class="profile-edit__skip">稍后再说</text>
+      </view>
       <text class="profile-edit__title">{{ firstCompleteHint ? '完善资料' : '编辑个人信息' }}</text>
       <text class="profile-edit__save" @click="saveProfile">{{ firstCompleteHint ? '进入去旅聚' : '保存' }}</text>
     </view>
 
     <view class="profile-edit__content">
       <view v-if="firstCompleteHint" class="first-hint">
-        <text>请填写昵称、性别与出生日期后再进入；性别保存后不可修改</text>
+        <text>报名、进群等操作需完善昵称、性别与出生日期；可先稍后再说继续浏览</text>
       </view>
       <view class="avatar-card" @click="onChooseAvatar">
         <view class="avatar-card__avatar">
@@ -99,6 +101,7 @@ export default {
   data() {
     return {
       firstCompleteHint: false,
+      returnUrl: '',
       serverGender: null,
       avatarUrl: '',
       avatarUploading: false,
@@ -131,13 +134,14 @@ export default {
   },
   onBackPress() {
     if (this.firstCompleteHint) {
-      uni.showToast({ title: '请先完善资料', icon: 'none' })
+      this.skipForNow()
       return true
     }
     return false
   },
   async onLoad(query) {
     this.firstCompleteHint = query?.first === '1'
+    this.returnUrl = query?.return ? decodeURIComponent(query.return) : ''
     try {
       const me = await getMe()
       const g = me.gender != null && me.gender !== '' ? me.gender : null
@@ -191,7 +195,7 @@ export default {
     },
     goToAfterSave() {
       if (this.firstCompleteHint) {
-        uni.reLaunch({ url: '/pages/home/home' })
+        this.goAfterProfileAction()
         return
       }
       uni.navigateBack({
@@ -199,6 +203,22 @@ export default {
           uni.reLaunch({ url: '/pages/home/home' })
         },
       })
+    },
+    goAfterProfileAction() {
+      const url = this.returnUrl || '/pages/home/home'
+      if (url.startsWith('/pages/home/home') || url.startsWith('/pages/discover/discover')) {
+        uni.reLaunch({ url, fail: () => uni.switchTab({ url }) })
+        return
+      }
+      uni.redirectTo({
+        url,
+        fail: () => {
+          uni.reLaunch({ url: '/pages/home/home' })
+        },
+      })
+    },
+    skipForNow() {
+      this.goAfterProfileAction()
     },
     goBack() {
       if (this.firstCompleteHint) {
@@ -303,6 +323,12 @@ export default {
     &--placeholder {
       visibility: hidden;
     }
+  }
+
+  &__skip {
+    font-size: 26rpx;
+    color: $wm-text-2;
+    white-space: nowrap;
   }
 
   &__title {

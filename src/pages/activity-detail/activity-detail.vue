@@ -234,6 +234,7 @@ import {
 } from '@/utils/activityShare'
 import { SHARE_SRC_FRIEND, SHARE_SRC_TIMELINE } from '@/utils/acquisitionSource'
 import { ensurePhoneBound, PHONE_GATE_REASON } from '@/utils/phoneGate'
+import { ensureProfileComplete } from '@/utils/profileGate'
 import { confirmCancelActivity } from '@/utils/activityCancel'
 import { isActivityOrganizer } from '@/utils/activityPermission'
 import { openFeedLocationOnMap } from '@/utils/feedLocation'
@@ -672,6 +673,8 @@ export default {
         const back = id
           ? `/pages/activity-detail/activity-detail?id=${encodeURIComponent(id)}`
           : '/pages/activity-detail/activity-detail'
+        const profileOk = await ensureProfileComplete({ redirectPath: back })
+        if (!profileOk) return
         const phoneOk = await ensurePhoneBound({
           redirectPath: back,
           reason: PHONE_GATE_REASON.ENROLL,
@@ -708,6 +711,8 @@ export default {
         redirectToLogin(chatUrl)
         return
       }
+      const profileOk = await ensureProfileComplete({ redirectPath: chatUrl })
+      if (!profileOk) return
       const phoneOk = await ensurePhoneBound({
         redirectPath: chatUrl,
         reason: PHONE_GATE_REASON.CHAT,

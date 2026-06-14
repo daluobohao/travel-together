@@ -3,6 +3,8 @@ import { getMe } from '@/api'
 
 const AUTO_NICKNAME_RE = /^旅人.{1,28}$/
 
+export const PROFILE_INCOMPLETE_MSG = '请先完善资料'
+
 /** 系统分配的默认昵称（如微信登录「旅人xxxx」） */
 export function isAutoNickname(name) {
   const n = String(name || '').trim()
@@ -40,34 +42,40 @@ export function needsMinimalProfile(user) {
   return true
 }
 
-const PROFILE_EDIT_FIRST_URL = '/pages/profile-edit/profile-edit?first=1'
+export function isProfileIncompleteError(err) {
+  const msg = String(err?.message || '')
+  return err?.statusCode === 403 && msg.includes('完善资料')
+}
 
-export function redirectToProfileCompletion() {
-  uni.reLaunch({
-    url: PROFILE_EDIT_FIRST_URL,
+export function buildProfileEditUrl(returnUrl) {
+  const q = ['first=1']
+  const ret = String(returnUrl || '').trim()
+  if (ret) q.push(`return=${encodeURIComponent(ret)}`)
+  return `/pages/profile-edit/profile-edit?${q.join('&')}`
+}
+
+function openProfileEdit(returnUrl) {
+  const url = buildProfileEditUrl(returnUrl)
+  uni.redirectTo({
+    url,
     fail: () => {
-      uni.redirectTo({ url: PROFILE_EDIT_FIRST_URL })
+      uni.navigateTo({ url })
     },
   })
 }
 
-/** 已登录且资料未完善时跳转完善页；返回是否已拦截 */
-export async function redirectIfProfileIncomplete() {
+/**
+ * 已登录且资料未完善时跳转完善页；返回 false 表示已拦截。
+ * 未登录时返回 false，由调用方先走登录。
+ */
+export async function ensureProfileComplete({ redirectPath } = {}) {
   if (!getAccessToken()) return false
   try {
     const me = await getMe()
-    if (!needsMinimalProfile(me)) return false
-    redirectToProfileCompletion()
-    return true
-  } catch {
-    return false
+    if (!needsMinimalProfile(me)) return true
+  } catch (_) {
+    /* 拉取失败时仍引导完善，避免绕过 */
   }
-}
-
-export function gateProfileAfterSilentLogin(user) {
-  if (needsMinimalProfile(user)) {
-    redirectToProfileCompletion()
-    return true
-  }
+  openProfileEdit(redirectPath)
   return false
 }
