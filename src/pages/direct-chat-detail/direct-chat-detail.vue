@@ -87,7 +87,11 @@
       </view>
     </scroll-view>
 
-    <view class="dm-chat__composer">
+    <view v-if="!canSendMessage" class="dm-chat__blocked-bar">
+      <text>{{ statusMessage || '不是好友关系' }}</text>
+    </view>
+
+    <view v-else class="dm-chat__composer">
       <view class="dm-chat__emoji-btn" @click="toggleEmojiPanel">
         <text class="dm-chat__emoji-icon">😊</text>
       </view>
@@ -121,7 +125,7 @@
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import ChatEmojiPanel from '@/components/ChatEmojiPanel/ChatEmojiPanel.vue'
 import ChatLocationBubble from '@/components/ChatLocationBubble/ChatLocationBubble.vue'
-import { getDirectMessages, getMe, markDirectChatRead, sendDirectMessage } from '@/api'
+import { getDirectChatContext, getDirectMessages, getMe, markDirectChatRead, sendDirectMessage } from '@/api'
 import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
 import { chooseAndUploadChatImage } from '@/utils/chatImagePicker'
 import { getStickerEmoji } from '@/constants/chatStickers'
@@ -179,6 +183,8 @@ export default {
       sendingImage: false,
       sendingLocation: false,
       showEmojiPanel: false,
+      canSendMessage: true,
+      statusMessage: '',
     }
   },
   computed: {
@@ -205,7 +211,10 @@ export default {
   },
   onShow() {
     this.trySendPickedLocation()
-    if (this.threadId) markDirectChatRead(this.threadId).catch(() => {})
+    if (this.threadId) {
+      markDirectChatRead(this.threadId).catch(() => {})
+      this.loadChatContext()
+    }
   },
   onHide() {
     refreshMessageUnreadSummary()
@@ -220,6 +229,7 @@ export default {
       } catch (e) {
         console.warn(e)
       }
+      await this.loadChatContext()
       await this.loadMessages()
       if (this.threadId) {
         try {
@@ -269,6 +279,20 @@ export default {
         if (m?.id) this.messageIds[m.id] = true
       }
     },
+    async loadChatContext() {
+      if (!this.threadId) return
+      try {
+        const data = await getDirectChatContext(this.threadId)
+        this.canSendMessage = !!data?.canSendMessage
+        this.statusMessage = data?.statusMessage || ''
+        if (data?.peerUserId && !this.peerUserId) {
+          this.peerUserId = data.peerUserId
+        }
+      } catch (e) {
+        this.canSendMessage = false
+        this.statusMessage = e?.message || '不是好友关系'
+      }
+    },
     async loadMessages() {
       if (!this.threadId) return
       try {
@@ -297,6 +321,7 @@ export default {
       copyTextToClipboard(text)
     },
     toggleEmojiPanel() {
+      if (!this.canSendMessage) return
       this.showEmojiPanel = !this.showEmojiPanel
     },
     onPickEmoji(emoji) {
@@ -307,7 +332,7 @@ export default {
       this.sendStickerMessage(stickerId)
     },
     async sendStickerMessage(stickerId) {
-      if (!stickerId || !this.threadId) return
+      if (!stickerId || !this.threadId || !this.canSendMessage) return
       const tempId = `temp_${Date.now()}`
       const nowIso = new Date().toISOString()
       const stickerEmoji = getStickerEmoji(stickerId)
@@ -362,7 +387,7 @@ export default {
       }
     },
     async sendImageMessage() {
-      if (this.sendingImage || !this.threadId) return
+      if (this.sendingImage || !this.threadId || !this.canSendMessage) return
       this.showEmojiPanel = false
       this.sendingImage = true
       let tempId = ''
@@ -423,6 +448,7 @@ export default {
       }
     },
     openLocationPicker() {
+      if (!this.canSendMessage) return
       this.showEmojiPanel = false
       uni.navigateTo({ url: '/pages/location-picker/location-picker?from=chat' })
     },
@@ -436,7 +462,7 @@ export default {
       openChatLocationOnMap(item)
     },
     async sendLocationMessage(loc) {
-      if (this.sendingLocation || !this.threadId || !loc) return
+      if (this.sendingLocation || !this.threadId || !loc || !this.canSendMessage) return
       this.showEmojiPanel = false
       this.sendingLocation = true
       const payload = buildLocationMessagePayload(loc)
@@ -485,7 +511,7 @@ export default {
     },
     async sendMessage() {
       const text = (this.draft || '').trim()
-      if (!text || !this.threadId) return
+      if (!text || !this.threadId || !this.canSendMessage) return
       this.showEmojiPanel = false
 
       const tempId = `temp_${Date.now()}`
@@ -646,6 +672,19 @@ export default {
     text-align: center;
     color: #94a3b8;
     font-size: 24rpx;
+  }
+
+  &__blocked-bar {
+    padding: 20rpx 28rpx calc(12rpx + env(safe-area-inset-bottom));
+    background: #fff7ed;
+    border-top: 1rpx solid #fed7aa;
+    text-align: center;
+
+    text {
+      font-size: 24rpx;
+      color: #c2410c;
+      line-height: 1.5;
+    }
   }
 
   &__composer {

@@ -1931,6 +1931,13 @@ export const unblockUser = (blockedUserId) =>
     path: `/blocks/${blockedUserId}`,
     mockHandler: () => {
       wmDB.blocks = wmDB.blocks.filter((x) => x.blockedUserId !== blockedUserId)
+      const peer = String(blockedUserId || '').replace(/^u_/, '')
+      const thread = mockFindDmThreadForUsers(wmDB.profile.userId, peer)
+      if (thread && wmDB.dmThreadRemovals) {
+        wmDB.dmThreadRemovals = wmDB.dmThreadRemovals.filter(
+          (r) => Number(r.threadId) !== Number(thread.id),
+        )
+      }
       return ok({ ok: true })
     },
   })
@@ -3015,6 +3022,48 @@ function parseDmThrId(s) {
   return Number.isFinite(n) ? n : 0
 }
 
+const NOT_FRIENDS_MESSAGE = '不是好友关系'
+
+function mockDmPeerId(thread, me) {
+  if (thread.userLow === me) return thread.userHigh
+  if (thread.userHigh === me) return thread.userLow
+  return null
+}
+
+function mockUserRemovedThread(userId, threadId) {
+  return (wmDB.dmThreadRemovals || []).some(
+    (r) => r.userId === userId && Number(r.threadId) === Number(threadId),
+  )
+}
+
+function mockEitherBlocked(u1, u2) {
+  const blocks = wmDB.blocks || []
+  for (const b of blocks) {
+    const blocked = String(b.blockedUserId || '').replace(/^u_/, '')
+    const blocker = String(b.blockerId || wmDB.profile.userId || '').replace(/^u_/, '')
+    if (blocker === String(u1) && blocked === String(u2)) return true
+    if (blocker === String(u2) && blocked === String(u1)) return true
+  }
+  return false
+}
+
+function mockAreDmPeersMutuallyConnected(thread, me) {
+  const peer = mockDmPeerId(thread, me)
+  if (!peer) return false
+  if (mockEitherBlocked(me, peer)) return false
+  if (mockUserRemovedThread(me, thread.id)) return false
+  if (mockUserRemovedThread(peer, thread.id)) return false
+  return true
+}
+
+function mockFindDmThreadForUsers(u1, u2) {
+  const [lo, hi] = sortUserPairIds(u1, u2)
+  return wmDB.dmThreads.find((t) => {
+    const [a, b] = sortUserPairIds(t.userLow, t.userHigh)
+    return a === lo && b === hi
+  })
+}
+
 /** 在同一活动语境下查询与对方的私聊关系 */
 export const getUserDmContext = (userId, activityId) =>
   wmRequest({
@@ -3064,12 +3113,8 @@ export const getUserDmContext = (userId, activityId) =>
           denyReason: 'target_not_in_activity',
         })
       }
-      const thread = wmDB.dmThreads.find((t) => {
-        const [lo, hi] = sortUserPairIds(t.userLow, t.userHigh)
-        const [a, b] = sortUserPairIds(me, target)
-        return lo === a && hi === b
-      })
-      if (thread) {
+      const thread = mockFindDmThreadForUsers(me, target)
+      if (thread && mockAreDmPeersMutuallyConnected(thread, me)) {
         return ok({
           threadId: `dmthr_${thread.id}`,
           outgoingPendingRequestId: null,
@@ -3121,6 +3166,17 @@ export const createDmRequest = (activityId, payload) =>
       const me = wmDB.profile.userId
       const to = data?.toUserId
       if (!to) return { code: 400, message: 'invalid toUserId', data: null }
+      if (mockEitherBlocked(me, to)) {
+        return { code: 403, message: 'blocked', data: null }
+      }
+      const existingThread = mockFindDmThreadForUsers(me, to)
+      if (existingThread && mockAreDmPeersMutuallyConnected(existingThread, me)) {
+        return {
+          code: 409,
+          message: 'already connected',
+          data: { status: 'accepted', threadId: `dmthr_${existingThread.id}` },
+        }
+      }
       if (data?.introText) {
         const blocked = localTextBlockedReason(String(data.introText), { strict: true })
         if (blocked) return { code: 400, message: blocked, data: null }
@@ -3210,9 +3266,18 @@ export const acceptDmRequest = (requestId) =>
       const me = wmDB.profile.userId
       if (req.toUserId !== me) return { code: 403, message: 'not your request', data: null }
       if (req.status !== 'pending') return { code: 400, message: 'request not pending', data: null }
-      const tid = Math.max(0, ...wmDB.dmThreads.map((t) => t.id)) + 1
-      const [userLow, userHigh] = sortUserPairIds(req.fromUserId, req.toUserId)
-      wmDB.dmThreads.push({ id: tid, userLow, userHigh })
+      let thread = mockFindDmThreadForUsers(req.fromUserId, req.toUserId)
+      let tid
+      if (thread) {
+        tid = thread.id
+        if (wmDB.dmThreadRemovals) {
+          wmDB.dmThreadRemovals = wmDB.dmThreadRemovals.filter((r) => Number(r.threadId) !== Number(tid))
+        }
+      } else {
+        tid = Math.max(0, ...wmDB.dmThreads.map((t) => t.id)) + 1
+        const [userLow, userHigh] = sortUserPairIds(req.fromUserId, req.toUserId)
+        wmDB.dmThreads.push({ id: tid, userLow, userHigh })
+      }
       req.status = 'accepted'
       req.threadId = tid
       req.respondedAt = new Date().toISOString()
@@ -3315,6 +3380,40 @@ export const getDirectChats = (query = {}) =>
     },
   })
 
+export const getDirectChatContext = (threadId) =>
+  wmRequest({
+    method: 'GET',
+    path: `/direct-chats/${threadId}/context`,
+    mockHandler: () => {
+      const tid = parseDmThrId(threadId)
+      const t = wmDB.dmThreads.find((x) => x.id === tid)
+      if (!t) {
+        return {
+          code: 404,
+          message: 'thread not found',
+          data: {
+            threadId: String(threadId),
+            peerUserId: '',
+            canSendMessage: false,
+            statusMessage: NOT_FRIENDS_MESSAGE,
+          },
+        }
+      }
+      const me = wmDB.profile.userId
+      if (t.userLow !== me && t.userHigh !== me) {
+        return { code: 403, message: 'forbidden', data: null }
+      }
+      const peer = mockDmPeerId(t, me)
+      const canSend = mockAreDmPeersMutuallyConnected(t, me)
+      return ok({
+        threadId: `dmthr_${tid}`,
+        peerUserId: peer,
+        canSendMessage: canSend,
+        statusMessage: canSend ? null : NOT_FRIENDS_MESSAGE,
+      })
+    },
+  })
+
 export const getDirectMessages = (threadId, query = {}) =>
   wmRequest({
     method: 'GET',
@@ -3359,6 +3458,9 @@ export const sendDirectMessage = (threadId, payload) =>
       if (!t) return { code: 404, message: 'thread not found', data: null }
       const me = wmDB.profile.userId
       if (t.userLow !== me && t.userHigh !== me) return { code: 403, message: 'forbidden', data: null }
+      if (!mockAreDmPeersMutuallyConnected(t, me)) {
+        return { code: 403, message: NOT_FRIENDS_MESSAGE, data: null }
+      }
       if (data.msgType === 'text' && data.text) {
         const blocked = localTextBlockedReason(data.text)
         if (blocked) return { code: 400, message: blocked, data: null }
