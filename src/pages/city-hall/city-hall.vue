@@ -231,10 +231,10 @@ import {
   getCityHallLookup,
   isLoggedIn,
   joinCityHall,
-  redirectToLogin,
 } from '@/api'
 import { ensurePhoneBound, PHONE_GATE_REASON } from '@/utils/phoneGate'
 import { ensureProfileComplete } from '@/utils/profileGate'
+import { openLoginPage } from '@/utils/wechatAuth'
 
 function stripCityHallSuffix(name) {
   return String(name || '')
@@ -598,7 +598,7 @@ export default {
         const q = [`cityCode=${encodeURIComponent(this.cityCode)}`]
         const label = (this.cityLabel && String(this.cityLabel).trim()) || ''
         if (label) q.push(`cityLabel=${encodeURIComponent(label)}`)
-        redirectToLogin(`/pages/city-hall/city-hall?${q.join('&')}`)
+        openLoginPage(`/pages/city-hall/city-hall?${q.join('&')}`)
         return
       }
       const name = this.catalogCityName || '该城市'

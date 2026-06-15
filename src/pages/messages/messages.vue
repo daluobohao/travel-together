@@ -271,8 +271,8 @@ import {
   readNotification,
   listDmRequests,
   isLoggedIn,
-  redirectToLogin,
 } from '@/api'
+import { openLoginPage } from '@/utils/wechatAuth'
 import { filterPlatformNotifications } from '@/utils/platformNotification'
 import { formatChatBadgeCount } from '@/utils/chatBadge'
 import {
@@ -441,7 +441,7 @@ export default {
   methods: {
     formatChatBadgeCount,
     goLogin() {
-      redirectToLogin('/pages/messages/messages')
+      openLoginPage('/pages/messages/messages')
     },
     _applyPaginationState(prefix, data, listLength) {
       const total = Number(data?.total) || 0

@@ -2245,6 +2245,8 @@ export const getCityFeed = (query = {}) =>
     method: 'GET',
     path: '/feed',
     query,
+    needAuth: false,
+    tokenIfPresent: true,
     mockHandler: ({ query: q }) => ok(mockListFeed(q)),
   })
 
@@ -2319,6 +2321,7 @@ export const getFeedComments = (postId, query = {}) =>
     method: 'GET',
     path: `/feed/posts/${postId}/comments`,
     query,
+    needAuth: false,
     mockHandler: ({ query: q }) => ok(mockListFeedComments(postId, q)),
   })
 

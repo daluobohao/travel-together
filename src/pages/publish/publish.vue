@@ -11,7 +11,7 @@
     <!-- Form -->
     <view class="publish__form">
       <view v-if="editInProgressOnly" class="publish__tip publish__tip--warn">
-        <text>活动进行中，仅可修改活动说明；时间、地点等变更请发群通知或取消活动后重发。</text>
+        <text>活动进行中，仅可修改活动简介；时间、地点等变更请发群通知或取消活动后重发。完整说明请编辑「活动说明」。</text>
       </view>
 
       <template v-if="!editInProgressOnly">
@@ -180,7 +180,7 @@
         <textarea
           v-model="form.description"
           class="field__textarea"
-          placeholder="介绍一下活动的亮点、参与要求等"
+          :placeholder="isEditMode ? '简短介绍活动亮点，详情页展示' : '介绍一下活动的亮点、参与要求等'"
           placeholder-class="field__placeholder"
           :maxlength="300"
           :adjust-position="true"
@@ -218,7 +218,7 @@
       </view>
       </template>
 
-      <view v-else class="field field--textarea">
+      <view v-if="editInProgressOnly && editLoaded" class="field field--textarea">
         <view class="field__label-row">
           <text class="field__label">活动简介</text>
           <view class="field__textarea-actions">
@@ -229,7 +229,7 @@
         <textarea
           v-model="form.description"
           class="field__textarea"
-          placeholder="简短介绍活动亮点，详情页展示；完整说明可在「活动说明页」编辑"
+          placeholder="简短介绍活动亮点，详情页展示"
           placeholder-class="field__placeholder"
           :maxlength="300"
           :adjust-position="true"
@@ -240,7 +240,7 @@
         <text class="field__counter">{{ (form.description || '').length }} / 300</text>
       </view>
 
-      <view v-if="editLoaded" class="field field--link" @click="onEditActivityGuide">
+      <view v-if="editInProgressOnly && editLoaded" class="field field--link" @click="onEditActivityGuide">
         <text class="field__label">完整活动说明</text>
         <view class="field__select field__select--clickable">
           <text :class="['field__select-text', { 'field__placeholder': !guideEntryFilled }]">
@@ -248,6 +248,7 @@
           </text>
           <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
         </view>
+        <text class="field__hint">点击编辑行程、装备、费用等完整说明</text>
       </view>
 
       <view class="publish__tip">
@@ -287,6 +288,7 @@
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import PublishPayModal from '@/components/PublishPayModal/PublishPayModal.vue'
 import { createActivity, getActivityCategories, getActivityDetail, getMe, isLoggedIn, redirectToLogin, updateActivity, uploadActivityImage } from '@/api'
+import { shouldSkipSilentLogin } from '@/utils/wechatAuth'
 import { apiActivityPathId } from '@/utils/activityId'
 import { ensureTextFieldsSafe, SEC_SCENE } from '@/utils/contentSecurity'
 import { prepareChatImageForUpload, validateChatImageFile } from '@/utils/avatarImage'
@@ -369,6 +371,7 @@ export default {
       return !!this.editActivityId
     },
     navTitle() {
+      if (this.isEditMode && this.editInProgressOnly) return '编辑活动简介'
       return this.isEditMode ? '编辑活动' : '发布活动'
     },
     editInProgressOnly() {
@@ -385,12 +388,18 @@ export default {
       return publishFeeLabel(this.publishFeeYuan || PUBLISH_FEE_YUAN)
     },
     publishBtnText() {
+      if (this.isEditMode && this.editInProgressOnly) {
+        return this.publishing ? '保存中…' : '保存简介'
+      }
       if (this.isEditMode) return this.editLoading ? '保存中…' : '保存修改'
       return this.publishPayEnabled ? `发布活动（${this.publishFeeText}）` : '发布活动'
     },
     publishDisclaimer() {
+      if (this.isEditMode && this.editInProgressOnly) {
+        return '保存后将在活动群聊内通知成员。行程/装备等请编辑「完整活动说明」。'
+      }
       if (this.isEditMode) {
-        return '保存后，时间/地点/人数等变更将通知已报名成员（活动群聊内）。'
+        return '保存后，时间/地点/人数/简介等变更将通知已报名成员（活动群聊内）。'
       }
       if (this.publishPayEnabled) {
         return `发布即表示同意《旅聚社区规范》，请确保活动信息真实有效。发布前需支付服务费 ${this.publishFeeText}。`
@@ -451,6 +460,10 @@ export default {
       ? `/pages/publish/publish?mode=edit&id=${encodeURIComponent(this.editActivityId)}`
       : '/pages/publish/publish'
     if (!isLoggedIn()) {
+      if (shouldSkipSilentLogin()) {
+        uni.reLaunch({ url: '/pages/home/home' })
+        return
+      }
       redirectToLogin(pagePath)
       return
     }
@@ -864,7 +877,7 @@ export default {
         }
       } catch (e) {
         if (e?.needLogin || e?.isAuthError) {
-          redirectToLogin(`/pages/publish/publish?mode=edit&id=${encodeURIComponent(pathId)}`)
+          redirectToLogin(`/pages/publish/publish?mode=edit&id=${encodeURIComponent(pathId)}`, { explicit: true })
           return
         }
         uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
@@ -975,7 +988,7 @@ export default {
         })
       } catch (e) {
         if (e?.needLogin || e?.isAuthError) {
-          redirectToLogin('/pages/publish/publish')
+          redirectToLogin('/pages/publish/publish', { explicit: true })
           return
         }
         uni.showToast({ title: e?.message || '发布失败', icon: 'none' })
@@ -1195,6 +1208,25 @@ export default {
         opacity: 0;
       }
     }
+  }
+
+  &--readonly {
+    &:active {
+      transform: none;
+      box-shadow: $wm-shadow-md;
+
+      &::before {
+        opacity: 0;
+      }
+    }
+  }
+
+  &__readonly-text {
+    font-size: 28rpx;
+    color: $wm-text-1;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
   &__label-row {

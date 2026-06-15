@@ -134,7 +134,8 @@ import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import FeedPostCard from '@/components/FeedPostCard/FeedPostCard.vue'
 import FeedCityPickerSheet from '@/components/FeedCityPickerSheet/FeedCityPickerSheet.vue'
-import { getCityFeed, getFeedTopics, isLoggedIn, redirectToLogin } from '@/api'
+import { getCityFeed, getFeedTopics, isLoggedIn } from '@/api'
+import { openLoginPage } from '@/utils/wechatAuth'
 import { FEED_TOPICS, normalizeFeedTopics } from '@/constants/feedTopics'
 import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
 import {
@@ -277,7 +278,7 @@ export default {
     },
     goPublish() {
       if (!isLoggedIn()) {
-        redirectToLogin('/pages/discover/discover')
+        openLoginPage('/pages/discover/discover')
         return
       }
       uni.navigateTo({
@@ -287,7 +288,7 @@ export default {
     switchScope(nextScope) {
       if (this.scope === nextScope) return
       if ((nextScope === 'following' || nextScope === 'friends') && !isLoggedIn()) {
-        redirectToLogin('/pages/discover/discover')
+        openLoginPage('/pages/discover/discover')
         return
       }
       if (nextScope !== 'city') this.topicFilter = ''

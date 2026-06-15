@@ -1,5 +1,14 @@
 import { clearWmAuthTokens } from '@/api/config'
-import { getAccessToken, loginByWechat, setAccessToken, setRefreshToken } from '@/api'
+import {
+  clearSkipSilentLogin,
+  getAccessToken,
+  loginByWechat,
+  redirectToLogin,
+  setAccessToken,
+  setRefreshToken,
+  setSkipSilentLogin,
+  shouldSkipSilentLogin,
+} from '@/api'
 import { loadOnboardingConfig } from '@/config/onboarding'
 import { tryBindPendingReferralAfterLogin } from '@/utils/referralInv'
 import {
@@ -10,8 +19,9 @@ import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
 
 export { needsMinimalProfile } from '@/utils/profileGate'
 
-const SKIP_SILENT_LOGIN_KEY = 'wm_skip_silent_login'
 const REDIRECT_URL_KEY = 'REDIRECT_URL'
+
+export { clearSkipSilentLogin, setSkipSilentLogin, shouldSkipSilentLogin }
 
 /** 登录成功后要回到的页面（如消息 Tab） */
 export function setPostLoginRedirect(url) {
@@ -36,66 +46,106 @@ export function clearPostLoginRedirect() {
 }
 
 const LOGIN_PAGE_PATH = '/pages/login/login'
+const BROWSE_HOME_PATH = '/pages/home/home'
 /** 取消登录后若回到这些页会再次触发登录，改回首页 */
-const LOGIN_GATED_RETURN_PREFIXES = ['/pages/chat-detail/', '/pages/publish/publish', '/pages/bind-phone/']
+const LOGIN_GATED_RETURN_PREFIXES = [
+  '/pages/chat-detail/',
+  '/pages/direct-chat-detail/',
+  '/pages/publish/publish',
+  '/pages/bind-phone/',
+]
+
+const TAB_BAR_PATHS = new Set([
+  '/pages/home/home',
+  '/pages/discover/discover',
+  '/pages/messages/messages',
+  '/pages/profile/profile',
+])
 
 function isLoginGatedReturnPath(url) {
   const u = String(url || '')
   return LOGIN_GATED_RETURN_PREFIXES.some((p) => u.startsWith(p) || u.includes(p))
 }
 
+function normalizePagePath(url) {
+  const raw = String(url || '').trim()
+  if (!raw) return ''
+  const path = raw.split('?')[0]
+  return path.startsWith('/') ? path : `/${path}`
+}
+
+function isTabBarPath(url) {
+  return TAB_BAR_PATHS.has(normalizePagePath(url))
+}
+
+function goBrowsePage(url) {
+  const target = String(url || '').trim() || BROWSE_HOME_PATH
+  const path = normalizePagePath(target)
+  const query = target.includes('?') ? `?${target.split('?').slice(1).join('?')}` : ''
+  const full = `${path}${query}`
+
+  if (isTabBarPath(path)) {
+    uni.reLaunch({
+      url: path,
+      fail: () => {
+        uni.switchTab?.({ url: path, fail: () => uni.reLaunch({ url: BROWSE_HOME_PATH }) })
+      },
+    })
+    return
+  }
+
+  uni.redirectTo({
+    url: full,
+    fail: () => {
+      uni.reLaunch({ url: BROWSE_HOME_PATH })
+    },
+  })
+}
+
+function goBrowseHome() {
+  goBrowsePage(BROWSE_HOME_PATH)
+}
+
+function pageRouteAt(index) {
+  const pages = getCurrentPages()
+  const page = pages[index]
+  const route = page?.route || ''
+  return route ? `/${route}` : ''
+}
+
+function safeNavigateBackFromLogin() {
+  const pages = getCurrentPages()
+  if (pages.length <= 1) return false
+
+  let delta = 0
+  for (let i = pages.length - 2; i >= 0; i -= 1) {
+    delta += 1
+    const path = pageRouteAt(i)
+    if (!path || path.includes(LOGIN_PAGE_PATH)) continue
+    if (isLoginGatedReturnPath(path)) continue
+    uni.navigateBack({
+      delta,
+      fail: () => goBrowseHome(),
+    })
+    return true
+  }
+  return false
+}
+
 /**
- * 用户取消登录：清 token 与回跳；有页面栈则返回上一页，否则回到发起登录前的浏览页或首页。
+ * 用户取消登录：清 token 与回跳；统一回首页浏览，避免回到需登录页再次弹登录（审核合规）。
  */
 export function leaveLoginWithoutAuth() {
-  let returnUrl = ''
-  try {
-    returnUrl = String(uni.getStorageSync(REDIRECT_URL_KEY) || '').trim()
-  } catch {
-    /* ignore */
-  }
   clearPostLoginRedirect()
   setSkipSilentLogin(true)
   clearWmAuthTokens()
-
-  const pages = getCurrentPages()
-  if (pages.length > 1) {
-    uni.navigateBack({
-      fail: () => {
-        uni.reLaunch({ url: '/pages/home/home' })
-      },
-    })
-    return
-  }
-
-  if (
-    returnUrl &&
-    !returnUrl.includes(LOGIN_PAGE_PATH) &&
-    !isLoginGatedReturnPath(returnUrl)
-  ) {
-    uni.redirectTo({
-      url: returnUrl,
-      fail: () => {
-        uni.reLaunch({ url: '/pages/home/home' })
-      },
-    })
-    return
-  }
-
-  uni.reLaunch({ url: '/pages/home/home' })
+  goBrowseHome()
 }
 
-/** 用户在登录页主动取消后，本进程内不再静默 wx.login */
-export function setSkipSilentLogin(skip = true) {
-  uni.setStorageSync(SKIP_SILENT_LOGIN_KEY, !!skip)
-}
-
-export function shouldSkipSilentLogin() {
-  return !!uni.getStorageSync(SKIP_SILENT_LOGIN_KEY)
-}
-
-export function clearSkipSilentLogin() {
-  uni.removeStorageSync(SKIP_SILENT_LOGIN_KEY)
+/** 用户主动点「登录」：清失效 token 并强制打开登录页 */
+export function openLoginPage(redirectPath = '') {
+  clearSkipSilentLogin()
+  redirectToLogin(redirectPath, { force: true })
 }
 
 const WX_LOGIN_TIMEOUT_MS = 12000

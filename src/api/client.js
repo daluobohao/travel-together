@@ -136,6 +136,24 @@ export function isLoggedIn() {
 }
 
 const POST_LOGIN_REDIRECT_KEY = 'REDIRECT_URL'
+const SKIP_SILENT_LOGIN_KEY = 'wm_skip_silent_login'
+
+/** 用户在登录页主动取消后，本进程内不再自动跳转登录 */
+export function setSkipSilentLogin(skip = true) {
+  uni.setStorageSync(SKIP_SILENT_LOGIN_KEY, !!skip)
+}
+
+export function shouldSkipSilentLogin() {
+  return !!uni.getStorageSync(SKIP_SILENT_LOGIN_KEY)
+}
+
+export function clearSkipSilentLogin() {
+  try {
+    uni.removeStorageSync(SKIP_SILENT_LOGIN_KEY)
+  } catch {
+    /* ignore */
+  }
+}
 
 function currentPageRoute() {
   const pages = getCurrentPages()
@@ -153,17 +171,31 @@ const LOGIN_PAGE = '/pages/login/login'
  * - 进群聊、报名、发活动、加城市大群：须绑定手机号（ensurePhoneBound）
  */
 
-/** 未登录时 replace 到登录页，避免返回键回到需登录页形成循环；已登录返回 true */
-export function redirectToLogin(redirectPath = '') {
-  if (getAccessToken()) return true
-  const path = redirectPath || currentPageRoute()
+/**
+ * 未登录时打开登录页；已登录返回 true。
+ * @param {boolean} force 清 token 并强制打开（用户点「登录」）
+ * @param {boolean} explicit 用户主动触发需登录操作（如发活动、报名），忽略「先逛逛」标记
+ */
+export function redirectToLogin(redirectPath = '', { force = false, explicit = false } = {}) {
+  const current = currentPageRoute()
+  if (current.includes(LOGIN_PAGE)) return false
+  if (!force && getAccessToken()) return true
+  if (!force && !explicit && shouldSkipSilentLogin()) return false
+  if (force) clearWmAuthTokens()
+  clearSkipSilentLogin()
+  const path = redirectPath || current
   if (path && !path.includes(LOGIN_PAGE)) {
     uni.setStorageSync(POST_LOGIN_REDIRECT_KEY, path)
   }
-  uni.redirectTo({
+  uni.navigateTo({
     url: LOGIN_PAGE,
     fail: () => {
-      uni.reLaunch({ url: LOGIN_PAGE })
+      uni.redirectTo({
+        url: LOGIN_PAGE,
+        fail: () => {
+          uni.reLaunch({ url: LOGIN_PAGE })
+        },
+      })
     },
   })
   return false

@@ -1,8 +1,17 @@
 <template>
   <view class="page login">
+    <!-- #ifdef MP-WEIXIN || MP-TOUTIAO -->
+    <button class="login__nav-btn" plain hover-class="login__nav-btn--hover" @tap="onLeaveLogin">
+      <view class="login__nav-inner">
+        <wm-icon name="chevronLeft" :size="34" color="#64748b" />
+        <text class="login__nav-text">返回</text>
+      </view>
+    </button>
+    <!-- #endif -->
+
     <view class="login__header">
       <text class="login__title">登录旅聚</text>
-      <text class="login__subtitle">登录后即可查看活动并发布组局</text>
+      <text class="login__subtitle">登录后可报名、发活动与聊天；也可先逛逛</text>
     </view>
 
     <!-- #ifdef H5 -->
@@ -78,7 +87,14 @@
       <view v-if="authMode === 'login'" class="login__switch" @click="goForgotPassword">
         <text>忘记密码？</text>
       </view>
-      <view class="login__cancel" @click="onCancelBrowse">取消</view>
+      <button
+        class="login__cancel-btn"
+        plain
+        hover-class="login__cancel-btn--hover"
+        @tap="onLeaveLogin"
+      >
+        暂不登录，先逛逛
+      </button>
     </view>
     <!-- #endif -->
 
@@ -106,7 +122,14 @@
       >
         一键登录
       </button>
-      <view class="login__cancel" @click="onCancel">取消</view>
+      <button
+        class="login__cancel-btn"
+        plain
+        hover-class="login__cancel-btn--hover"
+        @tap="onLeaveLogin"
+      >
+        暂不登录，先逛逛
+      </button>
     </view>
     <!-- #endif -->
 
@@ -134,13 +157,21 @@
       >
         抖音一键登录
       </button>
-      <view class="login__cancel" @click="onCancelDouyin">取消</view>
+      <button
+        class="login__cancel-btn"
+        plain
+        hover-class="login__cancel-btn--hover"
+        @tap="onLeaveLogin"
+      >
+        暂不登录，先逛逛
+      </button>
     </view>
     <!-- #endif -->
   </view>
 </template>
 
 <script>
+import WmIcon from '@/components/WmIcon/WmIcon.vue'
 import {
   clearWmAuthTokens,
   getAccessToken,
@@ -163,6 +194,7 @@ import {
   leaveLoginWithoutAuth,
   navigateAfterLogin,
   setSkipSilentLogin,
+  shouldSkipSilentLogin,
 } from '@/utils/wechatAuth'
 // #ifdef MP-TOUTIAO
 import { getTtLoginCode } from '@/utils/douyinAuth'
@@ -185,10 +217,13 @@ function passwordRuleHint(value) {
 }
 
 export default {
+  components: { WmIcon },
   data() {
     return {
       agreeTerms: false,
       lastLoginTapAt: 0,
+      leavingLogin: false,
+      loginShowSeq: 0,
       // #ifdef H5
       authMode: 'login',
       form: {
@@ -226,12 +261,15 @@ export default {
     return true
   },
   async onShow() {
-    if (getAccessToken()) {
+    const seq = ++this.loginShowSeq
+    if (getAccessToken() && !shouldSkipSilentLogin()) {
       try {
         const me = await getMe()
+        if (seq !== this.loginShowSeq || this.leavingLogin) return
         navigateAfterLogin(me, { showToast: false })
         return
       } catch {
+        if (seq !== this.loginShowSeq) return
         clearWmAuthTokens()
       }
     }
@@ -258,6 +296,12 @@ export default {
   },
   // #endif
   methods: {
+    onLeaveLogin() {
+      if (this.leavingLogin) return
+      this.leavingLogin = true
+      this.loginShowSeq += 1
+      leaveLoginWithoutAuth()
+    },
     onAgreeChange(e) {
       const v = e?.detail?.value || []
       this.agreeTerms = Array.isArray(v) && v.indexOf('agree') !== -1
@@ -294,9 +338,6 @@ export default {
     },
     onConfirmInput() {
       if (this.confirmError) this.confirmError = ''
-    },
-    onCancelBrowse() {
-      leaveLoginWithoutAuth()
     },
     async onEmailSubmit() {
       if (!this.agreeTerms) {
@@ -349,9 +390,6 @@ export default {
     },
     // #endif
     // #ifdef MP-WEIXIN
-    onCancel() {
-      leaveLoginWithoutAuth()
-    },
     async onWechatLogin() {
       if (!this.agreeTerms) {
         uni.showToast({ title: '请先阅读并勾选同意协议与隐私政策', icon: 'none' })
@@ -378,9 +416,6 @@ export default {
     },
     // #endif
     // #ifdef MP-TOUTIAO
-    onCancelDouyin() {
-      leaveLoginWithoutAuth()
-    },
     async onDouyinLogin() {
       if (!this.agreeTerms) {
         uni.showToast({ title: '请先阅读并勾选同意协议与隐私政策', icon: 'none' })
@@ -415,6 +450,37 @@ export default {
   min-height: 100vh;
   padding: calc(60rpx + var(--status-bar-height, 0px) + env(safe-area-inset-top)) 36rpx 40rpx;
   background: transparent;
+
+  &__nav-btn {
+    display: block;
+    margin: -20rpx 0 12rpx -8rpx;
+    padding: 0;
+    border: none;
+    background: transparent;
+    line-height: 1;
+    text-align: left;
+
+    &::after {
+      border: none;
+    }
+
+    &--hover {
+      opacity: 0.7;
+    }
+  }
+
+  &__nav-inner {
+    display: flex;
+    align-items: center;
+    gap: 4rpx;
+    padding: 12rpx 8rpx;
+  }
+
+  &__nav-text {
+    font-size: 28rpx;
+    color: #64748b;
+    font-weight: 600;
+  }
 
   &__header {
     margin-bottom: 36rpx;
@@ -609,8 +675,9 @@ export default {
     }
   }
 
-  &__cancel {
+  &__cancel-btn {
     margin-top: 28rpx;
+    width: 100%;
     height: 88rpx;
     line-height: 88rpx;
     text-align: center;
@@ -621,7 +688,11 @@ export default {
     background: rgba(255, 255, 255, 0.85);
     border: 1rpx solid rgba(148, 163, 184, 0.35);
 
-    &:active {
+    &::after {
+      border: none;
+    }
+
+    &--hover {
       opacity: 0.75;
     }
   }

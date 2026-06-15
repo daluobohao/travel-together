@@ -50,9 +50,10 @@
 </template>
 
 <script>
-import { feedTopicLabel, formatActivityTime, likeFeedPost } from '@/api'
+import { feedTopicLabel, formatActivityTime, isLoggedIn, likeFeedPost } from '@/api'
 import { displayAvatarUrl } from '@/utils/avatarDisplay'
 import { openFeedLocationOnMap } from '@/utils/feedLocation'
+import { openLoginPage } from '@/utils/wechatAuth'
 
 export default {
   props: {
@@ -94,6 +95,10 @@ export default {
       uni.previewImage({ urls, current: urls[index] })
     },
     async onLike() {
+      if (!isLoggedIn()) {
+        openLoginPage()
+        return
+      }
       try {
         await likeFeedPost(this.item.postId)
         this.$emit('refresh')

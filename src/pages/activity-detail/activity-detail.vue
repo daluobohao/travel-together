@@ -119,13 +119,17 @@
           <view class="detail__tab detail__tab--active">
             <text>活动简介</text>
           </view>
-          <view class="detail__tab detail__tab--guide" hover-class="detail__tab--hover" @click="onOpenActivityGuide">
+          <view
+            class="detail__tab detail__tab--guide"
+            hover-class="detail__tab--hover"
+            @click="onOpenActivityGuide"
+          >
             <text>活动说明</text>
             <wm-icon name="chevronRight" :size="24" color="#6366f1" />
           </view>
         </view>
-        <view v-if="canEditActivity" class="detail__guide-edit">
-          <text class="detail__guide-edit-tip">行程、装备、费用等完整说明</text>
+        <view v-if="canEditActivity" class="detail__intro-actions">
+          <text class="detail__guide-edit-link" @click="onEditActivityIntro">编辑活动简介</text>
           <text class="detail__guide-edit-link" @click="onEditActivityGuide">编辑活动说明</text>
         </view>
         <text class="desc">{{ activity.description }}</text>
@@ -221,7 +225,6 @@ import {
   getUserFeedPosts,
   isActivityPostWindowOpen,
   isLoggedIn,
-  redirectToLogin,
   resolveActivityCategoryTag,
 } from '@/api'
 import { apiActivityPathId, sameActivityId } from '@/utils/activityId'
@@ -235,6 +238,7 @@ import {
 import { SHARE_SRC_FRIEND, SHARE_SRC_TIMELINE } from '@/utils/acquisitionSource'
 import { ensurePhoneBound, PHONE_GATE_REASON } from '@/utils/phoneGate'
 import { ensureProfileComplete } from '@/utils/profileGate'
+import { openLoginPage } from '@/utils/wechatAuth'
 import { confirmCancelActivity } from '@/utils/activityCancel'
 import { isActivityOrganizer } from '@/utils/activityPermission'
 import { openFeedLocationOnMap } from '@/utils/feedLocation'
@@ -519,6 +523,9 @@ export default {
         this.activityPosts = []
       }
     },
+    onEditActivityIntro() {
+      this.onEditActivity()
+    },
     onEditActivity() {
       const actId = apiActivityPathId(this.activity?.id || this.activityId)
       if (!actId) {
@@ -656,7 +663,7 @@ export default {
         const back = id
           ? `/pages/activity-detail/activity-detail?id=${encodeURIComponent(id)}`
           : ''
-        redirectToLogin(back)
+        openLoginPage(back)
         return
       }
       this.toggleEnroll()
@@ -708,7 +715,7 @@ export default {
       if (!this.canEnterGroup) return
       const chatUrl = `/pages/chat-detail/chat-detail?id=${encodeURIComponent(this.activity.id)}`
       if (!isLoggedIn()) {
-        redirectToLogin(chatUrl)
+        openLoginPage(chatUrl)
         return
       }
       const profileOk = await ensureProfileComplete({ redirectPath: chatUrl })
@@ -1128,22 +1135,16 @@ export default {
   }
 }
 
-.detail__guide-edit {
+.detail__intro-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
+  justify-content: flex-end;
+  gap: 28rpx;
   margin-bottom: 16rpx;
-  padding: 16rpx 20rpx;
+  padding: 14rpx 18rpx;
   border-radius: $wm-radius-md;
-  background: $wm-primary-soft;
-}
-
-.detail__guide-edit-tip {
-  flex: 1;
-  font-size: 24rpx;
-  color: $wm-text-3;
-  line-height: 1.5;
+  background: #f8fafc;
+  border: 1rpx solid #e2e8f0;
 }
 
 .detail__guide-edit-link {

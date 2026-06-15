@@ -48,7 +48,8 @@
 
 <script>
 import WmIcon from '../WmIcon/WmIcon.vue'
-import { isLoggedIn, redirectToLogin } from '@/api'
+import { isLoggedIn } from '@/api'
+import { openLoginPage } from '@/utils/wechatAuth'
 import { formatChatBadgeCount } from '@/utils/chatBadge'
 import {
   getMessageUnreadState,
@@ -143,7 +144,7 @@ export default {
     },
     onPublishTap() {
       if (!isLoggedIn()) {
-        redirectToLogin()
+        openLoginPage('/pages/publish/publish')
         return
       }
       uni.navigateTo({ url: '/pages/publish/publish' })

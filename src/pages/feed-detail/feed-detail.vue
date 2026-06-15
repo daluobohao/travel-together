@@ -46,9 +46,9 @@ import {
   getFeedPost,
   getMe,
   isLoggedIn,
-  redirectToLogin,
 } from '@/api'
 import { ensureTextContentSafe, SEC_SCENE } from '@/utils/contentSecurity'
+import { openLoginPage } from '@/utils/wechatAuth'
 
 export default {
   components: { WmIcon, FeedPostCard },
@@ -111,7 +111,7 @@ export default {
     },
     async submitComment() {
       if (!isLoggedIn()) {
-        redirectToLogin(`/pages/feed-detail/feed-detail?postId=${encodeURIComponent(this.postId)}`)
+        openLoginPage(`/pages/feed-detail/feed-detail?postId=${encodeURIComponent(this.postId)}`)
         return
       }
       const text = this.commentDraft.trim()
@@ -156,7 +156,7 @@ export default {
     },
     onReport() {
       if (!isLoggedIn()) {
-        redirectToLogin(`/pages/feed-detail/feed-detail?postId=${encodeURIComponent(this.postId)}`)
+        openLoginPage(`/pages/feed-detail/feed-detail?postId=${encodeURIComponent(this.postId)}`)
         return
       }
       uni.showModal({

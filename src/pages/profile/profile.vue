@@ -26,7 +26,7 @@
           <text v-if="genderDisplay" class="profile__gender">{{ genderDisplay }}</text>
         </view>
         <text v-if="loggedIn" class="profile__edit" @tap="onEdit">编辑</text>
-        <view v-else class="profile__edit profile__edit--login" hover-class="profile__edit--hover" @tap="goLogin">
+        <view v-else class="profile__edit profile__edit--login" hover-class="profile__edit--hover" @click.stop="goLogin">
           <text>登录</text>
         </view>
       </view>
@@ -110,6 +110,7 @@ import WmTabBar from '@/components/WmTabBar/WmTabBar.vue'
 import {
   adminListCityGroupHostApplications,
   adminListPhotoVerifications,
+  clearWmAuthTokens,
   formatUserGenderLabel,
   getMe,
   getMyActivities,
@@ -120,7 +121,7 @@ import {
 } from '@/api'
 import { displayAvatarUrl } from '@/utils/avatarDisplay'
 import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
-import { clearSkipSilentLogin, setPostLoginRedirect } from '@/utils/wechatAuth'
+import { clearSkipSilentLogin, openLoginPage } from '@/utils/wechatAuth'
 export default {
   components: { WmIcon, WmTabBar },
   data() {
@@ -216,14 +217,7 @@ export default {
   methods: {
     goLogin() {
       if (this.loggedIn) return
-      setPostLoginRedirect('/pages/profile/profile')
-      clearSkipSilentLogin()
-      uni.reLaunch({
-        url: '/pages/login/login',
-        fail: () => {
-          uni.redirectTo({ url: '/pages/login/login' })
-        },
-      })
+      openLoginPage('/pages/profile/profile')
     },
     ensureLoggedIn() {
       if (isLoggedIn()) return true
@@ -344,6 +338,7 @@ export default {
           } catch {
             /* logout 内部会清 token；此处兜底 */
           }
+          clearSkipSilentLogin()
           uni.reLaunch({ url: '/pages/login/login' })
         },
       })
@@ -435,6 +430,7 @@ export default {
       })
     } catch (e) {
       if (e?.isAuthError || e?.needLogin || e?.statusCode === 401) {
+        clearWmAuthTokens()
         this.loggedIn = false
         this.user = {
           name: '游客',

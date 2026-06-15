@@ -293,6 +293,7 @@ import {
 import { buildMentionsPayload } from '@/utils/chatMentions'
 import { ensureTextContentSafe, ensureTextFieldsSafe, SEC_SCENE } from '@/utils/contentSecurity'
 import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
+import { shouldSkipSilentLogin } from '@/utils/wechatAuth'
 
 const POLL_INTERVAL_MS = 4000
 const DEFAULT_LIMIT = 50
@@ -405,6 +406,10 @@ export default {
     this.chatId = query?.id ? String(query.id) : '1'
     this.chatReturnUrl = `/pages/chat-detail/chat-detail?id=${encodeURIComponent(this.chatId)}`
     if (!isLoggedIn()) {
+      if (shouldSkipSilentLogin()) {
+        uni.reLaunch({ url: '/pages/home/home' })
+        return
+      }
       redirectToLogin(this.chatReturnUrl)
       return
     }
