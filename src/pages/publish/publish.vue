@@ -192,14 +192,13 @@
       </view>
 
       <view v-if="!isEditMode || editLoaded" class="field field--link" @click="onEditActivityGuide">
-        <text class="field__label">完整活动说明</text>
+        <text class="field__label">完整活动说明<text v-if="!isEditMode">（选填）</text></text>
         <view class="field__select field__select--clickable">
           <text :class="['field__select-text', { 'field__placeholder': !guideEntryFilled }]">
             {{ guideEntryText }}
           </text>
           <wm-icon name="chevronRight" :size="28" color="#cbd5e1" />
         </view>
-        <text v-if="!isEditMode" class="field__hint">可选；发布时一并保存。概况中的时间、地点、人数将引用上方填写内容。</text>
       </view>
 
       <view class="field">
@@ -921,7 +920,6 @@ export default {
         return
       }
       writePublishGuideDraftContext({
-        feeLabel: (this.form.cost || '').trim() || '免费',
         title: (this.form.title || '').trim(),
       })
       uni.navigateTo({

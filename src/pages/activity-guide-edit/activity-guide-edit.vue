@@ -13,21 +13,18 @@
     </view>
 
     <scroll-view v-else-if="canEdit" scroll-y class="sub__body">
-      <text class="hint">概况中的名称、时间、地点、人数、基础费用将自动引用活动信息；此处填写各章节详细说明。</text>
-
       <view class="field-card">
-        <text class="field-card__label">一、活动概况（补充说明，可选）</text>
+        <text class="field-card__label">一、活动概况</text>
         <textarea
           v-model="form.overviewNote"
           class="field-card__area"
-          placeholder="如：难度等级、集合细节等（名称/时间/地点/人数已自动展示）"
+          :placeholder="overviewPlaceholder"
           maxlength="8000"
         />
       </view>
 
       <view v-for="sec in templateSections" :key="sec.key" class="field-card">
         <text class="field-card__label">{{ sec.ordinal }}、{{ sec.label }}</text>
-        <text v-if="sec.key === 'feeNote'" class="field-card__sync">基础费用（自动引用）：{{ feeLabel }}</text>
         <textarea
           v-model="form[sec.key]"
           class="field-card__area"
@@ -48,7 +45,6 @@ import {
   buildGuideSectionsPayload,
   mergeGuideFormFromDetail,
   readPublishGuideDraft,
-  readPublishGuideDraftContext,
   writePublishGuideDraft,
 } from '@/constants/activityGuide'
 import { isActivityOrganizer } from '@/utils/activityPermission'
@@ -62,7 +58,7 @@ export default {
       canEdit: false,
       loadState: 'loading',
       saving: false,
-      feeLabel: '免费',
+      overviewPlaceholder: '可填写活动名称、时间、地点、人数及概况说明等。',
       form: mergeGuideFormFromDetail(null),
       templateSections: ACTIVITY_GUIDE_SECTIONS.map((s) => ({ ...s, placeholder: '' })),
     }
@@ -87,10 +83,11 @@ export default {
             placeholder: map[s.key]?.placeholder || '',
           }))
         }
+        if (tpl?.overviewPlaceholder) {
+          this.overviewPlaceholder = tpl.overviewPlaceholder
+        }
         if (this.draftMode) {
           this.canEdit = true
-          const ctx = readPublishGuideDraftContext()
-          this.feeLabel = ctx.feeLabel || '免费'
           this.form = mergeGuideFormFromDetail({ guideSections: readPublishGuideDraft() })
           this.loadState = 'ready'
           return
@@ -116,7 +113,6 @@ export default {
         }
         if (detail) {
           this.form = mergeGuideFormFromDetail(detail)
-          this.feeLabel = detail.guideOverview?.feeLabel || '免费'
         }
         this.loadState = 'ready'
       } catch (e) {
@@ -194,13 +190,6 @@ export default {
     font-size: 28rpx;
   }
 }
-.hint {
-  display: block;
-  font-size: 24rpx;
-  color: $wm-text-3;
-  line-height: 1.5;
-  margin-bottom: 20rpx;
-}
 .field-card {
   background: #fff;
   border-radius: $wm-radius-lg;
@@ -211,12 +200,6 @@ export default {
     font-size: 28rpx;
     font-weight: 700;
     color: $wm-text-1;
-    margin-bottom: 12rpx;
-  }
-  &__sync {
-    display: block;
-    font-size: 24rpx;
-    color: $wm-text-3;
     margin-bottom: 12rpx;
   }
   &__area {

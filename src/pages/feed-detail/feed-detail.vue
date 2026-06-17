@@ -1,22 +1,46 @@
 <template>
   <view class="page sub feed-detail">
-    <view class="sub__header">
-      <view class="sub__back" @click="goBack"><wm-icon name="chevronLeft" :size="36" color="#0f172a" /></view>
+    <view class="sub__header feed-detail__header">
+      <button class="sub__back sub__back-btn" plain hover-class="sub__back-btn--hover" @tap="goBack">
+        <wm-icon name="chevronLeft" :size="36" color="#0f172a" />
+      </button>
       <text class="sub__title">动态详情</text>
-      <text
-        v-if="isMine"
-        class="sub__sp feed-detail__delete"
-        @click="onDelete"
-      >删除</text>
-      <text
-        v-else
-        class="sub__sp feed-detail__report"
-        @click="onReport"
-      >举报</text>
+      <view class="feed-detail__header-right">
+        <!-- #ifdef MP-WEIXIN || MP-TOUTIAO -->
+        <template v-if="canShareFeed">
+          <button
+            class="feed-detail__share-btn"
+            type="default"
+            plain
+            hover-class="feed-detail__share-btn--hover"
+            open-type="share"
+          >
+            <wm-icon name="shareForward" :size="32" color="#0f172a" />
+          </button>
+          <view
+            class="feed-detail__share-btn"
+            hover-class="feed-detail__share-btn--hover"
+            @click="onCopyShare"
+          >
+            <wm-icon name="link2" :size="32" color="#0f172a" />
+          </view>
+        </template>
+        <!-- #endif -->
+        <text
+          v-if="isMine"
+          class="feed-detail__action feed-detail__delete"
+          @click="onDelete"
+        >删除</text>
+        <text
+          v-else-if="item"
+          class="feed-detail__action feed-detail__report"
+          @click="onReport"
+        >举报</text>
+      </view>
     </view>
     <view v-if="loading" class="sub__state"><text>加载中…</text></view>
     <view v-else-if="item" class="sub__body">
-      <feed-post-card :item="item" @refresh="load" />
+      <feed-post-card :item="item" :show-share="false" @refresh="load" />
 
       <view class="panel comments">
         <text class="section-title">评论 {{ commentTotal }}</text>
@@ -48,6 +72,13 @@ import {
   isLoggedIn,
 } from '@/api'
 import { ensureTextContentSafe, SEC_SCENE } from '@/utils/contentSecurity'
+import { capturePageQueryAttribution } from '@/utils/acquisitionSource'
+import {
+  buildFeedShareClipboardText,
+  buildFeedShareMessage,
+  buildFeedTimelineShare,
+  isCityFeedPost,
+} from '@/utils/feedShare'
 import { openLoginPage } from '@/utils/wechatAuth'
 
 export default {
@@ -66,6 +97,9 @@ export default {
     }
   },
   computed: {
+    canShareFeed() {
+      return isCityFeedPost(this.item)
+    },
     isMine() {
       if (!this.myUserId || !this.item?.author?.userId) return false
       return String(this.item.author.userId) === String(this.myUserId)
@@ -74,7 +108,22 @@ export default {
   methods: {
     isLoggedIn,
     goBack() {
-      uni.navigateBack()
+      const pages = getCurrentPages()
+      if (pages.length > 1) {
+        uni.navigateBack({
+          fail: () => this.leaveFeedDetail(),
+        })
+        return
+      }
+      this.leaveFeedDetail()
+    },
+    leaveFeedDetail() {
+      uni.reLaunch({
+        url: '/pages/discover/discover',
+        fail: () => {
+          uni.reLaunch({ url: '/pages/home/home' })
+        },
+      })
     },
     async loadMyUserId() {
       if (!isLoggedIn()) {
@@ -154,6 +203,16 @@ export default {
         },
       })
     },
+    onCopyShare() {
+      const text = buildFeedShareClipboardText(this.item)
+      if (!text) return
+      uni.setClipboardData({
+        data: text,
+        success: () => {
+          uni.showToast({ title: '已复制分享说明', icon: 'none', duration: 2400 })
+        },
+      })
+    },
     onReport() {
       if (!isLoggedIn()) {
         openLoginPage(`/pages/feed-detail/feed-detail?postId=${encodeURIComponent(this.postId)}`)
@@ -180,26 +239,121 @@ export default {
     },
   },
   async onLoad(options) {
+    capturePageQueryAttribution(options || {})
     this.postId = options?.postId || ''
     await this.loadMyUserId()
     this.load()
   },
+  onShow() {
+    // #ifdef MP-WEIXIN
+    try {
+      uni.showShareMenu({
+        withShareTicket: true,
+        menus: ['shareAppMessage', 'shareTimeline'],
+      })
+    } catch (_) {
+      /* ignore */
+    }
+    // #endif
+    // #ifdef MP-TOUTIAO
+    Promise.resolve(uni.showShareMenu({ withShareTicket: false })).catch(() => {})
+    // #endif
+  },
+  onShareAppMessage() {
+    return buildFeedShareMessage(this.item)
+  },
+  // #ifdef MP-WEIXIN
+  onShareTimeline() {
+    return buildFeedTimelineShare(this.item)
+  },
+  // #endif
 }
 </script>
 
 <style lang="scss" scoped>
 @import '@/styles/sub-page.scss';
-.feed-detail__report {
+.feed-detail__header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sub__back-btn {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  width: 72rpx;
+  height: 72rpx;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &::after {
+    border: none;
+  }
+
+  &--hover {
+    opacity: 0.7;
+  }
+}
+.feed-detail__header .sub__title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.feed-detail__header-right {
+  position: relative;
+  z-index: 2;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  min-width: 0;
+  flex-shrink: 0;
+}
+.feed-detail__share-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  line-height: 1;
+
+  &::after {
+    border: none;
+  }
+
+  &--hover {
+    opacity: 0.7;
+  }
+}
+.feed-detail__action {
   font-size: 26rpx;
-  color: #64748b;
   width: auto;
   padding: 0 8rpx;
+  margin-left: 4rpx;
+}
+.feed-detail__report {
+  color: #64748b;
 }
 .feed-detail__delete {
-  font-size: 26rpx;
   color: #ef4444;
-  width: auto;
-  padding: 0 8rpx;
 }
 .section-title {
   font-size: 30rpx;

@@ -2,6 +2,24 @@
 
 export const MAX_MENTIONS_PER_MESSAGE = 5
 
+const MENTIONS_KIND = 'text_mentions'
+
+/** 解析 text_content 中的 @ 扩展 JSON；纯文本原样返回 */
+export function decodeTextMentionsPayload(textContent) {
+  if (!textContent) return { text: '', mentions: [] }
+  const raw = String(textContent).trim()
+  if (!raw) return { text: '', mentions: [] }
+  if (!raw.startsWith('{')) return { text: textContent, mentions: [] }
+  try {
+    const data = JSON.parse(raw)
+    if (!data || data.kind !== MENTIONS_KIND) return { text: textContent, mentions: [] }
+    const mentions = Array.isArray(data.mentions) ? data.mentions : []
+    return { text: String(data.text || ''), mentions }
+  } catch {
+    return { text: textContent, mentions: [] }
+  }
+}
+
 export function buildMentionsPayload(text, pendingMentions = []) {
   const body = String(text || '')
   if (!body || !pendingMentions?.length) return []

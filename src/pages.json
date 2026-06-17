@@ -181,7 +181,9 @@
 			"path": "pages/feed-detail/feed-detail",
 			"style": {
 				"navigationBarTitleText": "动态详情",
-				"navigationStyle": "custom"
+				"navigationStyle": "custom",
+				"enableShareAppMessage": true,
+				"enableShareTimeline": true
 			}
 		},
 		{

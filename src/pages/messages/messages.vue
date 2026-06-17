@@ -275,10 +275,10 @@ import {
 import { openLoginPage } from '@/utils/wechatAuth'
 import { filterPlatformNotifications } from '@/utils/platformNotification'
 import { formatChatBadgeCount } from '@/utils/chatBadge'
+import { normalizeLastMessagePreview } from '@/utils/chatMessageFields'
 import {
   publishTabUnreadFromLists,
   refreshMessageUnreadSummary,
-  subscribeMessageUnread,
 } from '@/utils/messageUnread'
 
 /** 消息列表每页条数（首屏轻量，靠加载更多翻页） */
@@ -338,7 +338,7 @@ function mapGroupChat(item, idx) {
     name: item.title || (isCityHall ? '城市大群' : '活动群聊'),
     isCityHall,
     sender: item.memberCount ? `${item.memberCount}人` : '群聊',
-    preview: item.lastMessage || '暂无消息',
+    preview: normalizeLastMessagePreview(item.lastMessage) || '暂无消息',
     time: relativeTime(item.lastMessageAt) || '最近',
     unread: Number(item.unreadCount || 0),
     color: isCityHall ? cityHallColor : eventColors[idx % eventColors.length],
@@ -355,7 +355,7 @@ function mapPrivateChat(item) {
     peerAvatarUrl: item.peerAvatarUrl || '',
     initial: String(name).slice(0, 1),
     name,
-    preview: item.lastMessage || '暂无消息',
+    preview: normalizeLastMessagePreview(item.lastMessage) || '暂无消息',
     time: relativeTime(item.lastMessageAt) || '最近',
     unread: Number(item.unreadCount || 0),
   }

@@ -114,6 +114,7 @@
         :item="item"
         @refresh="load(true)"
         @open="openDetail"
+        @share-prepare="onFeedSharePrepare"
       />
     </view>
 
@@ -144,6 +145,8 @@ import {
   DISCOVER_PAGE_SHARE,
 } from '@/utils/activityShare'
 import { resolveCityHallCityName } from '@/utils/cityCatalog'
+import feedSharePageMixin from '@/mixins/feedSharePage'
+import { resolveFeedShareAppMessage, resolveFeedShareTimeline } from '@/utils/feedShare'
 import {
   getFeedCityAnchorSync,
   resolveFeedCityAnchor,
@@ -152,6 +155,7 @@ import {
 
 export default {
   components: { WmIcon, WmTabBar, FeedPostCard, FeedCityPickerSheet },
+  mixins: [feedSharePageMixin],
   data() {
     return {
       scope: 'city',
@@ -223,11 +227,17 @@ export default {
     this.load(false)
   },
   onShareAppMessage() {
-    return buildDiscoverShareMessage(this.cityDisplayName)
+    return resolveFeedShareAppMessage(this, () =>
+      buildDiscoverShareMessage(this.cityDisplayName),
+    )
   },
   // #ifdef MP-WEIXIN
   onShareTimeline() {
-    return { title: DISCOVER_PAGE_SHARE.title }
+    return resolveFeedShareTimeline(this, () => ({
+      title: this.cityDisplayName
+        ? `去旅聚 · ${this.cityDisplayName}同城动态`
+        : DISCOVER_PAGE_SHARE.title,
+    }))
   },
   // #endif
   methods: {

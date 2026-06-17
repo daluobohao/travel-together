@@ -67,6 +67,7 @@
           :key="p.postId"
           :item="p"
           @open="openFeedDetail"
+          @share-prepare="onFeedSharePrepare"
         />
       </view>
 
@@ -133,9 +134,12 @@ import {
 } from '@/api'
 import { ensureTextContentSafe, SEC_SCENE } from '@/utils/contentSecurity'
 import { formatHostBadgeLabel, normalizeHostBadgeLabel } from '@/utils/cityCatalog'
+import feedSharePageMixin from '@/mixins/feedSharePage'
+import { resolveFeedShareAppMessage, resolveFeedShareTimeline } from '@/utils/feedShare'
 
 export default {
   components: { WmIcon, FeedPostCard },
+  mixins: [feedSharePageMixin],
   data() {
     return {
       loading: true,
@@ -225,6 +229,36 @@ export default {
     }
     this.loadProfile(userId)
   },
+  onShow() {
+    // #ifdef MP-WEIXIN
+    try {
+      uni.showShareMenu({
+        withShareTicket: true,
+        menus: ['shareAppMessage', 'shareTimeline'],
+      })
+    } catch (_) {
+      /* ignore */
+    }
+    // #endif
+    // #ifdef MP-TOUTIAO
+    Promise.resolve(uni.showShareMenu({ withShareTicket: false })).catch(() => {})
+    // #endif
+  },
+  onShareAppMessage() {
+    const nick = this.profile?.nickname || '用户'
+    return resolveFeedShareAppMessage(this, () => ({
+      title: `旅聚 · ${nick}的主页`,
+      path: `/pages/user-public/user-public?userId=${encodeURIComponent(this.targetUserId)}`,
+    }))
+  },
+  // #ifdef MP-WEIXIN
+  onShareTimeline() {
+    const nick = this.profile?.nickname || '用户'
+    return resolveFeedShareTimeline(this, () => ({
+      title: `旅聚 · ${nick}的主页`,
+    }))
+  },
+  // #endif
   methods: {
     async loadDmContext() {
       if (!this.activityIdNorm || !this.targetUserId || this.profile?.__offlineSnapshot) return

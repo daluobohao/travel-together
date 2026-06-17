@@ -1,4 +1,5 @@
 import { getStickerEmoji } from '@/constants/chatStickers'
+import { decodeTextMentionsPayload } from '@/utils/chatMentions'
 
 export function inferMsgType(raw) {
   if (raw?.msgType) return raw.msgType
@@ -32,4 +33,13 @@ export function parseChatMessageFields(raw) {
     chainEntries: msgType === 'chain_signup' ? (raw?.chainEntries || []) : [],
     mentions: msgType === 'text' ? (raw?.mentions || []) : [],
   }
+}
+
+/** 消息列表最后一条摘要：兼容 @ 消息的 text_mentions JSON */
+export function normalizeLastMessagePreview(raw) {
+  if (raw == null) return ''
+  const s = String(raw).trim()
+  if (!s) return ''
+  const { text } = decodeTextMentionsPayload(s)
+  return String(text || s).trim()
 }

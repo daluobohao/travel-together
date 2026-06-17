@@ -24,21 +24,13 @@
       </view>
 
       <template v-else>
-        <view class="guide-section">
+        <view v-if="overviewNote" class="guide-section">
           <text class="guide-section__head">一、活动概况</text>
-          <view class="guide-kv">
-            <text class="guide-kv__row">活动名称：{{ overview.title }}</text>
-            <text class="guide-kv__row">活动时间：{{ overviewTime }}</text>
-            <text class="guide-kv__row">集合地点：{{ overview.locationName }}</text>
-            <text v-if="overview.addressDetail" class="guide-kv__row">详细地址：{{ overview.addressDetail }}</text>
-            <text class="guide-kv__row">活动人数：{{ overview.enrolledCount }}/{{ overview.maxMembers }} 人</text>
-          </view>
-          <text v-if="overviewNote" class="guide-section__body">{{ overviewNote }}</text>
+          <text class="guide-section__body">{{ overviewNote }}</text>
         </view>
 
         <view v-for="sec in visibleSections" :key="sec.key" class="guide-section">
           <text class="guide-section__head">{{ sec.ordinal }}、{{ sec.label }}</text>
-          <text v-if="sec.key === 'feeNote'" class="guide-kv__row guide-kv__row--fee">基础费用：{{ overview.feeLabel }}</text>
           <text class="guide-section__body">{{ sec.text }}</text>
         </view>
       </template>
@@ -52,7 +44,7 @@
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
-import { getActivityDetail, getMe, isLoggedIn, formatActivityTimeRange } from '@/api'
+import { getActivityDetail, getMe, isLoggedIn } from '@/api'
 import { apiActivityPathId } from '@/utils/activityId'
 import {
   ACTIVITY_GUIDE_EMPTY_HINT,
@@ -70,7 +62,6 @@ export default {
       loadErrorMsg: '',
       pageTitle: '',
       guideFilled: false,
-      overview: {},
       overviewNote: '',
       sections: {},
       canEdit: false,
@@ -79,9 +70,6 @@ export default {
     }
   },
   computed: {
-    overviewTime() {
-      return formatActivityTimeRange(this.overview.startAt, this.overview.endAt)
-    },
     visibleSections() {
       return ACTIVITY_GUIDE_SECTIONS.map((s) => ({
         ...s,
@@ -138,16 +126,6 @@ export default {
         this.canEdit = isActivityOrganizer(detail, meId)
         this.pageTitle = detail.title || ''
         this.guideFilled = !!detail.guideFilled
-        this.overview = detail.guideOverview || {
-          title: detail.title,
-          startAt: detail.startAt,
-          endAt: detail.endAt,
-          locationName: detail.locationName,
-          addressDetail: detail.addressDetail,
-          maxMembers: detail.maxMembers,
-          enrolledCount: detail.enrolledCount,
-          feeLabel: '免费',
-        }
         this.sections = detail.guideSections || {}
         this.overviewNote = guideSectionText(this.sections, 'overviewNote')
         this.loadState = 'ready'
@@ -264,17 +242,6 @@ export default {
     line-height: 1.65;
     color: $wm-text-2;
     white-space: pre-wrap;
-  }
-}
-.guide-kv__row {
-  display: block;
-  font-size: 28rpx;
-  line-height: 1.6;
-  color: $wm-text-2;
-  margin-bottom: 8rpx;
-  &--fee {
-    margin-bottom: 12rpx;
-    color: $wm-text-3;
   }
 }
 .guide-edit-bar {

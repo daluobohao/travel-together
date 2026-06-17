@@ -7,6 +7,8 @@ import {
 import { wmRequest, paginate } from './client'
 import { clearWmAuthTokens, getMockEnabled, setAccessToken, setRefreshToken } from './config'
 import { filterPlatformNotifications, isPlatformNotificationType } from '@/utils/platformNotification'
+import { normalizeLastMessagePreview } from '@/utils/chatMessageFields'
+import { decodeTextMentionsPayload } from '@/utils/chatMentions'
 import cityHallPrefectures from './city_hall_prefectures.json'
 import { provinceDisplayName } from './china_province_display.js'
 import { wmDB, toActivityCard } from '@/mock/wandermeet-db'
@@ -110,17 +112,10 @@ function mockChainFieldsFromRow(row) {
 }
 
 function mockDecodeMentions(textContent) {
-  if (!textContent || !String(textContent).startsWith('{')) return null
-  try {
-    const data = JSON.parse(textContent)
-    if (data?.kind !== 'text_mentions') return null
-    return {
-      text: data.text || '',
-      mentions: Array.isArray(data.mentions) ? data.mentions : [],
-    }
-  } catch {
-    return null
-  }
+  const decoded = decodeTextMentionsPayload(textContent)
+  if (!textContent || !String(textContent).trim().startsWith('{')) return null
+  if (!decoded.mentions?.length && decoded.text === textContent) return null
+  return decoded
 }
 
 function mockMentionFieldsFromRow(row) {
@@ -199,7 +194,8 @@ function mockChatLastPreview(msg) {
     const title = fields.chainTitle || '接龙'
     return `[接龙] ${String(title).slice(0, 20)} (${count}人)`
   }
-  return msg.text || null
+  const { text } = decodeTextMentionsPayload(msg.text)
+  return text || null
 }
 
 function mockCityNameFromCode(cityCode) {
@@ -918,14 +914,15 @@ export const getActivityGuideTemplate = () =>
     needAuth: false,
     mockHandler: () =>
       ok({
+        overviewPlaceholder: '可填写活动名称、时间、地点、人数及概况说明等。',
         sections: [
           { key: 'itinerary', label: '行程安排', ordinal: '二', placeholder: '按时间列出集合、出发、下撤等。' },
           { key: 'equipment', label: '装备要求', ordinal: '三', placeholder: '必备 / 建议 / 禁止装备。' },
           { key: 'enrollmentRequirements', label: '报名条件', ordinal: '四', placeholder: '年龄、经验、健康要求等。' },
-          { key: 'feeNote', label: '费用说明', ordinal: '五', placeholder: '补充包含/不含、退改政策。' },
+          { key: 'feeNote', label: '费用说明', ordinal: '五', placeholder: '费用金额、包含/不含、退改政策等。' },
           { key: 'registration', label: '报名方式', ordinal: '六', placeholder: '进群、联系微信等。' },
           { key: 'risk', label: '风险提示', ordinal: '七', placeholder: '天气、路况、免责提示。' },
-          { key: 'environment', label: '环保要求', ordinal: '八', placeholder: '无痕山野等。' },
+          { key: 'environment', label: '补充说明', ordinal: '八', placeholder: '无痕山野等。' },
         ],
       }),
   })
@@ -3519,7 +3516,7 @@ export const getConversationList = (query = {}) =>
       id: String(item.activityId || idx + 1),
       name: item.title || '活动群聊',
       sender: '群消息',
-      preview: item.lastMessage || '暂无消息',
+      preview: normalizeLastMessagePreview(item.lastMessage) || '暂无消息',
       time: relativeTimeSafe(item.lastMessageAt),
       unread: Number(item.unreadCount || 0),
       color: colors[idx % colors.length],

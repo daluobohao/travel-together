@@ -20,7 +20,12 @@
           <text>共 {{ total }} 条</text>
         </view>
         <view v-for="p in posts" :key="p.postId" class="my-feed-page__item">
-          <feed-post-card :item="p" @open="openDetail" @refresh="reload" />
+          <feed-post-card
+            :item="p"
+            @open="openDetail"
+            @refresh="reload"
+            @share-prepare="onFeedSharePrepare"
+          />
           <view class="my-feed-page__actions">
             <text class="my-feed-page__delete" @click="confirmDelete(p)">删除</text>
           </view>
@@ -43,11 +48,14 @@ import {
   isLoggedIn,
   redirectToLogin,
 } from '@/api'
+import feedSharePageMixin from '@/mixins/feedSharePage'
+import { resolveFeedShareAppMessage, resolveFeedShareTimeline } from '@/utils/feedShare'
 
 const PAGE_SIZE = 20
 
 export default {
   components: { WmIcon, FeedPostCard },
+  mixins: [feedSharePageMixin],
   data() {
     return {
       userId: '',
@@ -150,9 +158,35 @@ export default {
     },
   },
   onShow() {
+    // #ifdef MP-WEIXIN
+    try {
+      uni.showShareMenu({
+        withShareTicket: true,
+        menus: ['shareAppMessage', 'shareTimeline'],
+      })
+    } catch (_) {
+      /* ignore */
+    }
+    // #endif
+    // #ifdef MP-TOUTIAO
+    Promise.resolve(uni.showShareMenu({ withShareTicket: false })).catch(() => {})
+    // #endif
     if (this.userId) this.reload()
     else this.init()
   },
+  onShareAppMessage() {
+    return resolveFeedShareAppMessage(this, () => ({
+      title: '旅聚 · 我的同城动态',
+      path: '/pages/my-feed-posts/my-feed-posts',
+    }))
+  },
+  // #ifdef MP-WEIXIN
+  onShareTimeline() {
+    return resolveFeedShareTimeline(this, () => ({
+      title: '旅聚 · 我的同城动态',
+    }))
+  },
+  // #endif
   onLoad() {
     this.init()
   },

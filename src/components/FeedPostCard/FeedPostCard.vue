@@ -45,6 +45,26 @@
     <view class="feed-card__foot" @click.stop>
       <text class="feed-card__stat" @click="onLike">{{ item.likedByMe ? '已赞' : '赞' }} {{ item.likeCount || 0 }}</text>
       <text class="feed-card__stat">评 {{ item.commentCount || 0 }}</text>
+      <!-- #ifdef MP-WEIXIN || MP-TOUTIAO -->
+      <view v-if="canShare" class="feed-card__share-group">
+        <button
+          class="feed-card__share-btn feed-card__share-btn--friend"
+          plain
+          open-type="share"
+          hover-class="feed-card__share-btn--hover"
+          @tap="onSharePrepare"
+        >
+          <text>转发</text>
+        </button>
+        <view
+          class="feed-card__share-btn feed-card__share-btn--moments"
+          hover-class="feed-card__share-btn--hover"
+          @tap.stop="onShareTimelineHint"
+        >
+          <text>朋友圈</text>
+        </view>
+      </view>
+      <!-- #endif -->
     </view>
   </view>
 </template>
@@ -53,14 +73,20 @@
 import { feedTopicLabel, formatActivityTime, isLoggedIn, likeFeedPost } from '@/api'
 import { displayAvatarUrl } from '@/utils/avatarDisplay'
 import { openFeedLocationOnMap } from '@/utils/feedLocation'
+import { isCityFeedPost, promptFeedTimelineShare } from '@/utils/feedShare'
 import { openLoginPage } from '@/utils/wechatAuth'
 
 export default {
   props: {
     item: { type: Object, required: true },
+    /** 详情页顶栏已有分享入口时可关闭卡片内分享 */
+    showShare: { type: Boolean, default: true },
   },
-  emits: ['refresh', 'open'],
+  emits: ['refresh', 'open', 'share-prepare'],
   computed: {
+    canShare() {
+      return this.showShare && isCityFeedPost(this.item)
+    },
     displayAvatar() {
       return displayAvatarUrl(this.item.author?.avatarUrl)
     },
@@ -105,6 +131,13 @@ export default {
       } catch (e) {
         uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
       }
+    },
+    onSharePrepare() {
+      this.$emit('share-prepare', this.item)
+    },
+    onShareTimelineHint() {
+      this.$emit('share-prepare', this.item)
+      promptFeedTimelineShare()
     },
   },
 }
@@ -227,11 +260,48 @@ export default {
   &__foot {
     margin-top: 20rpx;
     display: flex;
-    gap: 32rpx;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 24rpx 32rpx;
   }
   &__stat {
     font-size: 24rpx;
     color: #64748b;
+  }
+  &__share-group {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+  }
+  &__share-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 88rpx;
+    height: 52rpx;
+    padding: 0 16rpx;
+    border-radius: 999rpx;
+    font-size: 22rpx;
+    font-weight: 600;
+    line-height: 1;
+    border: 1rpx solid rgba(148, 163, 184, 0.35);
+    background: rgba(255, 255, 255, 0.9);
+    color: #64748b;
+
+    &::after {
+      border: none;
+    }
+
+    &--hover {
+      opacity: 0.75;
+    }
+
+    &--moments {
+      color: #0284c7;
+      border-color: rgba(2, 132, 199, 0.25);
+      background: rgba(240, 249, 255, 0.95);
+    }
   }
 }
 </style>

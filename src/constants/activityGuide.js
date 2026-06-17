@@ -9,7 +9,7 @@ export const ACTIVITY_GUIDE_SECTIONS = [
   { key: 'feeNote', label: '费用说明', ordinal: '五' },
   { key: 'registration', label: '报名方式', ordinal: '六' },
   { key: 'risk', label: '风险提示', ordinal: '七' },
-  { key: 'environment', label: '环保要求', ordinal: '八' },
+  { key: 'environment', label: '补充说明', ordinal: '八' },
 ]
 
 export const ACTIVITY_GUIDE_EMPTY_HINT = '组织者暂未补充'
