@@ -2,8 +2,8 @@
 import {
   SHARE_SRC_FRIEND,
   SHARE_SRC_TIMELINE,
-  appendShareSrcToPath,
-  appendShareSrcToQuery,
+  appendShareAttributionToPath,
+  appendShareAttributionToQuery,
 } from '@/utils/acquisitionSource'
 import { displayAvatarUrl } from '@/utils/avatarDisplay'
 
@@ -48,11 +48,11 @@ export function buildFeedShareMessage(post) {
   if (!post?.postId || !isCityFeedPost(post)) {
     return {
       title: FEED_SHARE_TITLE_FALLBACK,
-      path: appendShareSrcToPath('/pages/discover/discover', SHARE_SRC_FRIEND),
+      path: appendShareAttributionToPath('/pages/discover/discover', SHARE_SRC_FRIEND),
     }
   }
   const title = buildFeedShareTitle(post)
-  const path = appendShareSrcToPath(buildFeedDetailPath(post.postId), SHARE_SRC_FRIEND)
+  const path = appendShareAttributionToPath(buildFeedDetailPath(post.postId), SHARE_SRC_FRIEND)
   const imageUrl = buildFeedShareImageUrl(post)
   return imageUrl ? { title, path, imageUrl } : { title, path }
 }
@@ -61,12 +61,12 @@ export function buildFeedTimelineShare(post) {
   if (!post?.postId || !isCityFeedPost(post)) {
     return {
       title: FEED_SHARE_TITLE_FALLBACK,
-      query: appendShareSrcToQuery('', SHARE_SRC_TIMELINE),
+      query: appendShareAttributionToQuery('', SHARE_SRC_TIMELINE),
     }
   }
   const title = buildFeedShareTitle(post)
   const baseQuery = `postId=${encodeURIComponent(normalizeFeedPostId(post.postId))}`
-  const query = appendShareSrcToQuery(baseQuery, SHARE_SRC_TIMELINE)
+  const query = appendShareAttributionToQuery(baseQuery, SHARE_SRC_TIMELINE)
   const imageUrl = buildFeedShareImageUrl(post)
   return imageUrl ? { title, query, imageUrl } : { title, query }
 }
@@ -74,7 +74,7 @@ export function buildFeedTimelineShare(post) {
 export function buildFeedShareClipboardText(post) {
   if (!post?.postId || !isCityFeedPost(post)) return ''
   const title = buildFeedShareTitle(post)
-  const path = appendShareSrcToPath(buildFeedDetailPath(post.postId), SHARE_SRC_FRIEND)
+  const path = appendShareAttributionToPath(buildFeedDetailPath(post.postId), SHARE_SRC_FRIEND)
   return [
     `【去旅聚】${title}`,
     '在微信中打开「去旅聚」小程序：可点右上角「···」转发；或把下方页面路径发给朋友。',

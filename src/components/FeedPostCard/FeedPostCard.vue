@@ -16,14 +16,16 @@
       </view>
       <text v-if="item.postKind === 'activity'" class="feed-card__tag">活动态</text>
     </view>
-    <text class="feed-card__content">{{ item.content }}</text>
-    <view
-      v-if="item.locationName"
-      class="feed-card__location"
-      @click.stop="onOpenLocation"
-    >
-      <wm-icon name="mapPin" :size="24" color="#0d9488" />
-      <text class="feed-card__location-text">{{ item.locationName }}</text>
+    <view class="feed-card__content-block">
+      <text
+        class="feed-card__content"
+        :class="{ 'feed-card__content--folded': showFoldedContent }"
+      >{{ item.content }}</text>
+      <text
+        v-if="needsContentFold"
+        class="feed-card__content-toggle"
+        @click.stop="toggleContentExpanded"
+      >{{ contentExpanded ? '收起' : '全文' }}</text>
     </view>
     <view
       v-if="displayImages.length"
@@ -38,6 +40,14 @@
         mode="aspectFill"
         @click.stop="previewImages(i)"
       />
+    </view>
+    <view
+      v-if="item.locationName"
+      class="feed-card__location"
+      @click.stop="onOpenLocation"
+    >
+      <wm-icon name="mapPin" :size="24" color="#0d9488" />
+      <text class="feed-card__location-text">{{ item.locationName }}</text>
     </view>
     <view v-if="item.topicTags?.length" class="feed-card__topics">
       <text v-for="t in item.topicTags" :key="t" class="feed-card__topic">#{{ topicLabel(t) }}</text>
@@ -81,11 +91,31 @@ export default {
     item: { type: Object, required: true },
     /** 详情页顶栏已有分享入口时可关闭卡片内分享 */
     showShare: { type: Boolean, default: true },
+    /** 列表页：正文超过 3 行时折叠，可点「全文」展开 */
+    foldLongContent: { type: Boolean, default: false },
   },
   emits: ['refresh', 'open', 'share-prepare'],
+  data() {
+    return { contentExpanded: false }
+  },
+  watch: {
+    'item.postId'() {
+      this.contentExpanded = false
+    },
+  },
   computed: {
     canShare() {
       return this.showShare && isCityFeedPost(this.item)
+    },
+    needsContentFold() {
+      if (!this.foldLongContent) return false
+      const text = String(this.item?.content || '').trim()
+      if (!text) return false
+      if (text.length > 84) return true
+      return (text.match(/\n/g) || []).length >= 2
+    },
+    showFoldedContent() {
+      return this.needsContentFold && !this.contentExpanded
     },
     displayAvatar() {
       return displayAvatarUrl(this.item.author?.avatarUrl)
@@ -108,6 +138,9 @@ export default {
     topicLabel: feedTopicLabel,
     onOpen() {
       this.$emit('open', this.item)
+    },
+    toggleContentExpanded() {
+      this.contentExpanded = !this.contentExpanded
     },
     onOpenLocation() {
       if (this.item?.lat != null && this.item?.lng != null) {
@@ -186,11 +219,29 @@ export default {
     padding: 4rpx 12rpx;
     border-radius: 8rpx;
   }
+  &__content-block {
+    min-width: 0;
+  }
   &__content {
     font-size: 28rpx;
     color: #334155;
     line-height: 1.6;
     white-space: pre-wrap;
+    word-break: break-word;
+
+    &--folded {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      overflow: hidden;
+    }
+  }
+  &__content-toggle {
+    display: inline-block;
+    margin-top: 8rpx;
+    font-size: 26rpx;
+    color: #0284c7;
+    font-weight: 500;
   }
   &__location {
     margin-top: 12rpx;

@@ -14,6 +14,7 @@ import { tryBindPendingReferralAfterLogin } from '@/utils/referralInv'
 import {
   clearAcquisitionAfterLogin,
   getLoginAcquisitionPayload,
+  prefetchShareAttributionCache,
 } from '@/utils/acquisitionSource'
 import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
 
@@ -218,6 +219,7 @@ export function navigateAfterLogin(user, { showToast = true } = {}) {
         // 邀请绑定不阻塞跳转；失败时静默忽略
         tryBindPendingReferralAfterLogin().catch(() => {})
         clearAcquisitionAfterLogin()
+        prefetchShareAttributionCache().catch(() => {})
         const { fullEnabled } = await loadOnboardingConfig()
         if (fullEnabled && !user?.onboardingCompletedAt) {
           target = '/pages/onboarding/onboarding'
@@ -254,6 +256,8 @@ export function trySilentWechatLogin() {
       if (shouldSkipSilentLogin()) return false
       applyLoginTokens(data)
       clearAcquisitionAfterLogin()
+      prefetchShareAttributionCache().catch(() => {})
+      tryBindPendingReferralAfterLogin().catch(() => {})
       return true
     } catch {
       return false

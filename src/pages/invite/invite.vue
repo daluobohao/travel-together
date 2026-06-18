@@ -64,8 +64,9 @@ import { copyTextToClipboard } from '@/utils/clipboard'
 import {
   SHARE_SRC_FRIEND,
   SHARE_SRC_TIMELINE,
-  appendShareSrcToPath,
-  appendShareSrcToQuery,
+  appendShareAttributionToPath,
+  appendShareAttributionToQuery,
+  cacheMyReferralCode,
 } from '@/utils/acquisitionSource'
 
 const STATUS_MAP = {
@@ -105,6 +106,7 @@ export default {
         const d = await getMyReferral()
         this.data = d || {}
         this.records = d?.records || []
+        if (d?.code) cacheMyReferralCode(d.code)
       } catch (e) {
         uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
       } finally {
@@ -119,7 +121,7 @@ export default {
     const base = this.data.sharePath || '/pages/entry/entry'
     return {
       title: '来旅聚，加入同城大群',
-      path: appendShareSrcToPath(base, SHARE_SRC_FRIEND),
+      path: appendShareAttributionToPath(base, SHARE_SRC_FRIEND),
     }
   },
   // #ifdef MP-WEIXIN
@@ -128,7 +130,7 @@ export default {
     const q = base.includes('?') ? base.split('?')[1] : ''
     return {
       title: '来旅聚，加入同城大群',
-      query: appendShareSrcToQuery(q, SHARE_SRC_TIMELINE),
+      query: appendShareAttributionToQuery(q, SHARE_SRC_TIMELINE),
     }
   },
   // #endif

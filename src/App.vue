@@ -1,7 +1,7 @@
 <script>
 import { setMockEnabled } from '@/api'
 import { loadOnboardingConfig } from '@/config/onboarding'
-import { captureLaunchAttribution } from '@/utils/acquisitionSource'
+import { captureLaunchAttribution, prefetchShareAttributionCache } from '@/utils/acquisitionSource'
 import { refreshMessageUnreadSummary } from '@/utils/messageUnread'
 
 export default {
@@ -11,9 +11,11 @@ export default {
     console.log('WanderMeet App Launch', 'mock=', false)
     loadOnboardingConfig()
     refreshMessageUnreadSummary()
+    prefetchShareAttributionCache()
   },
   onShow() {
     refreshMessageUnreadSummary()
+    prefetchShareAttributionCache()
   },
   onHide() {},
 }

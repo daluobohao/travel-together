@@ -3,7 +3,9 @@ import { getAccessToken } from '@/api/config'
 import {
   clearAcquisitionAfterLogin,
   getLoginAcquisitionPayload,
+  prefetchShareAttributionCache,
 } from '@/utils/acquisitionSource'
+import { tryBindPendingReferralAfterLogin } from '@/utils/referralInv'
 import { applyLoginTokens, setSkipSilentLogin, shouldSkipSilentLogin } from '@/utils/wechatAuth'
 
 const TT_LOGIN_TIMEOUT_MS = 12000
@@ -147,6 +149,8 @@ export function trySilentDouyinLogin() {
       if (shouldSkipSilentLogin()) return false
       applyLoginTokens(data)
       clearAcquisitionAfterLogin()
+      prefetchShareAttributionCache().catch(() => {})
+      tryBindPendingReferralAfterLogin().catch(() => {})
       console.log(`${LOG_PREFIX} 静默登录成功`)
       return true
     } catch (e) {

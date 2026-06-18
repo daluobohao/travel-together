@@ -920,9 +920,8 @@ export const getActivityGuideTemplate = () =>
           { key: 'equipment', label: '装备要求', ordinal: '三', placeholder: '必备 / 建议 / 禁止装备。' },
           { key: 'enrollmentRequirements', label: '报名条件', ordinal: '四', placeholder: '年龄、经验、健康要求等。' },
           { key: 'feeNote', label: '费用说明', ordinal: '五', placeholder: '费用金额、包含/不含、退改政策等。' },
-          { key: 'registration', label: '报名方式', ordinal: '六', placeholder: '进群、联系微信等。' },
-          { key: 'risk', label: '风险提示', ordinal: '七', placeholder: '天气、路况、免责提示。' },
-          { key: 'environment', label: '补充说明', ordinal: '八', placeholder: '无痕山野等。' },
+          { key: 'risk', label: '风险提示', ordinal: '六', placeholder: '天气、路况、免责提示。' },
+          { key: 'environment', label: '补充说明', ordinal: '七', placeholder: '无痕山野等。' },
         ],
       }),
   })

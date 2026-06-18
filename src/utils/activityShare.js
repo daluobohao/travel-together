@@ -2,19 +2,19 @@
 import {
   SHARE_SRC_FRIEND,
   SHARE_SRC_TIMELINE,
-  appendShareSrcToPath,
-  appendShareSrcToQuery,
+  appendShareAttributionToPath,
+  appendShareAttributionToQuery,
 } from '@/utils/acquisitionSource'
 
 export const DEFAULT_MINI_PROGRAM_SHARE = {
   title: '去旅聚 · 发现身边的活动',
-  path: appendShareSrcToPath('/pages/home/home', SHARE_SRC_FRIEND),
+  path: appendShareAttributionToPath('/pages/home/home', SHARE_SRC_FRIEND),
 }
 
 export function buildDefaultTimelineShare() {
   return {
     title: DEFAULT_MINI_PROGRAM_SHARE.title,
-    query: appendShareSrcToQuery('', SHARE_SRC_TIMELINE),
+    query: appendShareAttributionToQuery('', SHARE_SRC_TIMELINE),
   }
 }
 
@@ -52,7 +52,7 @@ export function buildCurrentPageShareMessage(title = DEFAULT_MINI_PROGRAM_SHARE.
   const path = query ? `/${route}?${query}` : `/${route}`
   return {
     title,
-    path: appendShareSrcToPath(path, SHARE_SRC_FRIEND),
+    path: appendShareAttributionToPath(path, SHARE_SRC_FRIEND),
   }
 }
 
@@ -63,7 +63,7 @@ export function buildCurrentPageTimelineShare(title = DEFAULT_MINI_PROGRAM_SHARE
     return { title }
   }
   const query = buildPageQuery(options)
-  const q = appendShareSrcToQuery(query, SHARE_SRC_TIMELINE)
+  const q = appendShareAttributionToQuery(query, SHARE_SRC_TIMELINE)
   return q ? { title, query: q } : buildDefaultTimelineShare()
 }
 
@@ -77,7 +77,7 @@ export function buildHomeShareMessage(cityName) {
 /** 同城动态 Tab 分享 */
 export const DISCOVER_PAGE_SHARE = {
   title: '去旅聚 · 同城动态',
-  path: appendShareSrcToPath('/pages/discover/discover', SHARE_SRC_FRIEND),
+  path: appendShareAttributionToPath('/pages/discover/discover', SHARE_SRC_FRIEND),
 }
 
 export function buildDiscoverShareMessage(cityName) {
@@ -128,7 +128,7 @@ export function buildHomeSharePathWithActivity(activityId) {
   const id = normalizeShareActivityId(activityId)
   if (!id) return DEFAULT_MINI_PROGRAM_SHARE.path
   const base = `/pages/home/home?${SHARED_ACTIVITY_QUERY_KEY}=${encodeURIComponent(id)}`
-  return appendShareSrcToPath(base, SHARE_SRC_FRIEND)
+  return appendShareAttributionToPath(base, SHARE_SRC_FRIEND)
 }
 
 export function parseSharedActivityIdFromQuery(options = {}) {
@@ -151,7 +151,7 @@ export function buildActivityShareMessage(activity) {
 export function buildActivityTimelineQuery(activityId) {
   const id = normalizeShareActivityId(activityId)
   const base = id ? `${SHARED_ACTIVITY_QUERY_KEY}=${encodeURIComponent(id)}` : ''
-  return appendShareSrcToQuery(base, SHARE_SRC_TIMELINE)
+  return appendShareAttributionToQuery(base, SHARE_SRC_TIMELINE)
 }
 
 /** 复制到剪贴板：标题 + 打开方式 + 小程序页面路径 */

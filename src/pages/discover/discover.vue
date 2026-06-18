@@ -8,14 +8,6 @@
         </view>
         <view class="city-feed__header-actions">
           <!-- #ifdef MP-WEIXIN -->
-          <button
-            class="city-feed__header-icon-btn city-feed__header-icon-btn--share"
-            type="default"
-            hover-class="city-feed__header-icon-btn--hover"
-            open-type="share"
-          >
-            <wm-icon name="shareForward" :size="34" color="#0f172a" />
-          </button>
           <view
             class="city-feed__header-icon-btn"
             hover-class="city-feed__header-icon-btn--hover"
@@ -108,14 +100,15 @@
       <text>{{ emptyText }}</text>
     </view>
     <view v-else class="city-feed__body">
-      <feed-post-card
-        v-for="item in list"
-        :key="item.postId"
-        :item="item"
-        @refresh="load(true)"
-        @open="openDetail"
-        @share-prepare="onFeedSharePrepare"
-      />
+      <view v-for="item in list" :key="item.postId" class="city-feed__post-item">
+        <feed-post-card
+          :item="item"
+          fold-long-content
+          @refresh="load(true)"
+          @open="openDetail"
+          @share-prepare="onFeedSharePrepare"
+        />
+      </view>
     </view>
 
     <wm-tab-bar active="discover" />
@@ -427,10 +420,6 @@ export default {
     margin: 0;
     line-height: 1;
 
-    &--share::after {
-      border: none;
-    }
-
     &--hover {
       background: #f8fafc;
     }
@@ -572,7 +561,23 @@ export default {
   }
 
   &__body {
-    padding: 16rpx 32rpx 0;
+    margin-top: 12rpx;
+    padding: 24rpx 24rpx 40rpx;
+    background: #eef2f7;
+    border-radius: 28rpx 28rpx 0 0;
+    box-shadow: inset 0 2rpx 0 rgba(255, 255, 255, 0.65);
+  }
+
+  &__post-item {
+    &:not(:last-child) {
+      margin-bottom: 28rpx;
+    }
+
+    :deep(.feed-card) {
+      margin-top: 0;
+      box-shadow: 0 8rpx 28rpx rgba(15, 23, 42, 0.1);
+      border: 1rpx solid rgba(148, 163, 184, 0.38);
+    }
   }
 }
 </style>

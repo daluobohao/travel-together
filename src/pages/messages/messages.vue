@@ -113,7 +113,7 @@
           </view>
 
           <view v-if="eventChats.length" class="messages__block">
-            <text class="messages__block-title">普通群聊</text>
+            <text class="messages__block-title">活动群聊</text>
             <text class="messages__block-desc">报名活动后自动加入</text>
             <view class="messages__block-list">
               <view
