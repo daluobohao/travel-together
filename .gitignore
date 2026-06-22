@@ -23,6 +23,7 @@ src/.hbuilderx/
 
 # Editor directories and files
 .cursor/
+.cursorignore
 .idea
 *.suo
 *.ntvs*
