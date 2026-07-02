@@ -237,7 +237,6 @@ import {
 } from '@/utils/activityShare'
 import { SHARE_SRC_FRIEND, SHARE_SRC_TIMELINE } from '@/utils/acquisitionSource'
 import { ensurePhoneBound, PHONE_GATE_REASON } from '@/utils/phoneGate'
-import { ensureProfileComplete } from '@/utils/profileGate'
 import { openLoginPage } from '@/utils/wechatAuth'
 import { confirmCancelActivity } from '@/utils/activityCancel'
 import { isActivityOrganizer } from '@/utils/activityPermission'
@@ -255,6 +254,7 @@ export default {
       currentUserId: '',
       activityPosts: [],
       activityPostsHint: '',
+      _detailShownOnce: false,
     }
   },
   computed: {
@@ -326,6 +326,9 @@ export default {
       if (this.activity.isEnded) return '活动已结束，欢迎关注下一场。'
       if (this.activity.isFull) return '人数已满，报名通道暂时关闭。'
       if (this.activity.statusKey === 'pending') return '活动正在审核中，通过后可开放报名。'
+      if (this.activity.requireEnrollmentIdentity && !this.isJoined) {
+        return '本场报名需填写本人姓名与身份证号（手机号使用账号绑定号码）。'
+      }
       return `还剩 ${Math.max(0, Number(this.activity.total) - Number(this.activity.joined))} 个名额`
     },
   },
@@ -360,6 +363,10 @@ export default {
       /* ignore */
     }
     // #endif
+    if (this._detailShownOnce && this.activityId) {
+      this.loadActivity(this.activityId)
+    }
+    this._detailShownOnce = true
     if (this.loadState === 'ready' && this.activityId) {
       this.loadActivityPosts()
     }
@@ -465,6 +472,8 @@ export default {
           description: detail.description || '暂无说明',
           guideFilled: !!detail.guideFilled,
           enrollmentStatus: detail.myEnrollment?.status || null,
+          requireEnrollmentIdentity: !!detail.requireEnrollmentIdentity,
+          myEnrollmentIdentity: detail.myEnrollment?.identity || null,
           ...status,
         }
         this.loadState = 'ready'
@@ -680,13 +689,17 @@ export default {
         const back = id
           ? `/pages/activity-detail/activity-detail?id=${encodeURIComponent(id)}`
           : '/pages/activity-detail/activity-detail'
-        const profileOk = await ensureProfileComplete({ redirectPath: back })
-        if (!profileOk) return
         const phoneOk = await ensurePhoneBound({
           redirectPath: back,
           reason: PHONE_GATE_REASON.ENROLL,
         })
         if (!phoneOk) return
+        if (this.activity.requireEnrollmentIdentity) {
+          uni.navigateTo({
+            url: `/pages/enroll-identity/enroll-identity?id=${encodeURIComponent(id)}&mode=enroll`,
+          })
+          return
+        }
       }
       this.actionLoading = true
       try {
@@ -718,8 +731,6 @@ export default {
         openLoginPage(chatUrl)
         return
       }
-      const profileOk = await ensureProfileComplete({ redirectPath: chatUrl })
-      if (!profileOk) return
       const phoneOk = await ensurePhoneBound({
         redirectPath: chatUrl,
         reason: PHONE_GATE_REASON.CHAT,

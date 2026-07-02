@@ -345,6 +345,8 @@ export default {
       cityHostContext: null,
       enrolledCount: 0,
       maxMembers: 0,
+      isOrganizer: false,
+      requireEnrollmentIdentity: false,
       messages: [],
       messageIds: {}, // 去重用：{ [messageId]: true }
       lastCreatedAt: '',
@@ -507,6 +509,8 @@ export default {
         this.activityKind = detail?.activityKind || 'event'
         this.enrolledCount = enrolled
         this.maxMembers = maxM
+        this.isOrganizer = !!detail?.isOrganizer
+        this.requireEnrollmentIdentity = !!detail?.requireEnrollmentIdentity
         const isCityHall = this.activityKind === 'city_hall'
         if (isCityHall) {
           try {
@@ -780,6 +784,8 @@ export default {
         'activityKind=' + encodeURIComponent(this.activityKind || 'event'),
         'memberTotal=' + encodeURIComponent(String(this.enrolledCount || 0)),
         'maxMembers=' + encodeURIComponent(String(this.maxMembers || 0)),
+        'isOrganizer=' + encodeURIComponent(this.isOrganizer ? '1' : '0'),
+        'requireEnrollmentIdentity=' + encodeURIComponent(this.requireEnrollmentIdentity ? '1' : '0'),
       ].join('&')
       uni.navigateTo({ url: '/pages/chat-members/chat-members?' + q })
     },

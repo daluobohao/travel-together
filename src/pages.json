@@ -17,6 +17,13 @@
 			}
 		},
 		{
+			"path": "pages/enroll-identity/enroll-identity",
+			"style": {
+				"navigationBarTitleText": "确认报名信息",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/activity-guide/activity-guide",
 			"style": {
 				"navigationBarTitleText": "活动说明",

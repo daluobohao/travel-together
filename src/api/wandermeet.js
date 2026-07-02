@@ -1467,6 +1467,7 @@ export const createActivity = (payload) =>
         organizer: { userId: wmDB.profile.userId, nickname: wmDB.profile.nickname, avatarUrl: null, verificationBadge: true },
         enrolledCount: 1,
         myEnrollment: { status: 'joined' },
+        requireEnrollmentIdentity: !!data.requireEnrollmentIdentity,
       }
       wmDB.activities.unshift(row)
       return ok({
@@ -1561,16 +1562,63 @@ function pushActivityFullNotification(activity) {
 }
 
 // 15 / 16
-export const enrollActivity = (activityId) =>
+export const getEnrollmentIdentityPrefill = () =>
+  wmRequest({
+    method: 'GET',
+    path: '/me/enrollment-identity',
+    mockHandler: () => {
+      const denied = mockRequirePhoneBound()
+      if (denied) return denied
+      return ok({
+        participantName: '',
+        idCardNumber: '',
+        phoneMasked: wmDB.profile.phoneMasked || '138****0000',
+      })
+    },
+  })
+
+export const updateEnrollmentIdentity = (activityId, payload) =>
+  wmRequest({
+    method: 'PATCH',
+    path: `/activities/${activityId}/enrollments/me/identity`,
+    data: payload,
+    mockHandler: ({ data }) => {
+      const denied = mockRequirePhoneBound()
+      if (denied) return denied
+      const row = wmDB.activities.find((x) => x.activityId === String(activityId))
+      if (!row) return { code: 404, message: '活动不存在', data: null }
+      if (!row.requireEnrollmentIdentity) {
+        return { code: 400, message: '该活动未开启实名报名', data: null }
+      }
+      if (row.myEnrollment) {
+        row.myEnrollment.identity = {
+          participantName: data.participantName,
+          idCardMasked: `${String(data.idCardNumber).slice(0, 6)}********${String(data.idCardNumber).slice(-4)}`,
+          phoneMasked: wmDB.profile.phoneMasked || '',
+          canEditIdentity: true,
+        }
+      }
+      return ok(row.myEnrollment || { status: 'joined' })
+    },
+  })
+
+export const enrollActivity = (activityId, payload) =>
   wmRequest({
     method: 'POST',
     path: `/activities/${activityId}/enrollments`,
-    data: {},
-    mockHandler: () => {
+    data: payload || {},
+    mockHandler: ({ data }) => {
       const denied = mockRequirePhoneBound()
       if (denied) return denied
       const row = wmDB.activities.find((x) => x.activityId === String(activityId))
       if (row) {
+        if (row.requireEnrollmentIdentity) {
+          const name = (data?.participantName || '').trim()
+          const idCard = (data?.idCardNumber || '').trim()
+          if (!name || !idCard) {
+            return { code: 400, message: '请填写姓名与身份证号', data: null }
+          }
+        }
         const current = Number(row.enrolledCount || 0)
         const max = Number(row.maxMembers || 0)
         if (current >= max) {
@@ -1620,6 +1668,29 @@ export const cancelEnrollment = (activityId) =>
     },
   })
 
+// 17 roster export (organizer, full identity for insurance)
+export const getActivityEnrollmentRoster = (activityId) =>
+  wmRequest({
+    method: 'GET',
+    path: `/activities/${activityId}/enrollments/roster`,
+    mockHandler: () => {
+      const activity = wmDB.activities.find((x) => x.activityId === String(activityId))
+      if (!activity?.requireEnrollmentIdentity) {
+        return { code: 400, message: '该活动未开启实名报名', data: null }
+      }
+      return ok({
+        activityTitle: activity?.title || '',
+        list: [
+          {
+            participantName: '周利',
+            idCardNumber: '370402199003073675',
+            phone: wmDB.profile.phone || '13012343133',
+          },
+        ],
+      })
+    },
+  })
+
 // 17
 export const getActivityMembers = (activityId, query = {}) =>
   wmRequest({
@@ -1632,6 +1703,16 @@ export const getActivityMembers = (activityId, query = {}) =>
       const pageSize = Math.min(100, Math.max(1, Number(q.pageSize) || 20))
       const kw = String(q.q || '').trim().toLowerCase()
       const isCityHall = (activity?.activityKind || '') === 'city_hall'
+      const mockIdentity = (nickname) =>
+        activity?.requireEnrollmentIdentity
+          ? {
+              participantName: nickname === wmDB.profile.nickname ? '周利' : nickname,
+              idCardMasked: '370402********3675',
+              phoneMasked: wmDB.profile.phoneMasked || '130****3133',
+              idCardNumber: '370402199003073675',
+              phone: wmDB.profile.phone || '13012343133',
+            }
+          : null
       let pool = [
         ...(isCityHall
           ? []
@@ -1650,6 +1731,7 @@ export const getActivityMembers = (activityId, query = {}) =>
           avatarUrl: wmDB.profile.avatarUrl,
           role: 'member',
           joinedAt: new Date().toISOString(),
+          identity: mockIdentity(wmDB.profile.nickname),
         },
         {
           userId: 'u_10002',
@@ -1657,6 +1739,7 @@ export const getActivityMembers = (activityId, query = {}) =>
           avatarUrl: null,
           role: 'member',
           joinedAt: new Date(Date.now() - 86400000).toISOString(),
+          identity: mockIdentity('旅人小李'),
         },
         {
           userId: 'u_10003',
@@ -1664,6 +1747,7 @@ export const getActivityMembers = (activityId, query = {}) =>
           avatarUrl: null,
           role: 'member',
           joinedAt: new Date(Date.now() - 172800000).toISOString(),
+          identity: mockIdentity('周末玩家'),
         },
       ]
       if (isCityHall && page === 1) {

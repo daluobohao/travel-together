@@ -250,6 +250,18 @@
         <text class="field__hint">点击编辑行程、装备、费用等完整说明</text>
       </view>
 
+      <view v-if="!isEditMode" class="field field--switch">
+        <view class="field__switch-row">
+          <text class="field__label">报名需实名信息</text>
+          <switch
+            :checked="form.requireEnrollmentIdentity"
+            color="#6366f1"
+            @change="onRequireIdentityChange"
+          />
+        </view>
+        <text class="field__hint">开启后，报名者需填写本人姓名与身份证号；手机号使用账号绑定号码，不支持代报</text>
+      </view>
+
       <view class="publish__tip">
         <wm-icon name="shield" :size="32" color="#6366f1" />
         <text>{{ publishDisclaimer }}</text>
@@ -309,7 +321,6 @@ import {
   PUBLISH_START_WINDOW_REJECT_MSG,
 } from '@/constants/homeActivityList'
 import { ensurePhoneBound, PHONE_GATE_REASON } from '@/utils/phoneGate'
-import { ensureProfileComplete } from '@/utils/profileGate'
 import { confirmCancelActivity } from '@/utils/activityCancel'
 import {
   clearPublishGuideDraft,
@@ -347,6 +358,7 @@ export default {
         capacity: '',
         cost: '',
         description: '',
+        requireEnrollmentIdentity: false,
       },
       activityImages: [],
       uploadedActivityImages: [],
@@ -466,8 +478,6 @@ export default {
       redirectToLogin(pagePath)
       return
     }
-    const profileOk = await ensureProfileComplete({ redirectPath: pagePath })
-    if (!profileOk) return
     const phoneOk = await ensurePhoneBound({
       redirectPath: pagePath,
       reason: PHONE_GATE_REASON.PUBLISH,
@@ -493,6 +503,9 @@ export default {
     this.tryApplyPickedLocation()
   },
   methods: {
+    onRequireIdentityChange(e) {
+      this.form.requireEnrollmentIdentity = !!e?.detail?.value
+    },
     openLocationPicker() {
       uni.navigateTo({ url: '/pages/location-picker/location-picker' })
     },
@@ -983,6 +996,7 @@ export default {
             return guideSectionsHasContent(sections) ? sections : undefined
           })(),
           rulesAccepted: { noHarassment: true, noPromotion: true, noInappropriate: true },
+          requireEnrollmentIdentity: !!this.form.requireEnrollmentIdentity,
         })
       } catch (e) {
         if (e?.needLogin || e?.isAuthError) {
@@ -1291,6 +1305,15 @@ export default {
     font-size: 24rpx;
     color: $wm-text-3;
     margin-top: 8rpx;
+  }
+
+  &--switch {
+    .field__switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24rpx;
+    }
   }
 
   &__select {

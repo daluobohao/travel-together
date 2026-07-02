@@ -8,12 +8,16 @@
         <text class="chat-members__title">群成员</text>
         <text class="chat-members__sub">{{ headerSub }}</text>
       </view>
-      <view class="chat-members__copy" @click="copyGroupInfo">
-        <text>复制</text>
+      <view class="chat-members__copy" @click="onCopyTap">
+        <text>{{ copyBtnLabel }}</text>
       </view>
     </view>
 
-    <view v-if="isCityHall" class="chat-members__tip">
+    <view v-if="showEnrollmentInfo" class="chat-members__tip chat-members__tip--identity">
+      <text>列表为脱敏展示；点「复制名单」将调用购险专用接口，复制完整身份证号与手机号。</text>
+    </view>
+
+    <view v-else-if="isCityHall" class="chat-members__tip">
       <text>共 {{ memberTotalLabel }} 人，以下为部分成员；大群不便展示全员，可在群内继续认识新友。</text>
     </view>
 
@@ -51,6 +55,7 @@
               <text v-if="m.role === 'organizer'" class="member-row__badge">组织者</text>
             </view>
             <text v-if="m.joinedLabel" class="member-row__meta">{{ m.joinedLabel }}</text>
+            <text v-if="m.identityLabel" class="member-row__identity">{{ m.identityLabel }}</text>
           </view>
           <text class="member-row__chev">›</text>
         </view>
@@ -67,7 +72,7 @@
 
 <script>
 import WmIcon from '@/components/WmIcon/WmIcon.vue'
-import { getActivityMembers } from '@/api'
+import { getActivityMembers, getActivityEnrollmentRoster } from '@/api'
 import { copyTextToClipboard } from '@/utils/clipboard'
 
 const PAGE_SIZE = 20
@@ -82,6 +87,8 @@ export default {
       activityId: '',
       chatTitle: '',
       activityKind: 'event',
+      isOrganizer: false,
+      requireEnrollmentIdentity: false,
       memberTotal: 0,
       maxMembers: 0,
       members: [],
@@ -95,6 +102,12 @@ export default {
   computed: {
     isCityHall() {
       return this.activityKind === 'city_hall'
+    },
+    showEnrollmentInfo() {
+      return this.isOrganizer && this.requireEnrollmentIdentity && !this.isCityHall
+    },
+    copyBtnLabel() {
+      return this.showEnrollmentInfo ? '复制名单' : '复制'
     },
     memberTotalLabel() {
       const n = Number(this.memberTotal) || 0
@@ -120,6 +133,8 @@ export default {
     this.activityId = query?.id ? decodeURIComponent(String(query.id)) : ''
     this.chatTitle = query?.title ? decodeURIComponent(String(query.title)) : ''
     this.activityKind = query?.activityKind ? decodeURIComponent(String(query.activityKind)) : 'event'
+    this.isOrganizer = String(query?.isOrganizer || '') === '1'
+    this.requireEnrollmentIdentity = String(query?.requireEnrollmentIdentity || '') === '1'
     this.memberTotal = Number(query?.memberTotal) || 0
     this.maxMembers = Number(query?.maxMembers) || 0
     this.loadPage(1, true)
@@ -146,7 +161,29 @@ export default {
         avatarLetter: String(nickname).slice(0, 1),
         role: raw.role || 'member',
         joinedLabel,
+        identityLabel: this.formatIdentityLabel(raw.identity),
+        identity: raw.identity || null,
       }
+    },
+    formatIdentityLabel(identity) {
+      if (!identity || typeof identity !== 'object') return ''
+      const name = String(identity.participantName || '').trim()
+      if (!name) return ''
+      const parts = [name]
+      const idMasked = String(identity.idCardMasked || '').trim()
+      const phoneMasked = String(identity.phoneMasked || '').trim()
+      if (idMasked) parts.push(idMasked)
+      if (phoneMasked) parts.push(phoneMasked)
+      return parts.join(' · ')
+    },
+    formatRosterExportRow(row) {
+      if (!row || typeof row !== 'object') return null
+      const name = String(row.participantName || '').trim()
+      const idCard = String(row.idCardNumber || '').trim()
+      const phone = String(row.phone || '').trim()
+      if (!name || !idCard || !phone) return null
+      if (idCard.includes('*') || phone.includes('*')) return null
+      return { name, idCard, phone }
     },
     async loadPage(page, replace = false) {
       if (!this.activityId) return
@@ -204,6 +241,46 @@ export default {
     goBack() {
       uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/messages/messages' }) })
     },
+    onCopyTap() {
+      if (this.showEnrollmentInfo) {
+        this.copyEnrollmentList()
+        return
+      }
+      this.copyGroupInfo()
+    },
+    async copyEnrollmentList() {
+      if (!this.activityId) return
+      uni.showLoading({ title: '准备名单…', mask: true })
+      try {
+        const data = await getActivityEnrollmentRoster(this.activityId)
+        const exportRows = (data?.list || [])
+          .map((row) => this.formatRosterExportRow(row))
+          .filter(Boolean)
+        if (!exportRows.length) {
+          uni.showToast({
+            title: '暂无完整报名信息，请确认报名者已提交实名且后端已更新',
+            icon: 'none',
+            duration: 3200,
+          })
+          return
+        }
+        const title = String(data?.activityTitle || this.chatTitle || '活动').trim()
+        const lines = [
+          `${title} · 报名名单（购险用）`,
+          '',
+          '姓名\t身份证号\t手机号',
+        ]
+        exportRows.forEach((row) => {
+          lines.push(`${row.name}\t${row.idCard}\t${row.phone}`)
+        })
+        lines.push('', `共 ${exportRows.length} 人`, '仅供为本场活动办理保险等必要用途，请勿外传。')
+        copyTextToClipboard(lines.join('\n'), { successHint: '完整名单已复制' })
+      } catch (e) {
+        uni.showToast({ title: e?.message || '复制失败', icon: 'none' })
+      } finally {
+        uni.hideLoading()
+      }
+    },
     copyGroupInfo() {
       const title = (this.chatTitle || '活动群聊').trim()
       const lines = [title]
@@ -251,7 +328,7 @@ export default {
   }
 
   &__copy {
-    min-width: 72rpx;
+    min-width: 96rpx;
     height: 72rpx;
     padding: 0 8rpx;
     display: flex;
@@ -294,6 +371,11 @@ export default {
     font-size: 22rpx;
     color: #475569;
     line-height: 1.5;
+
+    &--identity {
+      background: #ecfdf5;
+      color: #047857;
+    }
   }
 
   &__scroll {
@@ -378,6 +460,15 @@ export default {
     margin-top: 4rpx;
     font-size: 22rpx;
     color: #94a3b8;
+  }
+
+  &__identity {
+    display: block;
+    margin-top: 6rpx;
+    font-size: 22rpx;
+    color: #047857;
+    line-height: 1.45;
+    word-break: break-all;
   }
 
   &__chev {
